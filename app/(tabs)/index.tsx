@@ -1,154 +1,144 @@
 "use client"
 
 import Button from "@/components/Button"
+import { useAuth } from "@/hooks/useAuth"
+import { userService } from "@/services/userService"
+import { recipeService } from "@/services/recipeService"
+import { ingredientService } from "@/services/ingredientService"
+import { challengeService } from "@/services/challengeService"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { ScrollView, StyleSheet, View, Text, Image, Pressable, FlatList, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
+import { useRouter, useFocusEffect } from "expo-router"
+import type { RecipeWithDetails } from "@/services/recipeService"
+import type { ChallengeWithDetails } from "@/services/challengeService"
+import type { UserIngredientWithDetails } from "@/services/ingredientService"
 
-// Mock data - would be replaced with real data from API/state management
-const userData = {
-  name: "Alex",
-  level: 7,
-  experience: 350,
-  nextLevelExp: 500,
-  streakDays: 5,
-  badges: [
-    { 
-      id: 1, 
-      name: "Veggie Master", 
-      icon: "leaf" as const, 
-      color: "#22c55e", 
-      earned: true 
-    },
-    { 
-      id: 2, 
-      name: "Protein Pro", 
-      icon: "fitness" as const, 
-      color: "#f97316", 
-      earned: true 
-    },
-    { 
-      id: 3, 
-      name: "Hydration Hero", 
-      icon: "water" as const, 
-      color: "#3b82f6", 
-      earned: false 
-    },
-    { 
-      id: 4, 
-      name: "Meal Planner", 
-      icon: "calendar" as const, 
-      color: "#8b5cf6", 
-      earned: true 
-    },
-  ] as const,
-}
-
-// Define Recipe type
-interface Recipe {
-  id: number
+// Define types for user data
+interface UserData {
   name: string
-  image: string
-  ingredients: string[]
-  time: string
-  difficulty: string
-  points: number
-  matchPercentage?: number
+  level: number
+  experience: number
+  nextLevelExp: number
+  streakDays: number
+  badges: Array<{
+    id: string
+    name: string
+    icon: string
+    color: string
+    earned: boolean
+  }>
 }
-
-// More comprehensive mock recipes data
-const allRecipes: Recipe[] = [
-  {
-    id: 1,
-    name: "Avocado Toast with Eggs",
-    image:
-      "https://images.unsplash.com/photo-1525351484163-7529414344d8?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Avocado", "Eggs", "Bread", "Tomato", "Salt", "Pepper", "Olive Oil"],
-    time: "15 min",
-    difficulty: "Easy",
-    points: 50,
-  },
-  {
-    id: 2,
-    name: "Quinoa Salad Bowl",
-    image:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Quinoa", "Cucumber", "Cherry Tomatoes", "Feta", "Red Onion", "Olive Oil", "Lemon"],
-    time: "20 min",
-    difficulty: "Medium",
-    points: 75,
-  },
-  {
-    id: 3,
-    name: "Grilled Chicken with Veggies",
-    image:
-      "https://images.unsplash.com/photo-1532550907401-a500c9a57435?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Chicken Breast", "Broccoli", "Bell Peppers", "Olive Oil", "Garlic", "Salt", "Pepper"],
-    time: "30 min",
-    difficulty: "Medium",
-    points: 100,
-  },
-  {
-    id: 4,
-    name: "Simple Omelette",
-    image:
-      "https://images.unsplash.com/photo-1510693206972-df098062cb71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Eggs", "Cheese", "Milk", "Salt", "Pepper", "Butter"],
-    time: "10 min",
-    difficulty: "Easy",
-    points: 40,
-  },
-  {
-    id: 5,
-    name: "Greek Yogurt Parfait",
-    image:
-      "https://images.unsplash.com/photo-1488477181946-6428a0291777?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Greek Yogurt", "Honey", "Granola", "Berries", "Banana"],
-    time: "5 min",
-    difficulty: "Easy",
-    points: 30,
-  },
-  {
-    id: 6,
-    name: "Cucumber Sandwich",
-    image:
-      "https://images.unsplash.com/photo-1528736235302-52922df5c122?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Bread", "Cucumber", "Cream Cheese", "Salt", "Pepper", "Dill"],
-    time: "10 min",
-    difficulty: "Easy",
-    points: 35,
-  },
-]
-
-const activeChallenge = {
-  id: 1,
-  title: "Veggie Week",
-  description: "Eat 5 vegetable-based meals this week",
-  progress: 3,
-  total: 5,
-  reward: 200,
-  daysLeft: 4,
-}
-
-const recommendedMeals = allRecipes.slice(0, 3) // Declare recommendedMeals variable
 
 export default function HomeScreen() {
   const router = useRouter()
-  const [availableIngredients, setAvailableIngredients] = useState([
-    { id: 1, name: "Avocado", selected: true },
-    { id: 2, name: "Eggs", selected: true },
-    { id: 3, name: "Bread", selected: true },
-    { id: 4, name: "Tomato", selected: true },
-    { id: 5, name: "Chicken", selected: false },
-    { id: 6, name: "Rice", selected: false },
-    { id: 7, name: "Quinoa", selected: true },
-    { id: 8, name: "Cucumber", selected: true },
-  ])
+  const { user } = useAuth()
+  
+  // State
+  const [userData, setUserData] = useState<UserData | null>(null)
+  const [recommendedMeals, setRecommendedMeals] = useState<RecipeWithDetails[]>([])
+  const [suggestedMeals, setSuggestedMeals] = useState<RecipeWithDetails[]>([])
+  const [activeChallenge, setActiveChallenge] = useState<ChallengeWithDetails | null>(null)
+  const [availableIngredients, setAvailableIngredients] = useState<UserIngredientWithDetails[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const [suggestedMeals, setSuggestedMeals] = useState<Recipe[]>([])
+  // Load data when screen focuses
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        loadHomeData()
+      }
+    }, [user])
+  )
+
+  const loadHomeData = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+      
+      // Load user profile and stats
+      const userStats = await userService.getUserStats(user.id)
+      if (userStats.profile) {
+        const nextLevelExp = (userStats.profile.level) * 500 // 500 XP per level
+        setUserData({
+          name: userStats.profile.full_name?.split(' ')[0] || 'User',
+          level: userStats.profile.level,
+          experience: userStats.profile.experience,
+          nextLevelExp,
+          streakDays: userStats.profile.streak_days,
+          badges: [], // Will be loaded separately
+        })
+      }
+
+      // Load recommended meals
+      const recipes = await recipeService.getRecipes({ userId: user.id })
+      setRecommendedMeals(recipes.slice(0, 3))
+
+      // Load meal recommendations based on ingredients
+      const recommendations = await recipeService.getRecommendations(user.id, 3)
+      setSuggestedMeals(recommendations)
+
+      // Load active challenges
+      const challenges = await challengeService.getUserActiveChallenges(user.id)
+      if (challenges.length > 0) {
+        setActiveChallenge(challenges[0])
+      }
+
+      // Load user ingredients
+      const ingredients = await ingredientService.getUserIngredients(user.id)
+      setAvailableIngredients(ingredients.slice(0, 8)) // Show first 8
+      
+    } catch (error) {
+      console.error('Error loading home data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const toggleIngredient = async (ingredientId: string) => {
+    if (!user) return
+
+    try {
+      const newStatus = await ingredientService.toggleIngredientStock(user.id, ingredientId)
+      
+      // Update local state
+      setAvailableIngredients(prev => 
+        prev.map(ing => 
+          ing.ingredient_id === ingredientId 
+            ? { ...ing, in_stock: newStatus }
+            : ing
+        )
+      )
+
+      // Reload suggestions after ingredient change
+      const recommendations = await recipeService.getRecommendations(user.id, 3)
+      setSuggestedMeals(recommendations)
+      
+    } catch (error) {
+      console.error('Error toggling ingredient:', error)
+    }
+  }
+
+  const navigateToRecipe = (id: string) => {
+    router.push(`/(tabs)/recipe/${id}`)
+  }
+
+  const navigateToChallenge = (id: string) => {
+    router.push(`/(tabs)/challenges/${id}`)
+  }
+
+  if (loading || !userData) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text>Loading your dashboard...</Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   // Define types for achievement data
   interface AchievementDetails {
@@ -174,7 +164,6 @@ export default function HomeScreen() {
     total?: number;
     tips?: readonly string[];
   }
-
   
   type AchievementKey = keyof typeof achievementDetails;
 
@@ -243,48 +232,6 @@ export default function HomeScreen() {
     }
   }
 
-  // Calculate meal suggestions based on available ingredients
-  useEffect(() => {
-    const inStockIngredients = availableIngredients
-      .filter((ingredient) => ingredient.selected)
-      .map((ingredient) => ingredient.name)
-
-    // Calculate match percentage for each recipe
-    const mealsWithMatches = allRecipes.map((recipe) => {
-      const matchingIngredients = recipe.ingredients.filter((ingredient) => inStockIngredients.includes(ingredient))
-      const matchPercentage = (matchingIngredients.length / recipe.ingredients.length) * 100
-
-      return {
-        ...recipe,
-        matchPercentage,
-      }
-    })
-
-    // Sort by match percentage and filter recipes with at least 50% match
-    const suggestions = mealsWithMatches
-      .filter((recipe) => recipe.matchPercentage >= 50)
-      .sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0))
-      .slice(0, 3)
-
-    setSuggestedMeals(suggestions)
-  }, [availableIngredients])
-
-  const toggleIngredient = (id: number) => {
-    setAvailableIngredients(
-      availableIngredients.map((ingredient) =>
-        ingredient.id === id ? { ...ingredient, selected: !ingredient.selected } : ingredient,
-      ),
-    )
-  }
-
-  const navigateToRecipe = (id: number) => {
-    router.push(`/(tabs)/recipe/${id}`)
-  }
-
-  const navigateToChallenge = (id: number) => {
-    router.push(`/(tabs)/challenges/${id}`)
-  }
-
   // Calculate experience percentage for progress bar
   const expPercentage = (userData.experience / userData.nextLevelExp) * 100
 
@@ -320,7 +267,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Active Challenge Section */}
-        <View style={styles.sectionContainer}>
+        {activeChallenge && <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Active Challenge</Text>
             <Pressable onPress={() => router.push("/(tabs)/challenges")}>
@@ -344,21 +291,21 @@ export default function HomeScreen() {
                 <View
                   style={[
                     styles.challengeProgressFill,
-                    { width: `${(activeChallenge.progress / activeChallenge.total) * 100}%` },
+                    { width: `${((activeChallenge.userProgress?.completed_tasks || 0) / activeChallenge.total_tasks) * 100}%` },
                   ]}
                 />
               </View>
               <Text style={styles.challengeProgressText}>
-                {activeChallenge.progress}/{activeChallenge.total}
+                {activeChallenge.userProgress?.completed_tasks || 0}/{activeChallenge.total_tasks}
               </Text>
             </View>
 
             <View style={styles.challengeReward}>
               <Ionicons name="star" size={16} color="#f59e0b" />
-              <Text style={styles.challengeRewardText}>{activeChallenge.reward} XP Reward</Text>
+              <Text style={styles.challengeRewardText}>{activeChallenge.reward_points} XP Reward</Text>
             </View>
           </Pressable>
-        </View>
+        </View>}
 
         {/* Recommended Meals Section */}
         <View style={styles.sectionContainer}>
@@ -373,16 +320,16 @@ export default function HomeScreen() {
             data={recommendedMeals}
             horizontal
             showsHorizontalScrollIndicator={false}
-            keyExtractor={(item) => item.id.toString()}
+            keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <Pressable style={styles.mealCard} onPress={() => navigateToRecipe(item.id)}>
-                <Image source={{ uri: item.image }} style={styles.mealImage} resizeMode="cover" />
+                <Image source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }} style={styles.mealImage} resizeMode="cover" />
                 <View style={styles.mealInfo}>
-                  <Text style={styles.mealName}>{item.name}</Text>
+                  <Text style={styles.mealName}>{item.title}</Text>
                   <View style={styles.mealMetaContainer}>
                     <View style={styles.mealMeta}>
                       <Ionicons name="time-outline" size={14} color="#64748b" />
-                      <Text style={styles.mealMetaText}>{item.time}</Text>
+                      <Text style={styles.mealMetaText}>{item.prep_time} min</Text>
                     </View>
                     <View style={styles.mealMeta}>
                       <Ionicons name="star-outline" size={14} color="#64748b" />
@@ -415,20 +362,20 @@ export default function HomeScreen() {
                 key={ingredient.id}
                 style={[
                   styles.ingredientChip,
-                  ingredient.selected ? styles.ingredientSelected : styles.ingredientUnselected,
+                  ingredient.in_stock ? styles.ingredientSelected : styles.ingredientUnselected,
                 ]}
-                onPress={() => toggleIngredient(ingredient.id)}
+                onPress={() => toggleIngredient(ingredient.ingredient_id)}
               >
-                {ingredient.selected && (
+                {ingredient.in_stock && (
                   <Ionicons name="checkmark-circle" size={14} color="#22c55e" style={styles.ingredientIcon} />
                 )}
                 <Text
                   style={[
                     styles.ingredientText,
-                    ingredient.selected ? styles.ingredientTextSelected : styles.ingredientTextUnselected,
+                    ingredient.in_stock ? styles.ingredientTextSelected : styles.ingredientTextUnselected,
                   ]}
                 >
-                  {ingredient.name}
+                  {ingredient.ingredient.name}
                 </Text>
               </Pressable>
             ))}
@@ -449,12 +396,12 @@ export default function HomeScreen() {
               data={suggestedMeals}
               horizontal
               showsHorizontalScrollIndicator={false}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <Pressable style={styles.mealCard} onPress={() => navigateToRecipe(item.id)}>
-                  <Image source={{ uri: item.image }} style={styles.mealImage} resizeMode="cover" />
+                  <Image source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }} style={styles.mealImage} resizeMode="cover" />
                   <View style={styles.mealInfo}>
-                    <Text style={styles.mealName}>{item.name}</Text>
+                    <Text style={styles.mealName}>{item.title}</Text>
                     <View style={styles.matchContainer}>
                       <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
                       <Text style={styles.matchText}>{Math.round(item.matchPercentage || 0)}% match</Text>
@@ -462,7 +409,7 @@ export default function HomeScreen() {
                     <View style={styles.mealMetaContainer}>
                       <View style={styles.mealMeta}>
                         <Ionicons name="time-outline" size={14} color="#64748b" />
-                        <Text style={styles.mealMetaText}>{item.time}</Text>
+                        <Text style={styles.mealMetaText}>{item.prep_time} min</Text>
                       </View>
                       <View style={styles.mealMeta}>
                         <Ionicons name="star-outline" size={14} color="#64748b" />
@@ -494,7 +441,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Achievements Section */}
-        <View style={styles.sectionContainer}>
+        {userData.badges.length > 0 && <View style={styles.sectionContainer}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>My Achievements</Text>
             <Pressable onPress={() => router.push("/(tabs)/profile")}>
@@ -512,7 +459,7 @@ export default function HomeScreen() {
               >
                 <View style={[styles.badgeIcon, { backgroundColor: badge.earned ? badge.color : "#e2e8f0" }]}>
                   <Ionicons
-                    name={badge.icon as keyof typeof Ionicons.glyphMap}
+                    name={badge.icon as any}
                     size={24}
                     color={badge.earned ? "white" : "#94a3b8"}
                   />
@@ -522,7 +469,7 @@ export default function HomeScreen() {
               </TouchableOpacity>
             ))}
           </View>
-        </View>
+        </View>}
 
         {/* Achievement Detail Modal */}
         {showAchievementModal && selectedAchievement && (
@@ -540,7 +487,7 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Ionicons
-                    name={selectedAchievement.icon as keyof typeof Ionicons.glyphMap}
+                    name={selectedAchievement.icon as any}
                     size={32}
                     color={selectedAchievement.earned ? "white" : "#94a3b8"}
                   />
@@ -624,6 +571,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#f8fafc",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
   },
   header: {
     flexDirection: "row",

@@ -3,10 +3,33 @@ import { Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { StyleSheet, View } from "react-native"
 import { SafeAreaProvider } from "react-native-safe-area-context"
+import { useAuth } from "@/hooks/useAuth"
+import { useEffect, useState } from "react"
+import { ActivityIndicator, Text } from "react-native"
 import FloatingActionButton from "../components/FloatingActionButton"
 import TabNavigation from "../components/TabNavigation"
 
 export default function RootLayout() {
+  const { user, loading } = useAuth()
+  const [isReady, setIsReady] = useState(false)
+
+  useEffect(() => {
+    if (!loading) {
+      setIsReady(true)
+    }
+  }, [loading])
+
+  if (!isReady) {
+    return (
+      <SafeAreaProvider>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#22c55e" />
+          <Text style={styles.loadingText}>Loading MealR...</Text>
+        </View>
+      </SafeAreaProvider>
+    )
+  }
+
   return (
     <SafeAreaProvider>
       <StatusBar style="auto" />
@@ -15,6 +38,7 @@ export default function RootLayout() {
           headerShown: false,
         }}
       >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen
           name="create-recipe"
@@ -30,18 +54,32 @@ export default function RootLayout() {
         />
       </Stack>
 
-      {/* Custom Tab Navigation */}
-      <TabNavigation />
-
-      {/* Floating Action Button */}
-      <View style={styles.fabContainer}>
-        <FloatingActionButton />
-      </View>
+      {/* Only show tab navigation and FAB when user is authenticated */}
+      {user && (
+        <>
+          <TabNavigation />
+          <View style={styles.fabContainer}>
+            <FloatingActionButton />
+          </View>
+        </>
+      )}
     </SafeAreaProvider>
   )
 }
 
 const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: "#166534",
+    fontWeight: "600",
+  },
   fabContainer: {
     position: "absolute",
     bottom: 70, // Position above the tab bar
