@@ -8,8 +8,10 @@ import { useEffect, useState } from "react"
 import { ActivityIndicator, Text } from "react-native"
 import FloatingActionButton from "../components/FloatingActionButton"
 import TabNavigation from "../components/TabNavigation"
+import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 
 export default function RootLayout() {
+  useFrameworkReady();
   const { user, loading } = useAuth()
   const [isReady, setIsReady] = useState(false)
 
