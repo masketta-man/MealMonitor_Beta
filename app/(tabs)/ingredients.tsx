@@ -1,35 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Pressable } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
+import { useAuth } from "@/hooks/useAuth"
+import { ingredientService, type UserIngredientWithDetails } from "@/services/ingredientService"
 
 // Components
 import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 
-// Define types
 type IngredientCategory = "Fruits" | "Vegetables" | "Protein" | "Dairy" | "Grains" | "Pantry"
 
-interface Ingredient {
-  id: number
-  name: string
-  category: IngredientCategory
-  inStock: boolean
-  quantity?: string
-  expiryDate?: string
-}
-
-interface CategoryStyle {
-  color: string
-  bgColor: string
-}
-
 // Define category styles
-const CATEGORY_STYLES: Record<IngredientCategory, CategoryStyle> = {
+const CATEGORY_STYLES: Record<IngredientCategory, { color: string; bgColor: string }> = {
   Fruits: { color: "#f97316", bgColor: "#ffedd5" },
   Vegetables: { color: "#22c55e", bgColor: "#dcfce7" },
   Protein: { color: "#ef4444", bgColor: "#fee2e2" },
@@ -38,47 +25,63 @@ const CATEGORY_STYLES: Record<IngredientCategory, CategoryStyle> = {
   Pantry: { color: "#8b5cf6", bgColor: "#f3e8ff" },
 }
 
-// Mock data for ingredients
-const MOCK_INGREDIENTS: Ingredient[] = [
-  { id: 1, name: "Avocado", category: "Fruits", inStock: true, quantity: "2", expiryDate: "2023-06-15" },
-  { id: 2, name: "Eggs", category: "Protein", inStock: true, quantity: "12", expiryDate: "2023-06-20" },
-  { id: 3, name: "Bread", category: "Grains", inStock: true, quantity: "1 loaf", expiryDate: "2023-06-10" },
-  { id: 4, name: "Tomatoes", category: "Vegetables", inStock: true, quantity: "4", expiryDate: "2023-06-12" },
-  { id: 5, name: "Chicken Breast", category: "Protein", inStock: false },
-  { id: 6, name: "Rice", category: "Grains", inStock: false },
-  { id: 7, name: "Quinoa", category: "Grains", inStock: true, quantity: "500g", expiryDate: "2023-08-30" },
-  { id: 8, name: "Cucumber", category: "Vegetables", inStock: true, quantity: "2", expiryDate: "2023-06-14" },
-  { id: 9, name: "Milk", category: "Dairy", inStock: true, quantity: "1L", expiryDate: "2023-06-18" },
-  { id: 10, name: "Cheese", category: "Dairy", inStock: true, quantity: "200g", expiryDate: "2023-06-25" },
-  { id: 11, name: "Olive Oil", category: "Pantry", inStock: true, quantity: "500ml", expiryDate: "2023-12-31" },
-  { id: 12, name: "Salt", category: "Pantry", inStock: true },
-  { id: 13, name: "Pepper", category: "Pantry", inStock: true },
-  { id: 14, name: "Bananas", category: "Fruits", inStock: true, quantity: "5", expiryDate: "2023-06-10" },
-  { id: 15, name: "Apples", category: "Fruits", inStock: true, quantity: "6", expiryDate: "2023-06-20" },
-]
-
 export default function IngredientsScreen() {
   const router = useRouter()
+  const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
-  const [ingredients, setIngredients] = useState<Ingredient[]>(MOCK_INGREDIENTS)
-  const [filteredIngredients, setFilteredIngredients] = useState<Ingredient[]>(MOCK_INGREDIENTS)
+  const [ingredients, setIngredients] = useState<UserIngredientWithDetails[]>([])
+  const [filteredIngredients, setFilteredIngredients] = useState<UserIngredientWithDetails[]>([])
   const [selectedCategory, setSelectedCategory] = useState<IngredientCategory | "All">("All")
   const [showInStockOnly, setShowInStockOnly] = useState(false)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (user) {
+      loadIngredients()
+    }
+  }, [user])
 
   // Toggle ingredient stock status
-  const toggleIngredientStock = (id: number) => {
-    const updatedIngredients = ingredients.map((ingredient) =>
-      ingredient.id === id ? { ...ingredient, inStock: !ingredient.inStock } : ingredient,
-    )
-    setIngredients(updatedIngredients)
-    filterIngredients(searchQuery, selectedCategory, showInStockOnly, updatedIngredients)
+  const toggleIngredientStock = async (ingredientId: string) => {
+    if (!user) return
 
-    // Show a message to the user about meal suggestions
-    if (updatedIngredients.find((i) => i.id === id)?.inStock) {
-      // Only show when toggling to "in stock"
-      setTimeout(() => {
-        alert("Your meal suggestions have been updated based on your available ingredients!")
-      }, 500)
+    try {
+      const newStockStatus = await ingredientService.toggleIngredientStock(user.id, ingredientId)
+      
+      // Update local state
+      const updatedIngredients = ingredients.map((userIngredient) =>
+        userIngredient.ingredient_id === ingredientId 
+          ? { ...userIngredient, in_stock: newStockStatus } 
+          : userIngredient,
+      )
+      setIngredients(updatedIngredients)
+      filterIngredients(searchQuery, selectedCategory, showInStockOnly, updatedIngredients)
+
+      // Show a message to the user about meal suggestions
+      if (newStockStatus) {
+        setTimeout(() => {
+          alert("Your meal suggestions have been updated based on your available ingredients!")
+        }, 500)
+      }
+    } catch (error) {
+      console.error('Error toggling ingredient stock:', error)
+      alert('Failed to update ingredient status. Please try again.')
+    }
+  }
+
+  const loadIngredients = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+      const userIngredients = await ingredientService.getUserIngredients(user.id)
+      setIngredients(userIngredients)
+      setFilteredIngredients(userIngredients)
+    } catch (error) {
+      console.error('Error loading ingredients:', error)
+      alert('Failed to load ingredients. Please try again.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -87,60 +90,65 @@ export default function IngredientsScreen() {
     query: string,
     category: IngredientCategory | "All",
     inStockOnly: boolean,
-    ingredientsList: Ingredient[] = ingredients,
+    ingredientsList: UserIngredientWithDetails[] = ingredients,
   ) => {
     let filtered = [...ingredientsList]
 
     // Apply search filter
     if (query) {
-      filtered = filtered.filter((ingredient) => ingredient.name.toLowerCase().includes(query.toLowerCase()))
+      filtered = filtered.filter((userIngredient) => 
+        userIngredient.ingredient.name.toLowerCase().includes(query.toLowerCase())
+      )
     }
 
     // Apply category filter
     if (category !== "All") {
-      filtered = filtered.filter((ingredient) => ingredient.category === category)
+      filtered = filtered.filter((userIngredient) => 
+        userIngredient.ingredient.category === category
+      )
     }
 
     // Apply in-stock filter
     if (inStockOnly) {
-      filtered = filtered.filter((ingredient) => ingredient.inStock)
+      filtered = filtered.filter((userIngredient) => userIngredient.in_stock)
     }
 
     setFilteredIngredients(filtered)
   }
 
   // Group ingredients by category
-  const groupedIngredients: Record<string, Ingredient[]> = {}
+  const groupedIngredients: Record<string, UserIngredientWithDetails[]> = {}
   filteredIngredients.forEach((item) => {
-    if (!groupedIngredients[item.category]) {
-      groupedIngredients[item.category] = []
+    const category = item.ingredient.category
+    if (!groupedIngredients[category]) {
+      groupedIngredients[category] = []
     }
-    groupedIngredients[item.category].push(item)
+    groupedIngredients[category].push(item)
   })
 
   // Render ingredient item
-  const renderIngredientItem = ({ item }: { item: Ingredient }) => {
-    const categoryStyle = CATEGORY_STYLES[item.category as IngredientCategory]
+  const renderIngredientItem = ({ item }: { item: UserIngredientWithDetails }) => {
+    const categoryStyle = CATEGORY_STYLES[item.ingredient.category as IngredientCategory]
     return (
       <Card style={styles.ingredientCard}>
         <View style={styles.ingredientHeader}>
           <View style={styles.ingredientTitleContainer}>
-            <Badge text={item.category} color={categoryStyle.color} backgroundColor={categoryStyle.bgColor} small />
-            <Text style={styles.ingredientName}>{item.name}</Text>
+            <Badge text={item.ingredient.category} color={categoryStyle.color} backgroundColor={categoryStyle.bgColor} small />
+            <Text style={styles.ingredientName}>{item.ingredient.name}</Text>
           </View>
           <TouchableOpacity
-            style={[styles.stockButton, item.inStock ? styles.inStockButton : styles.outOfStockButton]}
-            onPress={() => toggleIngredientStock(item.id)}
+            style={[styles.stockButton, item.in_stock ? styles.inStockButton : styles.outOfStockButton]}
+            onPress={() => toggleIngredientStock(item.ingredient_id)}
           >
             <Text
-              style={[styles.stockButtonText, item.inStock ? styles.inStockButtonText : styles.outOfStockButtonText]}
+              style={[styles.stockButtonText, item.in_stock ? styles.inStockButtonText : styles.outOfStockButtonText]}
             >
-              {item.inStock ? "In Stock" : "Out of Stock"}
+              {item.in_stock ? "In Stock" : "Out of Stock"}
             </Text>
           </TouchableOpacity>
         </View>
 
-        {item.inStock && (
+        {item.in_stock && (
           <View style={styles.ingredientDetails}>
             {item.quantity && (
               <View style={styles.detailItem}>
@@ -148,15 +156,27 @@ export default function IngredientsScreen() {
                 <Text style={styles.detailText}>Quantity: {item.quantity}</Text>
               </View>
             )}
-            {item.expiryDate && (
+            {item.expiry_date && (
               <View style={styles.detailItem}>
                 <Ionicons name="calendar-outline" size={16} color="#4b5563" />
-                <Text style={styles.detailText}>Expires: {item.expiryDate}</Text>
+                <Text style={styles.detailText}>Expires: {new Date(item.expiry_date).toLocaleDateString()}</Text>
               </View>
             )}
           </View>
         )}
       </Card>
+    )
+  }
+
+  if (loading) {
+    return (
+      <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading your ingredients...</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
     )
   }
 
@@ -172,16 +192,7 @@ export default function IngredientsScreen() {
           <TouchableOpacity
             style={styles.addButton}
             onPress={() => {
-              const newId = Math.max(...ingredients.map((i) => i.id)) + 1
-              const newIngredient = {
-                id: newId,
-                name: "New Ingredient",
-                category: "Pantry" as IngredientCategory,
-                inStock: true,
-              }
-              const updatedIngredients = [...ingredients, newIngredient]
-              setIngredients(updatedIngredients)
-              setFilteredIngredients(updatedIngredients)
+              alert("Add ingredient feature coming soon!")
             }}
           >
             <Ionicons name="add" size={24} color="#166534" />
@@ -279,7 +290,7 @@ export default function IngredientsScreen() {
         <FlatList
           data={filteredIngredients}
           renderItem={renderIngredientItem}
-          keyExtractor={(item) => item.id.toString()}
+          keyExtractor={(item) => item.id}
           contentContainerStyle={styles.ingredientsList}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
@@ -328,6 +339,17 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#166534",
+    textAlign: "center",
   },
   searchContainer: {
     paddingHorizontal: 16,

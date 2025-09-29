@@ -1,11 +1,14 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
+import { useAuth } from "@/hooks/useAuth"
+import { userService } from "@/services/userService"
+import { badgeService, type BadgeWithProgress } from "@/services/badgeService"
 
 // Components
 import Card from "@/components/Card"
@@ -15,156 +18,121 @@ import TabView from "@/components/TabView"
 
 const { width } = Dimensions.get("window")
 
-// Mock data for user profile
-const userData = {
-  name: "Johnny Bravo",
-  username: "johnnyb",
-  level: 7,
-  experience: 350,
-  nextLevelExp: 500,
-  streakDays: 5,
-  totalPoints: 1250,
-  joinDate: "March 2023",
+interface UserStats {
+  profile: any
   stats: {
-    mealsCompleted: 48,
-    challengesCompleted: 12,
-    ingredientsUsed: 86,
-    perfectWeeks: 3,
-  },
+    mealsCompleted: number
+    challengesCompleted: number
+    badgesEarned: number
+  }
 }
 
-// Mock data for achievements/badges
-const achievements = [
-  {
-    id: 1,
-    name: "Veggie Master",
-    description: "Complete 10 vegetable-based recipes",
-    icon: "leaf",
-    color: "#22c55e",
-    progress: 10,
-    total: 10,
-    earned: true,
-    earnedDate: "2 weeks ago",
-  },
-  {
-    id: 2,
-    name: "Protein Pro",
-    description: "Prepare 15 high-protein meals",
-    icon: "fitness",
-    color: "#f97316",
-    progress: 15,
-    total: 15,
-    earned: true,
-    earnedDate: "1 week ago",
-  },
-  {
-    id: 3,
-    name: "Hydration Hero",
-    description: "Log water intake for 14 consecutive days",
-    icon: "water",
-    color: "#3b82f6",
-    progress: 8,
-    total: 14,
-    earned: false,
-  },
-  {
-    id: 4,
-    name: "Meal Planner",
-    description: "Create 5 weekly meal plans",
-    icon: "calendar",
-    color: "#8b5cf6",
-    progress: 5,
-    total: 5,
-    earned: true,
-    earnedDate: "3 days ago",
-  },
-  {
-    id: 5,
-    name: "Breakfast Champion",
-    description: "Prepare 20 healthy breakfast recipes",
-    icon: "sunny",
-    color: "#f59e0b",
-    progress: 14,
-    total: 20,
-    earned: false,
-  },
-  {
-    id: 6,
-    name: "Nutrition Expert",
-    description: "Complete the nutrition quiz with 100% score",
-    icon: "school",
-    color: "#ec4899",
-    progress: 1,
-    total: 1,
-    earned: true,
-    earnedDate: "1 month ago",
-  },
-]
-
-// Mock data for activity history
-const activityHistory = [
-  {
-    id: 1,
-    type: "recipe",
-    title: "Completed Mediterranean Salad recipe",
-    points: 60,
-    date: "Today",
-    icon: "restaurant",
-    color: "#22c55e",
-  },
-  {
-    id: 2,
-    type: "challenge",
-    title: "Completed Veggie Week challenge",
-    points: 200,
-    date: "Yesterday",
-    icon: "trophy",
-    color: "#f59e0b",
-  },
-  {
-    id: 3,
-    type: "level",
-    title: "Reached Level 7",
-    points: 0,
-    date: "2 days ago",
-    icon: "star",
-    color: "#3b82f6",
-  },
-  {
-    id: 4,
-    type: "badge",
-    title: "Earned Meal Planner badge",
-    points: 100,
-    date: "3 days ago",
-    icon: "ribbon",
-    color: "#8b5cf6",
-  },
-  {
-    id: 5,
-    type: "recipe",
-    title: "Completed Avocado & Egg Toast recipe",
-    points: 45,
-    date: "4 days ago",
-    icon: "restaurant",
-    color: "#22c55e",
-  },
-  {
-    id: 6,
-    type: "ingredient",
-    title: "Added 5 new ingredients to inventory",
-    points: 25,
-    date: "5 days ago",
-    icon: "nutrition",
-    color: "#ec4899",
-  },
-]
+interface ActivityItem {
+  id: string
+  type: string
+  title: string
+  points: number
+  date: string
+  icon: string
+  color: string
+}
 
 export default function ProfileScreen() {
   const router = useRouter()
+  const { user, signOut } = useAuth()
   const [activeTab, setActiveTab] = useState("achievements")
+  const [userStats, setUserStats] = useState<UserStats | null>(null)
+  const [badges, setBadges] = useState<BadgeWithProgress[]>([])
+  const [activityHistory, setActivityHistory] = useState<ActivityItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Calculate experience percentage for progress bar
-  const expPercentage = (userData.experience / userData.nextLevelExp) * 100
+  useEffect(() => {
+    if (user) {
+      loadUserData()
+    }
+  }, [user])
+
+  const loadUserData = async () => {
+    if (!user) return
+
+    try {
+      setLoading(true)
+
+      // Load user stats
+      const stats = await userService.getUserStats(user.id)
+      setUserStats(stats)
+
+      // Load badges with progress
+      const badgesData = await badgeService.getBadgesWithProgress(user.id)
+      setBadges(badgesData)
+
+      // Mock activity history for now - in a real app, this would come from the database
+      const mockActivity: ActivityItem[] = [
+        {
+          id: "1",
+          type: "recipe",
+          title: "Completed a delicious recipe",
+          points: 60,
+          date: "Today",
+          icon: "restaurant",
+          color: "#22c55e",
+        },
+        {
+          id: "2",
+          type: "challenge",
+          title: "Completed weekly challenge",
+          points: 200,
+          date: "Yesterday",
+          icon: "trophy",
+          color: "#f59e0b",
+        },
+        {
+          id: "3",
+          type: "level",
+          title: `Reached Level ${stats.profile?.level || 1}`,
+          points: 0,
+          date: "2 days ago",
+          icon: "star",
+          color: "#3b82f6",
+        },
+      ]
+      setActivityHistory(mockActivity)
+
+    } catch (error) {
+      console.error('Error loading user data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSignOut = async () => {
+    try {
+      await signOut()
+      router.replace("/(auth)/login")
+    } catch (error) {
+      console.error('Error signing out:', error)
+    }
+  }
+
+  if (loading || !userStats?.profile) {
+    return (
+      <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
+        <SafeAreaView style={styles.safeArea} edges={["top"]}>
+          <View style={styles.loadingContainer}>
+            <Text style={styles.loadingText}>Loading profile...</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
+    )
+  }
+
+  const profile = userStats.profile
+  const nextLevelExp = profile.level * 500
+  const expPercentage = (profile.experience / nextLevelExp) * 100
+  const joinDate = new Date(profile.created_at).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long' 
+  })
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
@@ -176,19 +144,15 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => {
-                console.log("Settings pressed")
-                // In a real app, you would navigate to settings
-                // router.push("/(tabs)/settings");
-                alert("Settings feature coming soon!")
+                handleSignOut()
               }}
             >
-              <Ionicons name="settings-outline" size={24} color="#166534" />
+              <Ionicons name="log-out-outline" size={24} color="#166534" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => {
                 console.log("Share profile pressed")
-                // In a real app, you would open a share dialog
                 alert("Share profile feature coming soon!")
               }}
             >
@@ -202,15 +166,15 @@ export default function ProfileScreen() {
           <Card style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <View style={styles.profileImageContainer}>
-                <Text style={styles.profileImageText}>{userData.name.charAt(0)}</Text>
+                <Text style={styles.profileImageText}>{profile.full_name?.charAt(0) || 'U'}</Text>
               </View>
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{userData.name}</Text>
-                <Text style={styles.profileUsername}>@{userData.username}</Text>
+                <Text style={styles.profileName}>{profile.full_name || 'User'}</Text>
+                <Text style={styles.profileUsername}>@{profile.username || 'user'}</Text>
                 <View style={styles.profileMeta}>
                   <View style={styles.profileMetaItem}>
                     <Ionicons name="calendar-outline" size={14} color="#64748b" />
-                    <Text style={styles.profileMetaText}>Joined {userData.joinDate}</Text>
+                    <Text style={styles.profileMetaText}>Joined {joinDate}</Text>
                   </View>
                 </View>
               </View>
@@ -219,10 +183,10 @@ export default function ProfileScreen() {
             <View style={styles.levelContainer}>
               <View style={styles.levelHeader}>
                 <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>Level {userData.level}</Text>
+                  <Text style={styles.levelText}>Level {profile.level}</Text>
                 </View>
                 <Text style={styles.expText}>
-                  {userData.experience}/{userData.nextLevelExp} XP
+                  {profile.experience}/{nextLevelExp} XP
                 </Text>
               </View>
               <ProgressBar progress={expPercentage / 100} colors={["#4ade80", "#22c55e"]} height={8} />
@@ -234,7 +198,7 @@ export default function ProfileScreen() {
                   <View style={[styles.statIconContainer, { backgroundColor: "#dcfce7" }]}>
                     <Ionicons name="flame" size={20} color="#22c55e" />
                   </View>
-                  <Text style={styles.statValue}>{userData.streakDays}</Text>
+                  <Text style={styles.statValue}>{profile.streak_days}</Text>
                   <Text style={styles.statLabel}>Day Streak</Text>
                 </View>
 
@@ -242,7 +206,7 @@ export default function ProfileScreen() {
                   <View style={[styles.statIconContainer, { backgroundColor: "#fef3c7" }]}>
                     <Ionicons name="star" size={20} color="#f59e0b" />
                   </View>
-                  <Text style={styles.statValue}>{userData.totalPoints}</Text>
+                  <Text style={styles.statValue}>{profile.total_points}</Text>
                   <Text style={styles.statLabel}>Total Points</Text>
                 </View>
               </View>
@@ -252,7 +216,7 @@ export default function ProfileScreen() {
                   <View style={[styles.statIconContainer, { backgroundColor: "#dbeafe" }]}>
                     <Ionicons name="restaurant" size={20} color="#3b82f6" />
                   </View>
-                  <Text style={styles.statValue}>{userData.stats.mealsCompleted}</Text>
+                  <Text style={styles.statValue}>{userStats.stats.mealsCompleted}</Text>
                   <Text style={styles.statLabel}>Meals</Text>
                 </View>
 
@@ -260,7 +224,7 @@ export default function ProfileScreen() {
                   <View style={[styles.statIconContainer, { backgroundColor: "#f3e8ff" }]}>
                     <Ionicons name="trophy" size={20} color="#8b5cf6" />
                   </View>
-                  <Text style={styles.statValue}>{userData.stats.challengesCompleted}</Text>
+                  <Text style={styles.statValue}>{userStats.stats.challengesCompleted}</Text>
                   <Text style={styles.statLabel}>Challenges</Text>
                 </View>
               </View>
@@ -283,49 +247,51 @@ export default function ProfileScreen() {
                   <View style={styles.sectionHeader}>
                     <Text style={styles.sectionTitle}>Earned Badges</Text>
                     <Badge
-                      text={`${achievements.filter((a) => a.earned).length}/${achievements.length}`}
+                      text={`${badges.filter((b) => b.isEarned).length}/${badges.length}`}
                       color="#166534"
                       backgroundColor="#dcfce7"
                     />
                   </View>
 
                   <View style={styles.badgesGrid}>
-                    {achievements.map((badge) => (
+                    {badges.map((badge) => (
                       <Pressable key={badge.id} style={styles.badgeItem}>
                         <View
                           style={[
                             styles.badgeIconContainer,
-                            { backgroundColor: badge.earned ? badge.color : "#e2e8f0" },
+                            { backgroundColor: badge.isEarned ? badge.color : "#e2e8f0" },
                           ]}
                         >
                           <Ionicons
                             name={badge.icon as keyof typeof Ionicons.glyphMap}
                             size={24}
-                            color={badge.earned ? "white" : "#94a3b8"}
+                            color={badge.isEarned ? "white" : "#94a3b8"}
                           />
-                          {!badge.earned && (
+                          {!badge.isEarned && (
                             <View style={styles.badgeLock}>
                               <Ionicons name="lock-closed" size={12} color="white" />
                             </View>
                           )}
                         </View>
-                        <Text style={[styles.badgeName, { color: badge.earned ? "#1e293b" : "#94a3b8" }]}>
+                        <Text style={[styles.badgeName, { color: badge.isEarned ? "#1e293b" : "#94a3b8" }]}>
                           {badge.name}
                         </Text>
-                        {badge.earned ? (
-                          <Text style={styles.badgeEarned}>{badge.earnedDate}</Text>
+                        {badge.isEarned ? (
+                          <Text style={styles.badgeEarned}>
+                            {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Earned'}
+                          </Text>
                         ) : (
                           <View style={styles.badgeProgressContainer}>
                             <View style={styles.badgeProgressBar}>
                               <View
                                 style={[
                                   styles.badgeProgressFill,
-                                  { width: `${(badge.progress / badge.total) * 100}%` },
+                                  { width: `${(badge.progress / badge.requirement_value) * 100}%` },
                                 ]}
                               />
                             </View>
                             <Text style={styles.badgeProgressText}>
-                              {badge.progress}/{badge.total}
+                              {badge.progress}/{badge.requirement_value}
                             </Text>
                           </View>
                         )}
@@ -422,6 +388,17 @@ const styles = StyleSheet.create({
   headerButton: {
     padding: 8,
     marginLeft: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#166534",
+    textAlign: "center",
   },
   profileCard: {
     margin: 16,

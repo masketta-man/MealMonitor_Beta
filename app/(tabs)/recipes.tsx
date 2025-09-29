@@ -1,21 +1,13 @@
 "use client"
 
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { useEffect, useState } from "react"
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native"
+import { useState, useEffect } from "react"
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { LinearGradient } from "expo-linear-gradient"
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import { useRouter, useLocalSearchParams } from "expo-router"
+import { useAuth } from "@/hooks/useAuth"
+import { recipeService } from "@/services/recipeService"
 
 // Components
 import Badge from "@/components/Badge"
@@ -23,148 +15,20 @@ import Button from "@/components/Button"
 import Card from "@/components/Card"
 import FilterChip from "@/components/FilterChip"
 
-// Define Recipe type
-interface Recipe {
-  id: string
-  title: string
-  image: string
-  ingredients: string[]
-  difficulty: string
-  mealType: string
-  prepTime: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  points: number
-  isFavorite: boolean
-  hasAllIngredients: boolean
-  nutritionScore: number
-  matchPercentage?: number
-}
+import type { RecipeWithDetails } from "@/services/recipeService"
 
 // Filter options
 const MEAL_TYPES = ["All", "Breakfast", "Lunch", "Dinner", "Snack"]
 const DIFFICULTY_LEVELS = ["All", "Beginner", "Intermediate", "Advanced"]
 const SORT_OPTIONS = ["Recommended", "Points (High to Low)", "Prep Time", "Nutrition Score"]
 
-// Mock data for recipes
-const MOCK_RECIPES: Recipe[] = [
-  {
-    id: "1",
-    title: "Avocado & Egg Toast",
-    image:
-      "https://images.unsplash.com/photo-1525351484163-7529414344d8?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Avocado", "Eggs", "Bread", "Tomatoes", "Salt", "Pepper"],
-    difficulty: "Beginner",
-    mealType: "Breakfast",
-    prepTime: "15 min",
-    calories: 320,
-    protein: 15,
-    carbs: 30,
-    fat: 18,
-    points: 45,
-    isFavorite: false,
-    hasAllIngredients: true,
-    nutritionScore: 8.5,
-  },
-  {
-    id: "2",
-    title: "Mediterranean Salad",
-    image:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Chicken", "Lettuce", "Cucumber", "Olives", "Feta Cheese", "Olive Oil", "Lemon"],
-    difficulty: "Intermediate",
-    mealType: "Lunch",
-    prepTime: "20 min",
-    calories: 380,
-    protein: 25,
-    carbs: 15,
-    fat: 22,
-    points: 60,
-    isFavorite: true,
-    hasAllIngredients: false,
-    nutritionScore: 9.2,
-  },
-  {
-    id: "3",
-    title: "Vegetable Stir Fry",
-    image:
-      "https://images.unsplash.com/photo-1532550907401-a500c9a57435?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Tofu", "Broccoli", "Carrots", "Peppers", "Soy Sauce", "Ginger", "Garlic"],
-    difficulty: "Intermediate",
-    mealType: "Dinner",
-    prepTime: "25 min",
-    calories: 340,
-    protein: 18,
-    carbs: 35,
-    fat: 12,
-    points: 75,
-    isFavorite: false,
-    hasAllIngredients: true,
-    nutritionScore: 9.0,
-  },
-  {
-    id: "4",
-    title: "Simple Omelette",
-    image:
-      "https://images.unsplash.com/photo-1510693206972-df098062cb71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Eggs", "Cheese", "Milk", "Salt", "Pepper", "Butter"],
-    difficulty: "Beginner",
-    mealType: "Breakfast",
-    prepTime: "10 min",
-    calories: 280,
-    protein: 18,
-    carbs: 2,
-    fat: 22,
-    points: 40,
-    isFavorite: false,
-    hasAllIngredients: true,
-    nutritionScore: 7.5,
-  },
-  {
-    id: "5",
-    title: "Quinoa Bowl",
-    image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Quinoa", "Avocado", "Black Beans", "Corn", "Lime", "Cilantro"],
-    difficulty: "Intermediate",
-    mealType: "Lunch",
-    prepTime: "25 min",
-    calories: 420,
-    protein: 15,
-    carbs: 65,
-    fat: 14,
-    points: 65,
-    isFavorite: false,
-    hasAllIngredients: false,
-    nutritionScore: 9.5,
-  },
-  {
-    id: "6",
-    title: "Grilled Salmon",
-    image:
-      "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    ingredients: ["Salmon", "Lemon", "Garlic", "Olive Oil", "Dill", "Salt", "Pepper"],
-    difficulty: "Advanced",
-    mealType: "Dinner",
-    prepTime: "30 min",
-    calories: 450,
-    protein: 40,
-    carbs: 5,
-    fat: 28,
-    points: 85,
-    isFavorite: false,
-    hasAllIngredients: false,
-    nutritionScore: 9.8,
-  },
-]
-
 export default function RecipesScreen() {
   const router = useRouter()
+  const { user } = useAuth()
   const params = useLocalSearchParams<{ suggestions?: string }>()
   const [searchQuery, setSearchQuery] = useState("")
-  const [recipes, setRecipes] = useState<Recipe[]>(MOCK_RECIPES)
-  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>(MOCK_RECIPES)
+  const [recipes, setRecipes] = useState<RecipeWithDetails[]>([])
+  const [filteredRecipes, setFilteredRecipes] = useState<RecipeWithDetails[]>([])
   const [selectedMealType, setSelectedMealType] = useState("All")
   const [selectedDifficulty, setSelectedDifficulty] = useState("All")
   const [selectedSortOption, setSelectedSortOption] = useState("Recommended")
@@ -173,20 +37,51 @@ export default function RecipesScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
 
+  useEffect(() => {
+    if (user) {
+      loadRecipes()
+    }
+  }, [user])
+
   // Check if we should show suggestions
   useEffect(() => {
-    if (params.suggestions === "true" && !showSuggestions) {
+    if (params.suggestions === "true" && !showSuggestions && user) {
       setShowSuggestions(true)
-      // In a real app, this would use actual ingredient data
-      const suggestedRecipes = MOCK_RECIPES.map((recipe) => ({
-        ...recipe,
-        matchPercentage: recipe.hasAllIngredients ? 100 : Math.floor(Math.random() * 50) + 50
-      })).sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0))
+      loadSuggestedRecipes()
+    }
+  }, [params.suggestions, showSuggestions, user])
 
+  const loadRecipes = async () => {
+    if (!user) return
+
+    try {
+      setIsLoading(true)
+      const recipesData = await recipeService.getRecipes({ userId: user.id })
+      setRecipes(recipesData)
+      setFilteredRecipes(recipesData)
+    } catch (error) {
+      console.error('Error loading recipes:', error)
+      Alert.alert('Error', 'Failed to load recipes. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const loadSuggestedRecipes = async () => {
+    if (!user) return
+
+    try {
+      setIsLoading(true)
+      const suggestedRecipes = await recipeService.getRecommendations(user.id, 20)
       setRecipes(suggestedRecipes)
       setFilteredRecipes(suggestedRecipes)
+    } catch (error) {
+      console.error('Error loading suggested recipes:', error)
+      Alert.alert('Error', 'Failed to load recipe suggestions. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
-  }, [params.suggestions, showSuggestions])
+  }
 
   // Filter recipes based on search query and filters
   useEffect(() => {
@@ -200,13 +95,13 @@ export default function RecipesScreen() {
         filtered = filtered.filter(
           (recipe) =>
             recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            recipe.ingredients.some((ingredient) => ingredient.toLowerCase().includes(searchQuery.toLowerCase())),
+            recipe.ingredients.some((ingredient) => ingredient.name.toLowerCase().includes(searchQuery.toLowerCase())),
         )
       }
 
       // Apply meal type filter
       if (selectedMealType !== "All") {
-        filtered = filtered.filter((recipe) => recipe.mealType === selectedMealType)
+        filtered = filtered.filter((recipe) => recipe.meal_type === selectedMealType)
       }
 
       // Apply difficulty filter
@@ -226,10 +121,10 @@ export default function RecipesScreen() {
           sortedRecipes.sort((a, b) => b.points - a.points)
           break
         case "Prep Time":
-          sortedRecipes.sort((a, b) => Number.parseInt(a.prepTime) - Number.parseInt(b.prepTime))
+          sortedRecipes.sort((a, b) => a.prep_time - b.prep_time)
           break
         case "Nutrition Score":
-          sortedRecipes.sort((a, b) => b.nutritionScore - a.nutritionScore)
+          sortedRecipes.sort((a, b) => (b.nutrition_score || 0) - (a.nutrition_score || 0))
           break
         default:
           // 'Recommended' - if showing suggestions, sort by match percentage
@@ -253,10 +148,23 @@ export default function RecipesScreen() {
 
   // Toggle favorite status for a recipe
   const toggleFavorite = (id: string) => {
-    const updatedRecipes = recipes.map((recipe) =>
-      recipe.id === id ? { ...recipe, isFavorite: !recipe.isFavorite } : recipe,
-    )
-    setRecipes(updatedRecipes)
+    if (!user) return
+
+    recipeService.toggleFavorite(user.id, id).then((isFavorite) => {
+      const updatedRecipes = recipes.map((recipe) =>
+        recipe.id === id ? { ...recipe, isFavorite } : recipe,
+      )
+      setRecipes(updatedRecipes)
+      
+      // Update filtered recipes as well
+      const updatedFilteredRecipes = filteredRecipes.map((recipe) =>
+        recipe.id === id ? { ...recipe, isFavorite } : recipe,
+      )
+      setFilteredRecipes(updatedFilteredRecipes)
+    }).catch((error) => {
+      console.error('Error toggling favorite:', error)
+      Alert.alert('Error', 'Failed to update favorite status. Please try again.')
+    })
   }
 
   // Navigate to recipe detail
@@ -265,10 +173,10 @@ export default function RecipesScreen() {
   }
 
   // Render recipe card
-  const renderRecipeCard = ({ item }: { item: Recipe }) => (
+  const renderRecipeCard = ({ item }: { item: RecipeWithDetails }) => (
     <Card style={styles.recipeCard}>
       <View style={styles.recipeImageContainer}>
-        <Image source={{ uri: item.image }} style={styles.recipeImage} resizeMode="cover" />
+        <Image source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
         <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(item.id)}>
           <Ionicons
             name={item.isFavorite ? "heart" : "heart-outline"}
@@ -292,22 +200,22 @@ export default function RecipesScreen() {
         <View style={styles.recipeMetaContainer}>
           <View style={styles.recipeMeta}>
             <Ionicons name="time-outline" size={16} color="#4b5563" />
-            <Text style={styles.recipeMetaText}>{item.prepTime}</Text>
+            <Text style={styles.recipeMetaText}>{item.prep_time}m</Text>
           </View>
           <View style={styles.recipeMeta}>
             <Ionicons name="flame-outline" size={16} color="#4b5563" />
-            <Text style={styles.recipeMetaText}>{item.calories} cal</Text>
+            <Text style={styles.recipeMetaText}>{item.calories || 0} cal</Text>
           </View>
           <View style={styles.recipeMeta}>
             <MaterialCommunityIcons name="food-apple-outline" size={16} color="#4b5563" />
-            <Text style={styles.recipeMetaText}>{item.nutritionScore}</Text>
+            <Text style={styles.recipeMetaText}>{item.nutrition_score || 0}</Text>
           </View>
         </View>
 
         <View style={styles.ingredientsContainer}>
           <Text style={styles.ingredientsTitle}>Ingredients:</Text>
           <Text style={styles.ingredientsList}>
-            {item.ingredients.slice(0, 4).join(", ")}
+            {item.ingredients.slice(0, 4).map(ing => ing.name).join(", ")}
             {item.ingredients.length > 4 ? "..." : ""}
           </Text>
           {!item.hasAllIngredients && (
@@ -334,10 +242,10 @@ export default function RecipesScreen() {
               small
             />
             <Badge
-              text={item.mealType}
-              color={item.mealType === "Breakfast" ? "#1e40af" : item.mealType === "Lunch" ? "#0e7490" : "#7e22ce"}
+              text={item.meal_type}
+              color={item.meal_type === "Breakfast" ? "#1e40af" : item.meal_type === "Lunch" ? "#0e7490" : "#7e22ce"}
               backgroundColor={
-                item.mealType === "Breakfast" ? "#dbeafe" : item.mealType === "Lunch" ? "#cffafe" : "#f3e8ff"
+                item.meal_type === "Breakfast" ? "#dbeafe" : item.meal_type === "Lunch" ? "#cffafe" : "#f3e8ff"
               }
               small
               style={styles.secondBadge}
@@ -401,7 +309,7 @@ export default function RecipesScreen() {
               style={styles.clearSuggestionsButton}
               onPress={() => {
                 setShowSuggestions(false)
-                setRecipes(MOCK_RECIPES)
+                loadRecipes()
                 router.setParams({ suggestions: "false" })
               }}
             >
