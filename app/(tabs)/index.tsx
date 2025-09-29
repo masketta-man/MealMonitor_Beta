@@ -30,12 +30,12 @@ interface UserStats {
 interface Recipe {
   id: string
   title: string
-  image_url: string
+  image_url: string | null
   prep_time: number
   difficulty: string
   meal_type: string
   points: number
-  nutrition_score: number
+  nutrition_score: number | null
   isFavorite?: boolean
   hasAllIngredients?: boolean
   matchPercentage?: number
@@ -64,25 +64,37 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('🏠 Dashboard: useEffect triggered', { hasUser: !!user, userId: user?.id, loading })
     if (user) {
+      console.log('🏠 Dashboard: User detected, loading data...')
       loadUserData()
+    } else {
+      // No user authenticated, redirect to login
+      console.log('🏠 Dashboard: No user, redirecting to login')
+      setLoading(false)
+      router.replace('/login')
     }
-  }, [user])
+  }, [user, router])
 
   const loadUserData = async () => {
     if (!user) return
 
+    setLoading(true)
     try {
-      setLoading(true)
 
+      console.log("Loading user stats...");
       // Load user stats
       const stats = await userService.getUserStats(user.id)
       setUserStats(stats)
+      console.log("User stats loaded");
 
+      console.log("Loading recipe recommendations...");
       // Load recipe recommendations
       const recipes = await recipeService.getRecommendations(user.id, 5)
       setRecommendedRecipes(recipes)
+      console.log("Recipe recommendations loaded");
 
+      console.log("Loading active challenges...");
       // Load active challenges
       const challenges = await challengeService.getUserActiveChallenges(user.id)
       const challengesWithStyle = challenges.map(challenge => ({
@@ -94,10 +106,13 @@ export default function HomeScreen() {
         progress: challenge.userProgress?.completed_tasks || 0,
       }))
       setActiveChallenges(challengesWithStyle)
+      console.log("Active challenges loaded");
 
+      console.log("Loading available ingredients count...");
       // Load available ingredients count
       const ingredients = await ingredientService.getUserInStockIngredients(user.id)
       setAvailableIngredients(ingredients.length)
+      console.log("Available ingredients count loaded");
 
     } catch (error) {
       console.error('Error loading user data:', error)
@@ -267,7 +282,10 @@ export default function HomeScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recipesScroll}>
             {recommendedRecipes.map((recipe) => (
               <Card key={recipe.id} style={styles.recipeCard} onPress={() => navigateToRecipe(recipe.id)}>
-                <Image source={{ uri: recipe.image_url }} style={styles.recipeImage} />
+                <Image 
+                  source={{ uri: recipe.image_url || 'https://via.placeholder.com/200x120?text=No+Image' }} 
+                  style={styles.recipeImage} 
+                />
                 <View style={styles.recipeContent}>
                   <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
                   <View style={styles.recipeMetaRow}>
