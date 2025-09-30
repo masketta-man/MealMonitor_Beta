@@ -42,6 +42,7 @@ export default function SignUpScreen() {
       return
     }
 
+    console.log('🔑 Signup: Starting signup process...')
     setIsLoading(true)
     const { error } = await signUp(formData.email, formData.password, {
       full_name: formData.fullName,
@@ -49,13 +50,12 @@ export default function SignUpScreen() {
     })
     
     if (error) {
+      console.log('🔑 Signup: Signup failed:', error.message)
       Alert.alert("Sign Up Failed", error.message)
     } else {
-      Alert.alert(
-        "Success!",
-        "Account created successfully. Let's set up your profile!",
-        [{ text: "OK", onPress: () => router.push("/(auth)/onboarding") }]
-      )
+      console.log('🔑 Signup: Signup successful, navigating to onboarding')
+      // Navigate directly to onboarding
+      router.replace("/(auth)/onboarding")
     }
     setIsLoading(false)
   }

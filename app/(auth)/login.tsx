@@ -26,18 +26,18 @@ export default function LoginScreen() {
       return
     }
 
+    console.log('🔑 Login: Starting login process...')
     setIsLoading(true)
 
     const { error } = await signIn(email, password)
 
     if (error) {
+      console.log('🔑 Login: Login failed:', error.message)
       Alert.alert("Login Failed", error.message)
     } else {
-      // Navigation will be handled by the auth state change in _layout.tsx
-      // Just show success message
-      Alert.alert("Success", "Login successful!", [
-        { text: "OK", onPress: () => router.replace("/(tabs)/") }
-      ])
+      console.log('🔑 Login: Login successful, navigating to dashboard')
+      // Force navigation to main app
+      router.replace("/(tabs)/")
     }
     setIsLoading(false)
   }

@@ -64,10 +64,19 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    console.log('🏠 Dashboard: useEffect triggered', { 
+      hasUser: !!user, 
+      userId: user?.id, 
+      loading 
+    })
+    
     if (user) {
+      console.log('🏠 Dashboard: User found, loading data...')
       loadUserData()
     } else {
+      console.log('🏠 Dashboard: No user, redirecting to login')
       setLoading(false)
+      router.replace("/(auth)/login")
     }
   }, [user])
 

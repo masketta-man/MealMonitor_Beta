@@ -159,6 +159,7 @@ export default function OnboardingScreen() {
       return
     }
 
+    console.log('🔑 Onboarding: Completing onboarding process...')
     setIsLoading(true)
     
     try {
@@ -174,19 +175,12 @@ export default function OnboardingScreen() {
       })
 
       if (profile) {
-        Alert.alert(
-          "Welcome to MealR!",
-          "Your profile has been set up successfully. Let's start cooking!",
-          [{ 
-            text: "Let's Go!", 
-            onPress: () => {
-              // Force navigation to home screen
-              router.dismissAll()
-              router.replace("/(tabs)/")
-            }
-          }]
-        )
+        console.log('🔑 Onboarding: Profile created successfully, navigating to dashboard')
+        // Force navigation to home screen
+        router.dismissAll()
+        router.replace("/(tabs)/")
       } else {
+        console.log('🔑 Onboarding: Failed to create profile')
         Alert.alert("Error", "Failed to save your preferences. Please try again.")
       }
     } catch (error) {

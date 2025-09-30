@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar"
 import { StyleSheet, View } from "react-native"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { useAuth } from "@/hooks/useAuth"
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { ActivityIndicator, Text } from "react-native"
 import FloatingActionButton from "../components/FloatingActionButton"
 import TabNavigation from "../components/TabNavigation"
@@ -13,27 +13,15 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 export default function RootLayout() {
   useFrameworkReady();
   const { user, loading, session } = useAuth()
-  const [isReady, setIsReady] = useState(false)
 
-  useEffect(() => {
-    if (!loading) {
-      setIsReady(true)
-    }
-  }, [loading])
+  console.log('🔐 Layout: Auth state:', { 
+    hasUser: !!user, 
+    hasSession: !!session, 
+    loading,
+    userId: user?.id 
+  })
 
-  // Handle navigation based on auth state
-  useEffect(() => {
-    if (isReady && !loading) {
-      if (user && session) {
-        console.log('🔐 Layout: User authenticated, ensuring on main app')
-        // User is authenticated, make sure they're not stuck on auth screens
-      } else {
-        console.log('🔐 Layout: No user, should be on auth screens')
-      }
-    }
-  }, [user, session, isReady, loading])
-
-  if (!isReady) {
+  if (loading) {
     return (
       <SafeAreaProvider>
         <View style={styles.loadingContainer}>
@@ -69,7 +57,7 @@ export default function RootLayout() {
       </Stack>
 
       {/* Only show tab navigation and FAB when user is authenticated */}
-      {user && (
+      {user && session && (
         <>
           <TabNavigation />
           <View style={styles.fabContainer}>

@@ -16,6 +16,7 @@ export default function Page() {
 
   // Show loading while auth state is being determined
   if (loading) {
+    console.log('🏠 Root Page: Still loading auth state...')
     return null
   }
   
