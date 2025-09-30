@@ -177,7 +177,14 @@ export default function OnboardingScreen() {
         Alert.alert(
           "Welcome to MealR!",
           "Your profile has been set up successfully. Let's start cooking!",
-          [{ text: "Let's Go!", onPress: () => router.replace("/(tabs)/") }]
+          [{ 
+            text: "Let's Go!", 
+            onPress: () => {
+              // Force navigation to home screen
+              router.dismissAll()
+              router.replace("/(tabs)/")
+            }
+          }]
         )
       } else {
         Alert.alert("Error", "Failed to save your preferences. Please try again.")

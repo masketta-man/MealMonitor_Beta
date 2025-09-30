@@ -53,7 +53,7 @@ export default function SignUpScreen() {
     } else {
       Alert.alert(
         "Success!",
-        "Account created successfully. Please check your email to verify your account.",
+        "Account created successfully. Let's set up your profile!",
         [{ text: "OK", onPress: () => router.push("/(auth)/onboarding") }]
       )
     }

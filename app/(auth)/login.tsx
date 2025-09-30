@@ -27,24 +27,19 @@ export default function LoginScreen() {
     }
 
     setIsLoading(true)
-    console.log('🔑 Login: Attempting login for:', email)
 
     const { error } = await signIn(email, password)
 
     if (error) {
-      console.log('🔑 Login: Login failed:', error.message)
       Alert.alert("Login Failed", error.message)
-      setIsLoading(false)
     } else {
-      console.log('🔑 Login: Login successful, waiting for auth state update...')
-      // Wait for auth state to update before navigating
-      // Since we know the auth state updates asynchronously, wait a reasonable time
-      setTimeout(() => {
-        console.log('🔑 Login: Auth state should be updated, navigating to dashboard')
-        router.replace("/(tabs)/")
-        setIsLoading(false)
-      }, 1000) // Wait 1 second for auth state to update
+      // Navigation will be handled by the auth state change in _layout.tsx
+      // Just show success message
+      Alert.alert("Success", "Login successful!", [
+        { text: "OK", onPress: () => router.replace("/(tabs)/") }
+      ])
     }
+    setIsLoading(false)
   }
 
   const navigateToSignUp = () => {

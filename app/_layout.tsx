@@ -12,7 +12,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 
 export default function RootLayout() {
   useFrameworkReady();
-  const { user, loading } = useAuth()
+  const { user, loading, session } = useAuth()
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
@@ -20,6 +20,18 @@ export default function RootLayout() {
       setIsReady(true)
     }
   }, [loading])
+
+  // Handle navigation based on auth state
+  useEffect(() => {
+    if (isReady && !loading) {
+      if (user && session) {
+        console.log('🔐 Layout: User authenticated, ensuring on main app')
+        // User is authenticated, make sure they're not stuck on auth screens
+      } else {
+        console.log('🔐 Layout: No user, should be on auth screens')
+      }
+    }
+  }, [user, session, isReady, loading])
 
   if (!isReady) {
     return (

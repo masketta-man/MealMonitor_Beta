@@ -64,37 +64,26 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    console.log('🏠 Dashboard: useEffect triggered', { hasUser: !!user, userId: user?.id, loading })
     if (user) {
-      console.log('🏠 Dashboard: User detected, loading data...')
       loadUserData()
     } else {
-      // No user authenticated, redirect to login
-      console.log('🏠 Dashboard: No user, redirecting to login')
       setLoading(false)
-      router.replace('/login')
     }
-  }, [user, router])
+  }, [user])
 
   const loadUserData = async () => {
     if (!user) return
 
     setLoading(true)
     try {
-
-      console.log("Loading user stats...");
       // Load user stats
       const stats = await userService.getUserStats(user.id)
       setUserStats(stats)
-      console.log("User stats loaded");
 
-      console.log("Loading recipe recommendations...");
       // Load recipe recommendations
       const recipes = await recipeService.getRecommendations(user.id, 5)
       setRecommendedRecipes(recipes)
-      console.log("Recipe recommendations loaded");
 
-      console.log("Loading active challenges...");
       // Load active challenges
       const challenges = await challengeService.getUserActiveChallenges(user.id)
       const challengesWithStyle = challenges.map(challenge => ({
@@ -106,13 +95,10 @@ export default function HomeScreen() {
         progress: challenge.userProgress?.completed_tasks || 0,
       }))
       setActiveChallenges(challengesWithStyle)
-      console.log("Active challenges loaded");
 
-      console.log("Loading available ingredients count...");
       // Load available ingredients count
       const ingredients = await ingredientService.getUserInStockIngredients(user.id)
       setAvailableIngredients(ingredients.length)
-      console.log("Available ingredients count loaded");
 
     } catch (error) {
       console.error('Error loading user data:', error)
