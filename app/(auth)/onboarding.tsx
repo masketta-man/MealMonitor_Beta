@@ -133,8 +133,11 @@ export default function OnboardingScreen() {
   const canProceed = () => {
     const key = currentStepData.key
     if (currentStepData.multiple) {
-      return (preferences[key] as string[]).length > 0
+      // For multiple selection steps, allow proceeding even with no selections
+      // Users might want to skip certain preferences
+      return true
     } else {
+      // For single selection steps, require a selection
       return preferences[key] !== ""
     }
   }
@@ -264,9 +267,20 @@ export default function OnboardingScreen() {
             color="white"
             backgroundColor="#22c55e"
             onPress={handleNext}
-            disabled={!canProceed() || isLoading}
+            disabled={isLoading}
             style={styles.nextButton}
           />
+          
+          {/* Skip button for optional steps */}
+          {currentStepData.multiple && currentStep < steps.length - 1 && (
+            <TouchableOpacity 
+              style={styles.skipButton} 
+              onPress={handleNext}
+              disabled={isLoading}
+            >
+              <Text style={styles.skipButtonText}>Skip for now</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -378,5 +392,14 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     marginBottom: 8,
+  },
+  skipButton: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  skipButtonText: {
+    fontSize: 14,
+    color: "#64748b",
+    fontWeight: "500",
   },
 })
