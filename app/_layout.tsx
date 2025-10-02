@@ -4,7 +4,7 @@ import { StatusBar } from "expo-status-bar"
 import { StyleSheet, View } from "react-native"
 import { SafeAreaProvider } from "react-native-safe-area-context"
 import { useAuth } from "@/hooks/useAuth"
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { ActivityIndicator, Text } from "react-native"
 import FloatingActionButton from "../components/FloatingActionButton"
 import TabNavigation from "../components/TabNavigation"
@@ -13,24 +13,37 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 export default function RootLayout() {
   useFrameworkReady();
   const { user, loading, session } = useAuth()
+  const [isInitialized, setIsInitialized] = useState(false)
 
-  console.log('🔐 Layout: Auth state:', { 
+  useEffect(() => {
+    // Wait for auth to be fully initialized
+    if (!loading) {
+      setIsInitialized(true)
+    }
+  }, [loading])
+
+  console.log('🔐 Layout: Auth state:', {
     hasUser: !!user, 
     hasSession: !!session, 
     loading,
-    userId: user?.id 
+    userId: user?.id,
+    isInitialized
   })
 
-  if (loading) {
+  // Show loading until auth is fully initialized
+  if (loading || !isInitialized) {
+    console.log('🔐 Layout: Still loading or not initialized...')
     return (
       <SafeAreaProvider>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#22c55e" />
-          <Text style={styles.loadingText}>Loading MealR...</Text>
+          <Text style={styles.loadingText}>Loading MealMonitor...</Text>
         </View>
       </SafeAreaProvider>
     )
   }
+
+  console.log('🔐 Layout: Auth initialized, rendering app...')
 
   return (
     <SafeAreaProvider>

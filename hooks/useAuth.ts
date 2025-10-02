@@ -6,6 +6,7 @@ export function useAuth() {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     console.log('🔐 useAuth: Initializing auth hook...')
@@ -18,7 +19,12 @@ export function useAuth() {
       })
       setSession(session)
       setUser(session?.user ?? null)
-      setLoading(false)
+      setInitialized(true)
+      
+      // Small delay to ensure state propagation
+      setTimeout(() => {
+        setLoading(false)
+      }, 50)
     })
 
     // Listen for auth changes
@@ -32,11 +38,14 @@ export function useAuth() {
       })
       setSession(session)
       setUser(session?.user ?? null)
-      setLoading(false)
+      
+      if (initialized) {
+        setLoading(false)
+      }
     })
 
     return () => subscription.unsubscribe()
-  }, [])
+  }, [initialized])
 
   const signIn = async (email: string, password: string) => {
     console.log('🔐 useAuth: Attempting sign in...')
@@ -51,9 +60,15 @@ export function useAuth() {
       // Manually update state to ensure immediate response
       setSession(data.session)
       setUser(data.session.user)
+      
+      // Force a small delay to ensure state propagation
+      setTimeout(() => {
+        setLoading(false)
+      }, 100)
+    } else {
+      setLoading(false)
     }
     
-    setLoading(false)
     console.log('🔐 useAuth: Sign in completed:', { 
       success: !error, 
       hasSession: !!data.session,
@@ -78,9 +93,14 @@ export function useAuth() {
       // Manually update state for immediate response
       setSession(data.session)
       setUser(data.session.user)
+      
+      setTimeout(() => {
+        setLoading(false)
+      }, 100)
+    } else {
+      setLoading(false)
     }
     
-    setLoading(false)
     console.log('🔐 useAuth: Sign up completed:', { 
       success: !error, 
       hasSession: !!data.session,
@@ -111,6 +131,7 @@ export function useAuth() {
     session,
     user,
     loading,
+    initialized,
     signIn,
     signUp,
     signOut,

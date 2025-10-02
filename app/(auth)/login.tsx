@@ -34,12 +34,13 @@ export default function LoginScreen() {
     if (error) {
       console.log('🔑 Login: Login failed:', error.message)
       Alert.alert("Login Failed", error.message)
+      setIsLoading(false)
     } else {
       console.log('🔑 Login: Login successful, navigating to dashboard')
-      // Force navigation to main app
-      router.replace("/(tabs)/")
+      // Don't manually navigate - let the auth state handle it
+      // The root layout will automatically redirect when auth state updates
+      console.log('🔑 Login: Auth state should be updated, waiting for redirect...')
     }
-    setIsLoading(false)
   }
 
   const navigateToSignUp = () => {

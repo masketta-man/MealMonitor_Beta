@@ -73,9 +73,8 @@ export default function HomeScreen() {
     if (user) {
       console.log('🏠 Dashboard: User found, loading data...')
       loadUserData()
-    } else {
+    } else if (!loading) {
       console.log('🏠 Dashboard: No user, redirecting to login')
-      setLoading(false)
       router.replace("/(auth)/login")
     }
   }, [user])
