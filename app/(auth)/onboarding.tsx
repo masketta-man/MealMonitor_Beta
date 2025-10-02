@@ -133,12 +133,11 @@ export default function OnboardingScreen() {
   const canProceed = () => {
     const key = currentStepData.key
     if (currentStepData.multiple) {
-      // For multiple selection steps, allow proceeding even with no selections
-      // Users might want to skip certain preferences
+      // Always allow proceeding for multiple selection steps
       return true
     } else {
-      // For single selection steps, require a selection
-      return preferences[key] !== ""
+      // Always allow proceeding - users can skip any step
+      return true
     }
   }
 
@@ -271,8 +270,8 @@ export default function OnboardingScreen() {
             style={styles.nextButton}
           />
           
-          {/* Skip button for optional steps */}
-          {currentStepData.multiple && currentStep < steps.length - 1 && (
+          {/* Skip button for all steps except the last one */}
+          {currentStep < steps.length - 1 && (
             <TouchableOpacity 
               style={styles.skipButton} 
               onPress={handleNext}
@@ -298,7 +297,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   backButton: {
     width: 40,
@@ -319,20 +318,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   stepText: {
-    fontSize: 14,
+    fontSize: 16,
     color: "#64748b",
-    marginBottom: 8,
+    marginBottom: 12,
+    fontWeight: "600",
   },
   progressBar: {
     width: "100%",
-    height: 4,
+    height: 6,
     backgroundColor: "#e2e8f0",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#22c55e",
-    borderRadius: 2,
+    borderRadius: 3,
   },
   placeholder: {
     width: 40,
@@ -342,31 +342,36 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   questionCard: {
-    padding: 24,
+    padding: 20,
     marginTop: 16,
   },
   title: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: "800",
     color: "#166534",
     textAlign: "center",
-    marginBottom: 8,
+    marginBottom: 12,
+    lineHeight: 28,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#64748b",
     textAlign: "center",
-    marginBottom: 32,
+    marginBottom: 24,
+    lineHeight: 22,
+    paddingHorizontal: 8,
   },
   optionsContainer: {
-    gap: 12,
+    gap: 14,
   },
   optionButton: {
     backgroundColor: "#f9fafb",
     borderWidth: 2,
     borderColor: "#e5e7eb",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
+    minHeight: 60,
+    justifyContent: "center",
   },
   optionButtonSelected: {
     backgroundColor: "#dcfce7",
@@ -378,28 +383,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   optionText: {
-    fontSize: 16,
+    fontSize: 15,
     color: "#374151",
-    fontWeight: "500",
+    fontWeight: "600",
+    flex: 1,
+    marginRight: 12,
+    lineHeight: 20,
   },
   optionTextSelected: {
     color: "#166534",
-    fontWeight: "600",
+    fontWeight: "700",
   },
   footer: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 20,
+    paddingBottom: 32,
   },
   nextButton: {
-    marginBottom: 8,
+    marginBottom: 12,
+    minHeight: 52,
   },
   skipButton: {
     alignItems: "center",
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   skipButtonText: {
-    fontSize: 14,
+    fontSize: 15,
     color: "#64748b",
-    fontWeight: "500",
+    fontWeight: "600",
   },
 })
