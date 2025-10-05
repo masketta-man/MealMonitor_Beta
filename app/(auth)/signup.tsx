@@ -48,16 +48,17 @@ export default function SignUpScreen() {
       full_name: formData.fullName,
       username: formData.username,
     })
-    
+
     if (error) {
       console.log('🔑 Signup: Signup failed:', error.message)
       Alert.alert("Sign Up Failed", error.message)
+      setIsLoading(false)
     } else {
-      console.log('🔑 Signup: Signup successful, navigating to onboarding')
-      // Navigate directly to onboarding
+      console.log('🔑 Signup: Signup successful')
+      // Navigate to onboarding for new users
       router.replace("/(auth)/onboarding")
+      setIsLoading(false)
     }
-    setIsLoading(false)
   }
 
   const navigateToLogin = () => {
