@@ -36,10 +36,8 @@ export default function LoginScreen() {
       Alert.alert("Login Failed", error.message)
       setIsLoading(false)
     } else {
-      console.log('🔑 Login: Login successful, navigating to dashboard')
-      // Don't manually navigate - let the auth state handle it
+      console.log('🔑 Login: Login successful')
       // The root layout will automatically redirect when auth state updates
-      console.log('🔑 Login: Auth state should be updated, waiting for redirect...')
     }
   }
 

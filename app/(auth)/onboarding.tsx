@@ -177,10 +177,8 @@ export default function OnboardingScreen() {
       })
 
       if (profile) {
-        console.log('🔑 Onboarding: Profile created successfully, navigating to dashboard')
-        // Force navigation to home screen
-        router.dismissAll()
-        router.replace("/(tabs)/")
+        console.log('🔑 Onboarding: Profile created successfully')
+        // The root layout will automatically redirect when onboarding is complete
       } else {
         console.log('🔑 Onboarding: Failed to create profile')
         Alert.alert("Error", "Failed to save your preferences. Please try again.")

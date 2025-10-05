@@ -1,5 +1,5 @@
 "use client"
-import { Stack } from "expo-router"
+import { Stack, useRouter, useSegments } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import { StyleSheet, View } from "react-native"
 import { SafeAreaProvider } from "react-native-safe-area-context"
@@ -14,6 +14,8 @@ export default function RootLayout() {
   useFrameworkReady();
   const { user, loading, session } = useAuth()
   const [isInitialized, setIsInitialized] = useState(false)
+  const segments = useSegments()
+  const router = useRouter()
 
   useEffect(() => {
     // Wait for auth to be fully initialized
@@ -22,9 +24,32 @@ export default function RootLayout() {
     }
   }, [loading])
 
+  useEffect(() => {
+    if (!isInitialized) return
+
+    const inAuthGroup = segments[0] === '(auth)'
+
+    console.log('🔐 Layout: Navigation check:', {
+      hasUser: !!user,
+      hasSession: !!session,
+      inAuthGroup,
+      segments
+    })
+
+    if (!user && !session && !inAuthGroup) {
+      // Redirect to login if not authenticated and not in auth group
+      console.log('🔐 Layout: Redirecting to login')
+      router.replace('/(auth)/login')
+    } else if (user && session && inAuthGroup) {
+      // Redirect to tabs if authenticated and still in auth group
+      console.log('🔐 Layout: Redirecting to tabs')
+      router.replace('/(tabs)')
+    }
+  }, [user, session, segments, isInitialized])
+
   console.log('🔐 Layout: Auth state:', {
-    hasUser: !!user, 
-    hasSession: !!session, 
+    hasUser: !!user,
+    hasSession: !!session,
     loading,
     userId: user?.id,
     isInitialized
