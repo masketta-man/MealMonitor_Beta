@@ -33,7 +33,21 @@ export default function LoginScreen() {
 
     if (error) {
       console.log('🔑 Login: Login failed:', error.message)
-      Alert.alert("Login Failed", error.message)
+
+      // Provide user-friendly error messages
+      let errorMessage = "An error occurred during login. Please try again."
+
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Invalid email or password. Please check your credentials and try again."
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Please verify your email address before logging in."
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        errorMessage = "Network error. Please check your internet connection and try again."
+      } else if (error.message.includes("User not found")) {
+        errorMessage = "No account found with this email. Please sign up first."
+      }
+
+      Alert.alert("Login Failed", errorMessage)
       setIsLoading(false)
     } else {
       console.log('🔑 Login: Login successful')

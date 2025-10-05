@@ -9,6 +9,7 @@ import { ActivityIndicator, Text } from "react-native"
 import FloatingActionButton from "../components/FloatingActionButton"
 import TabNavigation from "../components/TabNavigation"
 import { useFrameworkReady } from '@/hooks/useFrameworkReady'
+import { supabase } from "@/lib/supabase"
 
 export default function RootLayout() {
   useFrameworkReady();
@@ -28,23 +29,44 @@ export default function RootLayout() {
     if (!isInitialized) return
 
     const inAuthGroup = segments[0] === '(auth)'
+    const inOnboarding = segments[1] === 'onboarding'
 
     console.log('🔐 Layout: Navigation check:', {
       hasUser: !!user,
       hasSession: !!session,
       inAuthGroup,
+      inOnboarding,
       segments
     })
 
-    if (!user && !session && !inAuthGroup) {
-      // Redirect to login if not authenticated and not in auth group
-      console.log('🔐 Layout: Redirecting to login')
-      router.replace('/(auth)/login')
-    } else if (user && session && inAuthGroup) {
-      // Redirect to tabs if authenticated and still in auth group
-      console.log('🔐 Layout: Redirecting to tabs')
-      router.replace('/(tabs)')
+    // Check if user needs onboarding
+    const checkOnboardingStatus = async () => {
+      if (user && session) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('onboarding_completed')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        console.log('🔐 Layout: Profile check:', profile)
+
+        if (!profile?.onboarding_completed && !inOnboarding) {
+          // User needs to complete onboarding
+          console.log('🔐 Layout: Redirecting to onboarding')
+          router.replace('/(auth)/onboarding')
+        } else if (profile?.onboarding_completed && inAuthGroup) {
+          // User has completed onboarding, redirect to tabs
+          console.log('🔐 Layout: Redirecting to tabs')
+          router.replace('/(tabs)')
+        }
+      } else if (!user && !session && !inAuthGroup) {
+        // Redirect to login if not authenticated and not in auth group
+        console.log('🔐 Layout: Redirecting to login')
+        router.replace('/(auth)/login')
+      }
     }
+
+    checkOnboardingStatus()
   }, [user, session, segments, isInitialized])
 
   console.log('🔐 Layout: Auth state:', {

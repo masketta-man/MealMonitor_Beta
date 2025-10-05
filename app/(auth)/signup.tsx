@@ -44,14 +44,34 @@ export default function SignUpScreen() {
 
     console.log('🔑 Signup: Starting signup process...')
     setIsLoading(true)
-    const { error } = await signUp(formData.email, formData.password, {
+    const { error, data } = await signUp(formData.email, formData.password, {
       full_name: formData.fullName,
       username: formData.username,
     })
 
     if (error) {
       console.log('🔑 Signup: Signup failed:', error.message)
-      Alert.alert("Sign Up Failed", error.message)
+
+      // Provide user-friendly error messages
+      let errorMessage = "An error occurred during sign up. Please try again."
+
+      if (error.message.includes("User already registered")) {
+        errorMessage = "An account with this email already exists. Please log in instead."
+      } else if (error.message.includes("Password should be at least")) {
+        errorMessage = "Password must be at least 6 characters long."
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Please enter a valid email address."
+      } else if (error.message.includes("network") || error.message.includes("fetch")) {
+        errorMessage = "Network error. Please check your internet connection and try again."
+      } else if (error.message.includes("Unable to validate email")) {
+        errorMessage = "Invalid email format. Please check your email and try again."
+      }
+
+      Alert.alert("Sign Up Failed", errorMessage)
+      setIsLoading(false)
+    } else if (!data.user) {
+      console.log('🔑 Signup: No user returned')
+      Alert.alert("Sign Up Failed", "Failed to create account. Please try again.")
       setIsLoading(false)
     } else {
       console.log('🔑 Signup: Signup successful')

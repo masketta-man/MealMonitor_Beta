@@ -174,6 +174,7 @@ export default function OnboardingScreen() {
         dietary_preferences: preferences.dietaryPreferences,
         cooking_frequency: preferences.cookingFrequency,
         food_restrictions: preferences.foodRestrictions,
+        onboarding_completed: true,
       })
 
       if (profile) {
