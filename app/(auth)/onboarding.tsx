@@ -8,6 +8,7 @@ import { useRouter } from "expo-router"
 import { useState } from "react"
 import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { supabase } from "@/lib/supabase"
 
 // Components
 import Button from "@/components/Button"
@@ -54,7 +55,7 @@ const FOOD_RESTRICTIONS = [
 
 export default function OnboardingScreen() {
   const router = useRouter()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const [currentStep, setCurrentStep] = useState(0)
   const [isLoading, setIsLoading] = useState(false)
   const [preferences, setPreferences] = useState({
@@ -155,6 +156,27 @@ export default function OnboardingScreen() {
     }
   }
 
+  const handleLogout = async () => {
+    Alert.alert(
+      "Log Out",
+      "Are you sure you want to log out? Your progress will be saved.",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Log Out",
+          style: "destructive",
+          onPress: async () => {
+            await signOut()
+            router.replace('/(auth)/login')
+          }
+        }
+      ]
+    )
+  }
+
   const handleComplete = async () => {
     if (!user) {
       Alert.alert("Error", "User not found. Please try logging in again.")
@@ -163,33 +185,73 @@ export default function OnboardingScreen() {
 
     console.log('🔑 Onboarding: Completing onboarding process...')
     setIsLoading(true)
-    
+
     try {
-      const profile = await userService.createProfile({
-        id: user.id,
-        email: user.email!,
-        full_name: user.user_metadata?.full_name || "",
-        username: user.user_metadata?.username || null,
-        health_goals: preferences.healthGoals,
-        dietary_preferences: preferences.dietaryPreferences,
-        cooking_frequency: preferences.cookingFrequency,
-        food_restrictions: preferences.foodRestrictions,
-        onboarding_completed: true,
-      })
+      // Check if profile already exists
+      const existingProfile = await userService.getProfile(user.id)
+
+      let profile
+      if (existingProfile) {
+        // Update existing profile
+        console.log('🔑 Onboarding: Updating existing profile')
+        profile = await userService.updateProfile(user.id, {
+          health_goals: preferences.healthGoals,
+          dietary_preferences: preferences.dietaryPreferences,
+          cooking_frequency: preferences.cookingFrequency,
+          food_restrictions: preferences.foodRestrictions,
+          onboarding_completed: true,
+        })
+      } else {
+        // Create new profile
+        console.log('🔑 Onboarding: Creating new profile')
+        profile = await userService.createProfile({
+          id: user.id,
+          email: user.email!,
+          full_name: user.user_metadata?.full_name || "",
+          username: user.user_metadata?.username || null,
+          health_goals: preferences.healthGoals,
+          dietary_preferences: preferences.dietaryPreferences,
+          cooking_frequency: preferences.cookingFrequency,
+          food_restrictions: preferences.foodRestrictions,
+          onboarding_completed: true,
+        })
+      }
 
       if (profile) {
-        console.log('🔑 Onboarding: Profile created successfully')
-        // The root layout will automatically redirect when onboarding is complete
+        console.log('🔑 Onboarding: Profile saved successfully')
+        // Force navigation to tabs
+        router.replace('/(tabs)')
       } else {
-        console.log('🔑 Onboarding: Failed to create profile')
+        console.log('🔑 Onboarding: Failed to save profile')
         Alert.alert("Error", "Failed to save your preferences. Please try again.")
+        setIsLoading(false)
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error completing onboarding:", error)
+      // Check if it's a duplicate key error
+      if (error?.message?.includes('duplicate') || error?.code === '23505') {
+        console.log('🔑 Onboarding: Profile already exists, updating instead')
+        try {
+          const profile = await userService.updateProfile(user.id, {
+            health_goals: preferences.healthGoals,
+            dietary_preferences: preferences.dietaryPreferences,
+            cooking_frequency: preferences.cookingFrequency,
+            food_restrictions: preferences.foodRestrictions,
+            onboarding_completed: true,
+          })
+
+          if (profile) {
+            router.replace('/(tabs)')
+            return
+          }
+        } catch (updateError) {
+          console.error('Failed to update profile:', updateError)
+        }
+      }
+
       Alert.alert("Error", "Something went wrong. Please try again.")
+      setIsLoading(false)
     }
-    
-    setIsLoading(false)
   }
 
   return (
@@ -197,9 +259,13 @@ export default function OnboardingScreen() {
       <SafeAreaView style={styles.safeArea}>
         {/* Header */}
         <View style={styles.header}>
-          {currentStep > 0 && (
+          {currentStep > 0 ? (
             <TouchableOpacity style={styles.backButton} onPress={handleBack}>
               <Ionicons name="arrow-back" size={24} color="#166534" />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.backButton} onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="#ef4444" />
             </TouchableOpacity>
           )}
           <View style={styles.progressContainer}>
