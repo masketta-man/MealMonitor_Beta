@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native"
+import { View, Text, StyleSheet, TextInput, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -14,15 +14,38 @@ import Card from "@/components/Card"
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { signIn, loading } = useAuth()
+  const { signIn } = useAuth()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<{
+    email?: string
+    password?: string
+    general?: string
+  }>({})
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      Alert.alert("Error", "Please fill in all fields")
+    setErrors({})
+    let validationErrors: { email?: string; password?: string } = {}
+
+    if (!email.trim()) {
+      validationErrors.email = "Email is required"
+    } else if (!validateEmail(email)) {
+      validationErrors.email = "Please enter a valid email address"
+    }
+
+    if (!password) {
+      validationErrors.password = "Password is required"
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
       return
     }
 
@@ -34,7 +57,6 @@ export default function LoginScreen() {
     if (error) {
       console.log('🔑 Login: Login failed:', error.message)
 
-      // Provide user-friendly error messages
       let errorMessage = "An error occurred during login. Please try again."
 
       if (error.message.includes("Invalid login credentials")) {
@@ -47,11 +69,10 @@ export default function LoginScreen() {
         errorMessage = "No account found with this email. Please sign up first."
       }
 
-      Alert.alert("Login Failed", errorMessage)
+      setErrors({ general: errorMessage })
       setIsLoading(false)
     } else {
       console.log('🔑 Login: Login successful')
-      // The root layout will automatically redirect when auth state updates
     }
   }
 
@@ -81,14 +102,26 @@ export default function LoginScreen() {
             <Text style={styles.title}>Welcome Back!</Text>
             <Text style={styles.subtitle}>Sign in to continue your cooking journey</Text>
 
+            {errors.general && (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                <Text style={styles.errorBannerText}>{errors.general}</Text>
+              </View>
+            )}
+
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Email</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
                 <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => {
+                    setEmail(text)
+                    if (errors.email) {
+                      setErrors(prev => ({ ...prev, email: undefined }))
+                    }
+                  }}
                   placeholder="Enter your email"
                   placeholderTextColor="#9ca3af"
                   keyboardType="email-address"
@@ -96,16 +129,27 @@ export default function LoginScreen() {
                   autoCorrect={false}
                 />
               </View>
+              {errors.email && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.errorText}>{errors.email}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Password</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text)
+                    if (errors.password) {
+                      setErrors(prev => ({ ...prev, password: undefined }))
+                    }
+                  }}
                   placeholder="Enter your password"
                   placeholderTextColor="#9ca3af"
                   secureTextEntry={!showPassword}
@@ -122,6 +166,12 @@ export default function LoginScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.password && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                </View>
+              )}
             </View>
 
             <TouchableOpacity style={styles.forgotPassword} onPress={navigateToForgotPassword}>
@@ -138,7 +188,7 @@ export default function LoginScreen() {
             />
 
             <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Don't have an account? </Text>
+              <Text style={styles.signupText}>Don&apos;t have an account? </Text>
               <TouchableOpacity onPress={navigateToSignUp}>
                 <Text style={styles.signupLink}>Sign Up</Text>
               </TouchableOpacity>
@@ -227,6 +277,37 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
+  },
+  inputWrapperError: {
+    borderColor: "#dc2626",
+    backgroundColor: "#fef2f2",
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#dc2626",
+    marginLeft: 4,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+  },
+  errorBannerText: {
+    fontSize: 14,
+    color: "#dc2626",
+    marginLeft: 8,
+    flex: 1,
   },
   inputIcon: {
     marginRight: 12,

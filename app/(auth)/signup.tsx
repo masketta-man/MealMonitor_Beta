@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from "react-native"
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -25,20 +25,52 @@ export default function SignUpScreen() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [errors, setErrors] = useState<{
+    email?: string
+    password?: string
+    confirmPassword?: string
+    fullName?: string
+    general?: string
+  }>({})
+
+  const validateEmail = (email: string): boolean => {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  }
 
   const handleSignUp = async () => {
-    if (!formData.email || !formData.password || !formData.fullName) {
-      Alert.alert("Error", "Please fill in all required fields")
-      return
+    setErrors({})
+    let validationErrors: {
+      email?: string
+      password?: string
+      confirmPassword?: string
+      fullName?: string
+    } = {}
+
+    if (!formData.fullName.trim()) {
+      validationErrors.fullName = "Full name is required"
     }
 
-    if (formData.password !== formData.confirmPassword) {
-      Alert.alert("Error", "Passwords do not match")
-      return
+    if (!formData.email.trim()) {
+      validationErrors.email = "Email is required"
+    } else if (!validateEmail(formData.email)) {
+      validationErrors.email = "Please enter a valid email address"
     }
 
-    if (formData.password.length < 6) {
-      Alert.alert("Error", "Password must be at least 6 characters long")
+    if (!formData.password) {
+      validationErrors.password = "Password is required"
+    } else if (formData.password.length < 6) {
+      validationErrors.password = "Password must be at least 6 characters long"
+    }
+
+    if (!formData.confirmPassword) {
+      validationErrors.confirmPassword = "Please confirm your password"
+    } else if (formData.password !== formData.confirmPassword) {
+      validationErrors.confirmPassword = "Passwords do not match"
+    }
+
+    if (Object.keys(validationErrors).length > 0) {
+      setErrors(validationErrors)
       return
     }
 
@@ -52,7 +84,6 @@ export default function SignUpScreen() {
     if (error) {
       console.log('🔑 Signup: Signup failed:', error.message)
 
-      // Provide user-friendly error messages
       let errorMessage = "An error occurred during sign up. Please try again."
 
       if (error.message.includes("User already registered")) {
@@ -67,15 +98,14 @@ export default function SignUpScreen() {
         errorMessage = "Invalid email format. Please check your email and try again."
       }
 
-      Alert.alert("Sign Up Failed", errorMessage)
+      setErrors({ general: errorMessage })
       setIsLoading(false)
     } else if (!data.user) {
       console.log('🔑 Signup: No user returned')
-      Alert.alert("Sign Up Failed", "Failed to create account. Please try again.")
+      setErrors({ general: "Failed to create account. Please try again." })
       setIsLoading(false)
     } else {
       console.log('🔑 Signup: Signup successful')
-      // Navigate to onboarding for new users
       router.replace("/(auth)/onboarding")
       setIsLoading(false)
     }
@@ -105,19 +135,37 @@ export default function SignUpScreen() {
             <Text style={styles.title}>Join MealR!</Text>
             <Text style={styles.subtitle}>Start your healthy cooking journey today</Text>
 
+            {errors.general && (
+              <View style={styles.errorBanner}>
+                <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                <Text style={styles.errorBannerText}>{errors.general}</Text>
+              </View>
+            )}
+
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Full Name *</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, errors.fullName && styles.inputWrapperError]}>
                 <Ionicons name="person-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   value={formData.fullName}
-                  onChangeText={(value) => updateFormData("fullName", value)}
+                  onChangeText={(value) => {
+                    updateFormData("fullName", value)
+                    if (errors.fullName) {
+                      setErrors(prev => ({ ...prev, fullName: undefined }))
+                    }
+                  }}
                   placeholder="Enter your full name"
                   placeholderTextColor="#9ca3af"
                   autoCapitalize="words"
                 />
               </View>
+              {errors.fullName && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.errorText}>{errors.fullName}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
@@ -138,12 +186,17 @@ export default function SignUpScreen() {
 
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Email *</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
                 <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   value={formData.email}
-                  onChangeText={(value) => updateFormData("email", value)}
+                  onChangeText={(value) => {
+                    updateFormData("email", value)
+                    if (errors.email) {
+                      setErrors(prev => ({ ...prev, email: undefined }))
+                    }
+                  }}
                   placeholder="Enter your email"
                   placeholderTextColor="#9ca3af"
                   keyboardType="email-address"
@@ -151,16 +204,27 @@ export default function SignUpScreen() {
                   autoCorrect={false}
                 />
               </View>
+              {errors.email && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.errorText}>{errors.email}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Password *</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   value={formData.password}
-                  onChangeText={(value) => updateFormData("password", value)}
+                  onChangeText={(value) => {
+                    updateFormData("password", value)
+                    if (errors.password) {
+                      setErrors(prev => ({ ...prev, password: undefined }))
+                    }
+                  }}
                   placeholder="Create a password"
                   placeholderTextColor="#9ca3af"
                   secureTextEntry={!showPassword}
@@ -177,16 +241,27 @@ export default function SignUpScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.password && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.errorText}>{errors.password}</Text>
+                </View>
+              )}
             </View>
 
             <View style={styles.inputContainer}>
               <Text style={styles.inputLabel}>Confirm Password *</Text>
-              <View style={styles.inputWrapper}>
+              <View style={[styles.inputWrapper, errors.confirmPassword && styles.inputWrapperError]}>
                 <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
                 <TextInput
                   style={styles.textInput}
                   value={formData.confirmPassword}
-                  onChangeText={(value) => updateFormData("confirmPassword", value)}
+                  onChangeText={(value) => {
+                    updateFormData("confirmPassword", value)
+                    if (errors.confirmPassword) {
+                      setErrors(prev => ({ ...prev, confirmPassword: undefined }))
+                    }
+                  }}
                   placeholder="Confirm your password"
                   placeholderTextColor="#9ca3af"
                   secureTextEntry={!showConfirmPassword}
@@ -203,6 +278,12 @@ export default function SignUpScreen() {
                   />
                 </TouchableOpacity>
               </View>
+              {errors.confirmPassword && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                  <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+                </View>
+              )}
             </View>
 
             <Button
@@ -301,6 +382,37 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 16,
     height: 52,
+  },
+  inputWrapperError: {
+    borderColor: "#dc2626",
+    backgroundColor: "#fef2f2",
+  },
+  errorContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  errorText: {
+    fontSize: 13,
+    color: "#dc2626",
+    marginLeft: 4,
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
+    borderWidth: 1,
+    borderColor: "#fecaca",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 20,
+  },
+  errorBannerText: {
+    fontSize: 14,
+    color: "#dc2626",
+    marginLeft: 8,
+    flex: 1,
   },
   inputIcon: {
     marginRight: 12,
