@@ -1,15 +1,16 @@
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { useEffect, useState } from "react"
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { useState, useEffect } from "react"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { LinearGradient } from "expo-linear-gradient"
+import { Ionicons } from "@expo/vector-icons"
+import { useRouter, useLocalSearchParams } from "expo-router"
 
 // Components
+import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
-import Card from "@/components/Card"
 import ProgressBar from "@/components/ProgressBar"
+import NutritionChart from "@/components/NutritionChart"
 
 // Hooks and Services
 import { useAuth } from "@/hooks/useAuth"

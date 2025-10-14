@@ -1,15 +1,15 @@
 "use client"
 
-import { Ionicons } from "@expo/vector-icons"
-import { LinearGradient } from "expo-linear-gradient"
-import { useLocalSearchParams, useRouter } from "expo-router"
-import { useEffect, useRef, useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { useState, useEffect, useRef } from "react"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { LinearGradient } from "expo-linear-gradient"
+import { Ionicons } from "@expo/vector-icons"
+import { useRouter, useLocalSearchParams } from "expo-router"
 
 // Components
-import Button from "@/components/Button"
 import Card from "@/components/Card"
+import Button from "@/components/Button"
 
 // Types
 type Instruction = {
