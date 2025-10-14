@@ -163,6 +163,8 @@ export default function IngredientsScreen() {
   }
 
   const handleDeleteIngredient = async (userIngredientId: string, ingredientName: string) => {
+    console.log('Delete button pressed for:', ingredientName, userIngredientId)
+    
     Alert.alert(
       'Delete Ingredient',
       `Are you sure you want to remove ${ingredientName} from your pantry?`,
@@ -172,12 +174,17 @@ export default function IngredientsScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
+            console.log('Delete confirmed for:', ingredientName)
             try {
               const success = await ingredientService.removeUserIngredient(userIngredientId)
-
+              console.log('Delete result:', success)
+              
               if (success) {
-                // Reload ingredients from database to ensure sync
-                await loadIngredients()
+                // Update local state
+                const updatedIngredients = ingredients.filter(ing => ing.id !== userIngredientId)
+                setIngredients(updatedIngredients)
+                filterIngredients(searchQuery, selectedCategory, showInStockOnly, updatedIngredients)
+                Alert.alert('Success', `${ingredientName} has been removed from your pantry.`)
               } else {
                 Alert.alert('Error', 'Failed to delete ingredient. Please try again.')
               }
