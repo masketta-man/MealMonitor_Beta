@@ -1,213 +1,91 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator } from "react-native"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter, useLocalSearchParams } from "expo-router"
+import { useAuth } from "@/hooks/useAuth"
+import { recipeService } from "@/services/recipeService"
 
 // Components
 import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
 
-// Mock recipe data
-interface Ingredient {
-  name: string
-  amount: string
-}
-
-interface Recipe {
-  id: string
-  title: string
-  image: string
-  description: string
-  ingredients: Ingredient[]
-  instructions: string[]
-  difficulty: string
-  mealType: string
-  prepTime: string
-  calories: number
-  protein: number
-  carbs: number
-  fat: number
-  points: number
-  isFavorite: boolean
-  nutritionScore: number
-}
-
-type RecipeCollection = {
-  [key: string]: Recipe
-}
-
-const MOCK_RECIPES: RecipeCollection = {
-  "1": {
-    id: "1",
-    title: "Avocado & Egg Toast",
-    image:
-      "https://images.unsplash.com/photo-1525351484163-7529414344d8?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    description:
-      "A delicious and nutritious breakfast option that combines creamy avocado with perfectly cooked eggs on top of crispy whole grain toast. This recipe is high in healthy fats and protein to keep you energized throughout the morning.",
-    ingredients: [
-      { name: "Avocado", amount: "1 medium" },
-      { name: "Eggs", amount: "2 large" },
-      { name: "Whole grain bread", amount: "2 slices" },
-      { name: "Cherry tomatoes", amount: "1/2 cup" },
-      { name: "Salt", amount: "to taste" },
-      { name: "Black pepper", amount: "to taste" },
-      { name: "Red pepper flakes", amount: "optional" },
-      { name: "Lemon juice", amount: "1 teaspoon" },
-    ],
-    instructions: [
-      "Toast the bread slices until golden and crispy.",
-      "In a small pan, fry the eggs to your liking (sunny side up recommended).",
-      "Mash the avocado in a bowl and add lemon juice, salt, and pepper.",
-      "Spread the mashed avocado on the toast.",
-      "Place the fried egg on top of the avocado.",
-      "Slice cherry tomatoes in half and arrange them around the egg.",
-      "Sprinkle with red pepper flakes if desired.",
-      "Serve immediately and enjoy!",
-    ],
-    difficulty: "Beginner",
-    mealType: "Breakfast",
-    prepTime: "15 min",
-    calories: 320,
-    protein: 15,
-    carbs: 30,
-    fat: 18,
-    points: 45,
-    isFavorite: false,
-    nutritionScore: 8.5,
-  },
-  "2": {
-    id: "2",
-    title: "Mediterranean Salad",
-    image:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    description:
-      "A refreshing and healthy Mediterranean-inspired salad featuring grilled chicken, fresh vegetables, olives, and feta cheese. This balanced meal is perfect for lunch or a light dinner.",
-    ingredients: [
-      { name: "Grilled chicken breast", amount: "6 oz" },
-      { name: "Romaine lettuce", amount: "2 cups" },
-      { name: "Cucumber", amount: "1/2 medium" },
-      { name: "Kalamata olives", amount: "1/4 cup" },
-      { name: "Feta cheese", amount: "1/4 cup" },
-      { name: "Cherry tomatoes", amount: "1/2 cup" },
-      { name: "Red onion", amount: "1/4 small" },
-      { name: "Olive oil", amount: "2 tablespoons" },
-      { name: "Lemon juice", amount: "1 tablespoon" },
-      { name: "Dried oregano", amount: "1/2 teaspoon" },
-      { name: "Salt and pepper", amount: "to taste" },
-    ],
-    instructions: [
-      "Chop the romaine lettuce and place in a large bowl.",
-      "Dice the cucumber, tomatoes, and red onion.",
-      "Slice the olives in half.",
-      "Crumble the feta cheese.",
-      "Add all vegetables and cheese to the bowl with lettuce.",
-      "Slice the grilled chicken breast and add to the salad.",
-      "In a small bowl, whisk together olive oil, lemon juice, oregano, salt, and pepper.",
-      "Pour the dressing over the salad and toss gently to combine.",
-      "Serve immediately or chill for 30 minutes to let flavors meld.",
-    ],
-    difficulty: "Intermediate",
-    mealType: "Lunch",
-    prepTime: "20 min",
-    calories: 380,
-    protein: 25,
-    carbs: 15,
-    fat: 22,
-    points: 60,
-    isFavorite: true,
-    nutritionScore: 9.2,
-  },
-  "3": {
-    id: "3",
-    title: "Vegetable Stir Fry",
-    image:
-      "https://images.unsplash.com/photo-1532550907401-a500c9a57435?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=80",
-    description:
-      "A quick and flavorful vegetable stir fry with tofu that's packed with nutrients and plant-based protein. This versatile dish can be customized with your favorite vegetables and served over rice or noodles.",
-    ingredients: [
-      { name: "Tofu", amount: "14 oz" },
-      { name: "Broccoli", amount: "1 cup" },
-      { name: "Carrots", amount: "2 medium" },
-      { name: "Bell peppers", amount: "1 large" },
-      { name: "Soy sauce", amount: "3 tbsp" },
-      { name: "Ginger", amount: "1 tbsp, minced" },
-      { name: "Garlic", amount: "2 cloves, minced" },
-      { name: "Vegetable oil", amount: "2 tbsp" },
-      { name: "Sesame oil", amount: "1 tsp" },
-      { name: "Red pepper flakes", amount: "1/4 tsp (optional)" },
-      { name: "Green onions", amount: "2, sliced" },
-    ],
-    instructions: [
-      "Press tofu to remove excess water, then cut into cubes.",
-      "Chop all vegetables into bite-sized pieces.",
-      "Heat oil in a wok or large pan over high heat.",
-      "Add tofu and cook until golden brown on all sides.",
-      "Remove tofu and set aside.",
-      "Add garlic and ginger to the pan and stir for 30 seconds.",
-      "Add vegetables and stir-fry for 5-7 minutes until tender-crisp.",
-      "Return tofu to the pan and add soy sauce.",
-      "Stir everything together and cook for another 2 minutes.",
-      "Drizzle with sesame oil and sprinkle with green onions.",
-      "Serve hot over rice or noodles.",
-    ],
-    difficulty: "Intermediate",
-    mealType: "Dinner",
-    prepTime: "25 min",
-    calories: 340,
-    protein: 18,
-    carbs: 35,
-    fat: 12,
-    points: 75,
-    isFavorite: false,
-    nutritionScore: 9.0,
-  },
-}
+import type { RecipeWithDetails } from "@/services/recipeService"
 
 export default function RecipeDetailScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()
-  const [recipe, setRecipe] = useState<Recipe | null>(null)
+  const { user } = useAuth()
+  const [recipe, setRecipe] = useState<RecipeWithDetails | null>(null)
   const [isFavorite, setIsFavorite] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    if (params.id && MOCK_RECIPES[params.id]) {
-      const recipeData = MOCK_RECIPES[params.id]
-      setRecipe(recipeData)
-      setIsFavorite(recipeData.isFavorite)
-    } else {
-      // Handle case where recipe is not found
-      router.back()
+    if (params.id && user) {
+      loadRecipe()
     }
-  }, [params.id])
+  }, [params.id, user])
 
-  const toggleFavorite = () => {
-    setIsFavorite(!isFavorite)
+  const loadRecipe = async () => {
+    if (!params.id || !user) return
+
+    try {
+      setIsLoading(true)
+      const recipeData = await recipeService.getRecipe(params.id, user.id)
+      if (recipeData) {
+        setRecipe(recipeData)
+        setIsFavorite(recipeData.isFavorite || false)
+      } else {
+        Alert.alert('Error', 'Recipe not found')
+        router.back()
+      }
+    } catch (error) {
+      console.error('Error loading recipe:', error)
+      Alert.alert('Error', 'Failed to load recipe. Please try again.')
+      router.back()
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const toggleFavorite = async () => {
+    if (!user || !params.id) return
+
+    try {
+      const newFavoriteStatus = await recipeService.toggleFavorite(user.id, params.id)
+      setIsFavorite(newFavoriteStatus)
+    } catch (error) {
+      console.error('Error toggling favorite:', error)
+      Alert.alert('Error', 'Failed to update favorite status. Please try again.')
+    }
   }
 
   const handleEditRecipe = () => {
-    // Navigate to edit recipe screen with the current recipe id
     if (params.id) {
-      router.push(`/edit-recipe/${params.id}`)
+      router.push(`/(tabs)/edit-recipe/${params.id}`)
     }
   }
 
   const handleStartCooking = () => {
-    // Navigate to cooking screen with the current recipe id
     if (params.id) {
-      router.push(`/cooking/${params.id}`)
+      router.push(`/(tabs)/cooking/${params.id}`)
     }
   }
 
-  if (!recipe) {
+  if (isLoading || !recipe) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#22c55e" />
-      </View>
+      <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
+        <SafeAreaView style={styles.safeArea}>
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#22c55e" />
+            <Text style={styles.loadingText}>Loading recipe...</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
     )
   }
 
@@ -232,7 +110,7 @@ export default function RecipeDetailScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Recipe Image */}
           <View style={styles.imageContainer}>
-            <Image source={{ uri: recipe.image }} style={styles.recipeImage} resizeMode="cover" />
+            <Image source={{ uri: recipe.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
             <View style={styles.badgesOverlay}>
               <Badge
                 text={recipe.difficulty}
@@ -252,12 +130,12 @@ export default function RecipeDetailScreen() {
                 }
               />
               <Badge
-                text={recipe.mealType}
+                text={recipe.meal_type}
                 color={
-                  recipe.mealType === "Breakfast" ? "#1e40af" : recipe.mealType === "Lunch" ? "#0e7490" : "#7e22ce"
+                  recipe.meal_type === "Breakfast" ? "#1e40af" : recipe.meal_type === "Lunch" ? "#0e7490" : "#7e22ce"
                 }
                 backgroundColor={
-                  recipe.mealType === "Breakfast" ? "#dbeafe" : recipe.mealType === "Lunch" ? "#cffafe" : "#f3e8ff"
+                  recipe.meal_type === "Breakfast" ? "#dbeafe" : recipe.meal_type === "Lunch" ? "#cffafe" : "#f3e8ff"
                 }
                 style={styles.secondBadge}
               />
@@ -271,15 +149,15 @@ export default function RecipeDetailScreen() {
             <View style={styles.metaContainer}>
               <View style={styles.metaItem}>
                 <Ionicons name="time-outline" size={18} color="#4b5563" />
-                <Text style={styles.metaText}>{recipe.prepTime}</Text>
+                <Text style={styles.metaText}>{recipe.prep_time}m</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="flame-outline" size={18} color="#4b5563" />
-                <Text style={styles.metaText}>{recipe.calories} cal</Text>
+                <Text style={styles.metaText}>{recipe.calories || 0} cal</Text>
               </View>
               <View style={styles.metaItem}>
                 <Ionicons name="star-outline" size={18} color="#4b5563" />
-                <Text style={styles.metaText}>{recipe.nutritionScore}</Text>
+                <Text style={styles.metaText}>{recipe.nutrition_score || 0}</Text>
               </View>
             </View>
           </View>
@@ -295,19 +173,19 @@ export default function RecipeDetailScreen() {
             <Text style={styles.sectionTitle}>Nutrition Information</Text>
             <View style={styles.nutritionContainer}>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.calories}</Text>
+                <Text style={styles.nutritionValue}>{recipe.calories || 0}</Text>
                 <Text style={styles.nutritionLabel}>Calories</Text>
               </View>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.protein}g</Text>
+                <Text style={styles.nutritionValue}>{recipe.protein || 0}g</Text>
                 <Text style={styles.nutritionLabel}>Protein</Text>
               </View>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.carbs}g</Text>
+                <Text style={styles.nutritionValue}>{recipe.carbs || 0}g</Text>
                 <Text style={styles.nutritionLabel}>Carbs</Text>
               </View>
               <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.fat}g</Text>
+                <Text style={styles.nutritionValue}>{recipe.fat || 0}g</Text>
                 <Text style={styles.nutritionLabel}>Fat</Text>
               </View>
             </View>
@@ -331,12 +209,12 @@ export default function RecipeDetailScreen() {
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>Instructions</Text>
             <View style={styles.instructionsList}>
-              {recipe.instructions.map((instruction: string, index: number) => (
+              {recipe.instructions.map((instruction, index: number) => (
                 <View key={index} style={styles.instructionItem}>
                   <View style={styles.instructionNumber}>
-                    <Text style={styles.instructionNumberText}>{index + 1}</Text>
+                    <Text style={styles.instructionNumberText}>{instruction.step_number}</Text>
                   </View>
-                  <Text style={styles.instructionText}>{instruction}</Text>
+                  <Text style={styles.instructionText}>{instruction.instruction}</Text>
                 </View>
               ))}
             </View>
@@ -379,6 +257,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#4b5563",
   },
   header: {
     flexDirection: "row",
