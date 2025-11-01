@@ -15,11 +15,20 @@ import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 const DIETARY_RESTRICTIONS = [
   { id: 'vegetarian', label: 'Vegetarian' },
   { id: 'vegan', label: 'Vegan' },
-  { id: 'gluten-free', label: 'Gluten-Free' },
-  { id: 'dairy-free', label: 'Dairy-Free' },
+  { id: 'pescatarian', label: 'Pescatarian' },
+  { id: 'omnivore', label: 'Omnivore' },
   { id: 'keto', label: 'Keto' },
   { id: 'paleo', label: 'Paleo' },
+  { id: 'mediterranean', label: 'Mediterranean' },
   { id: 'low-carb', label: 'Low-Carb' },
+  { id: 'gluten-free', label: 'Gluten-Free' },
+  { id: 'gluten', label: 'Gluten-Free' },
+  { id: 'dairy-free', label: 'Dairy-Free' },
+  { id: 'dairy', label: 'Dairy-Free' },
+  { id: 'nuts', label: 'Nut-Free' },
+  { id: 'soy', label: 'Soy-Free' },
+  { id: 'eggs', label: 'Egg-Free' },
+  { id: 'shellfish', label: 'Shellfish-Free' },
   { id: 'halal', label: 'Halal' },
   { id: 'kosher', label: 'Kosher' },
 ]
@@ -61,14 +70,35 @@ export default function SettingsScreen() {
 
     try {
       setLoading(true)
-      const userSettings = await settingsService.getOrCreateSettings(user.id)
+
+      const [userSettings, userProfile] = await Promise.all([
+        settingsService.getOrCreateSettings(user.id),
+        userService.getProfile(user.id)
+      ])
 
       if (userSettings) {
         setSettings(userSettings)
         setCalorieTarget(userSettings.daily_calorie_target.toString())
         setWeightGoal(userSettings.weight_goal)
         setActivityLevel(userSettings.activity_level)
-        setSelectedRestrictions(userSettings.dietary_restrictions || [])
+
+        let restrictions = userSettings.dietary_restrictions || []
+
+        if (userProfile?.dietary_preferences && Array.isArray(userProfile.dietary_preferences)) {
+          const normalizedPreferences = userProfile.dietary_preferences.map((pref: string) =>
+            pref.toLowerCase().replace(/\s+/g, '-')
+          )
+          restrictions = [...new Set([...restrictions, ...normalizedPreferences])]
+        }
+
+        if (userProfile?.food_restrictions && Array.isArray(userProfile.food_restrictions)) {
+          const normalizedRestrictions = userProfile.food_restrictions
+            .filter((r: string) => r.toLowerCase() !== 'none')
+            .map((r: string) => r.toLowerCase().replace(/\s+/g, '-'))
+          restrictions = [...new Set([...restrictions, ...normalizedRestrictions])]
+        }
+
+        setSelectedRestrictions(restrictions)
       }
     } catch (error) {
       console.error('Error loading settings:', error)
@@ -98,14 +128,24 @@ export default function SettingsScreen() {
         dietary_restrictions: selectedRestrictions,
       }
 
-      const updatedSettings = await settingsService.updateUserSettings(user.id, updates)
+      const dietaryPrefs = selectedRestrictions.filter(r =>
+        ['vegetarian', 'vegan', 'pescatarian', 'omnivore', 'keto', 'paleo', 'mediterranean', 'low-carb'].includes(r)
+      )
+
+      const foodRestrictions = selectedRestrictions.filter(r =>
+        ['gluten', 'gluten-free', 'dairy', 'dairy-free', 'nuts', 'soy', 'eggs', 'shellfish'].includes(r)
+      )
+
+      const [updatedSettings] = await Promise.all([
+        settingsService.updateUserSettings(user.id, updates),
+        userService.updateProfile(user.id, {
+          dietary_preferences: dietaryPrefs.length > 0 ? dietaryPrefs : selectedRestrictions,
+          food_restrictions: foodRestrictions.length > 0 ? foodRestrictions : [],
+        })
+      ])
 
       if (updatedSettings) {
         setSettings(updatedSettings)
-
-        await userService.updateProfile(user.id, {
-          dietary_preferences: selectedRestrictions,
-        })
 
         if (Platform.OS === 'web') {
           alert('Settings saved successfully!')
