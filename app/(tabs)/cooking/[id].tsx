@@ -170,15 +170,11 @@ export default function CookingModeScreen() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
-  const goToDashboard = () => {
-    router.replace("/(tabs)/index")
-  }
-
   const finishCooking = async () => {
     console.log('🎉 FINISH COOKING: Function called')
     console.log('🎉 FINISH COOKING: User ID:', user?.id)
     console.log('🎉 FINISH COOKING: Recipe ID:', id)
-    
+
     if (!user || !id) {
       console.warn('⚠️ FINISH COOKING: Missing user or recipe ID - aborting')
       console.log('⚠️ FINISH COOKING: User exists?', !!user)
@@ -188,30 +184,21 @@ export default function CookingModeScreen() {
 
     try {
       console.log('🎉 FINISH COOKING: Calling recipeService.completeRecipe...')
-      // Complete the recipe (awards points only on first completion today)
       const success = await recipeService.completeRecipe(user.id, id)
       console.log('🎉 FINISH COOKING: recipeService.completeRecipe returned:', success)
 
       if (success) {
         console.log('✅ FINISH COOKING: Recipe completed successfully!')
 
-        // Check if this was the first completion today to show appropriate message
         if (alreadyCompleted) {
+          console.log('🎉 FINISH COOKING: Already completed - navigating immediately')
+          router.replace("/(tabs)")
           Alert.alert(
             "Cooking Complete!",
-            "Great job! You've cooked this recipe again today. Points were already awarded for your first completion.",
-            [
-              {
-                text: "OK",
-                onPress: () => {
-                  console.log('🎉 FINISH COOKING: Multiple completion acknowledged')
-                  goToDashboard()
-                },
-              },
-            ]
+            "Great job! You've cooked this recipe again today. Points were already awarded for your first completion."
           )
         } else {
-          console.log('🎉 FINISH COOKING: First completion today - points awarded!')
+          console.log('🎉 FINISH COOKING: First completion today - showing alert then navigating')
           Alert.alert(
             "Recipe Completed!",
             "Congratulations! You've earned points and XP. Check your profile to see your progress!",
@@ -224,11 +211,10 @@ export default function CookingModeScreen() {
                 },
               },
               {
-                text: "Go to Dashboard",
-                style: "cancel",
+                text: "Back to Dashboard",
                 onPress: () => {
                   console.log('🎉 FINISH COOKING: Navigating to dashboard')
-                  goToDashboard()
+                  router.replace("/(tabs)")
                 },
               },
             ]
@@ -242,7 +228,10 @@ export default function CookingModeScreen() {
           [
             {
               text: "OK",
-              onPress: () => router.back(),
+              onPress: () => {
+                console.log('❌ FINISH COOKING: Navigating back after failure')
+                router.replace("/(tabs)")
+              },
             },
           ]
         )
@@ -254,8 +243,8 @@ export default function CookingModeScreen() {
         {
           text: "OK",
           onPress: () => {
-            console.log('🎉 FINISH COOKING: Error case - going back')
-            router.back()
+            console.log('🎉 FINISH COOKING: Error case - going to dashboard')
+            router.replace("/(tabs)")
           },
         },
       ])
