@@ -10,13 +10,17 @@ import FloatingActionButton from "../components/FloatingActionButton"
 import TabNavigation from "../components/TabNavigation"
 import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 import { supabase } from "@/lib/supabase"
+import { TutorialProvider } from "@/contexts/TutorialContext"
+import TutorialOverlay from "@/components/TutorialOverlay"
+import { useTutorial } from "@/contexts/TutorialContext"
+import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 
-export default function RootLayout() {
-  useFrameworkReady();
+function AppContent() {
   const { user, loading, session } = useAuth()
   const [isInitialized, setIsInitialized] = useState(false)
   const segments = useSegments()
   const router = useRouter()
+  const { isTutorialActive, currentSteps, completeTutorial, skipTutorial } = useTutorial()
 
   useEffect(() => {
     // Wait for auth to be fully initialized
@@ -93,7 +97,7 @@ export default function RootLayout() {
   console.log('🔐 Layout: Auth initialized, rendering app...')
 
   return (
-    <SafeAreaProvider>
+    <>
       <StatusBar style="auto" />
       <Stack
         screenOptions={{
@@ -125,6 +129,26 @@ export default function RootLayout() {
           </View>
         </>
       )}
+
+      {/* Tutorial Overlay */}
+      <TutorialOverlay
+        visible={isTutorialActive}
+        steps={currentSteps.length > 0 ? currentSteps : APP_TUTORIAL_STEPS}
+        onComplete={completeTutorial}
+        onSkip={skipTutorial}
+      />
+    </>
+  )
+}
+
+export default function RootLayout() {
+  useFrameworkReady();
+
+  return (
+    <SafeAreaProvider>
+      <TutorialProvider>
+        <AppContent />
+      </TutorialProvider>
     </SafeAreaProvider>
   )
 }

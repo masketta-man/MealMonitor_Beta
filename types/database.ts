@@ -531,6 +531,7 @@ export interface Database {
           dietary_restrictions: string[]
           favorite_cuisines: string[]
           meal_preferences: Json
+          tutorial_completed: boolean
           created_at: string
           updated_at: string
         }
@@ -543,6 +544,7 @@ export interface Database {
           dietary_restrictions?: string[]
           favorite_cuisines?: string[]
           meal_preferences?: Json
+          tutorial_completed?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -555,6 +557,7 @@ export interface Database {
           dietary_restrictions?: string[]
           favorite_cuisines?: string[]
           meal_preferences?: Json
+          tutorial_completed?: boolean
           created_at?: string
           updated_at?: string
         }

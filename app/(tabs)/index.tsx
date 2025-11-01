@@ -13,6 +13,8 @@ import { recipeService } from "@/services/recipeService"
 import { challengeService } from "@/services/challengeService"
 import { ingredientService } from "@/services/ingredientService"
 import { LevelProgress } from "@/components/LevelProgress"
+import { useTutorial } from "@/contexts/TutorialContext"
+import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 
 // Components
 import Card from "@/components/Card"
@@ -65,11 +67,13 @@ interface Challenge {
 export default function HomeScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { shouldShowTutorial, startTutorial } = useTutorial()
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([])
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([])
   const [availableIngredients, setAvailableIngredients] = useState<number>(0)
   const [loading, setLoading] = useState(true)
+  const [tutorialTriggered, setTutorialTriggered] = useState(false)
 
   useEffect(() => {
     console.log('🏠 Dashboard: useEffect triggered', { 
@@ -105,6 +109,15 @@ export default function HomeScreen() {
       // Load user stats
       const stats = await userService.getUserStats(user.id)
       setUserStats(stats)
+
+      // Check if tutorial should be shown (only once per session)
+      if (shouldShowTutorial && !tutorialTriggered && !loading) {
+        setTimeout(() => {
+          console.log('Starting tutorial for new user')
+          startTutorial(APP_TUTORIAL_STEPS)
+          setTutorialTriggered(true)
+        }, 1000)
+      }
 
       // Load recipe recommendations
       const recipes = await recipeService.getRecommendations(user.id, 5)

@@ -9,6 +9,7 @@ export interface UserSettings {
   dietary_restrictions: string[]
   favorite_cuisines: string[]
   meal_preferences: any
+  tutorial_completed: boolean
   created_at: string
   updated_at: string
 }

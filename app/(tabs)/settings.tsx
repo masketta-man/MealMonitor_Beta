@@ -9,6 +9,8 @@ import { settingsService, type UserSettings, type UserSettingsUpdate } from "@/s
 import { userService } from "@/services/userService"
 import Card from "@/components/Card"
 import Button from "@/components/Button"
+import { useTutorial } from "@/contexts/TutorialContext"
+import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 
 const DIETARY_RESTRICTIONS = [
   { id: 'vegetarian', label: 'Vegetarian' },
@@ -39,6 +41,7 @@ const ACTIVITY_LEVELS = [
 export default function SettingsScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { startTutorial } = useTutorial()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [settings, setSettings] = useState<UserSettings | null>(null)
@@ -267,6 +270,28 @@ export default function SettingsScreen() {
             </View>
           </Card>
 
+          <Card style={styles.card}>
+            <Text style={styles.sectionTitle}>App Tutorial</Text>
+            <Text style={styles.sectionSubtitle}>
+              Replay the guided tour to learn about the app features
+            </Text>
+            <TouchableOpacity
+              style={styles.tutorialButton}
+              onPress={() => {
+                router.back()
+                setTimeout(() => {
+                  startTutorial(APP_TUTORIAL_STEPS)
+                }, 500)
+              }}
+            >
+              <View style={styles.tutorialButtonContent}>
+                <Ionicons name="play-circle" size={24} color="#22c55e" />
+                <Text style={styles.tutorialButtonText}>Restart Tutorial</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#64748b" />
+            </TouchableOpacity>
+          </Card>
+
           <View style={styles.buttonContainer}>
             <Button
               text={saving ? 'Saving...' : 'Save Settings'}
@@ -477,6 +502,27 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     width: "100%",
+  },
+  tutorialButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 16,
+  },
+  tutorialButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  tutorialButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#166534",
   },
   bottomPadding: {
     height: 32,
