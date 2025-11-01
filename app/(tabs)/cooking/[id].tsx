@@ -83,15 +83,10 @@ export default function CookingModeScreen() {
   useEffect(() => {
     const checkIfCompleted = async () => {
       if (!user?.id || !id) return
-      
+
       try {
-        const today = new Date().toISOString().split('T')[0]
-        const tomorrow = new Date()
-        tomorrow.setDate(tomorrow.getDate() + 1)
-        const tomorrowStr = tomorrow.toISOString().split('T')[0]
-        
-        const { data } = await recipeService.checkCompletion(user.id, id, today, tomorrowStr)
-        
+        const { data } = await recipeService.checkCompletion(user.id, id)
+
         if (data) {
           setAlreadyCompleted(true)
         }
@@ -189,27 +184,61 @@ export default function CookingModeScreen() {
 
     try {
       console.log('🎉 FINISH COOKING: Calling recipeService.completeRecipe...')
-      // Complete the recipe and award points
+      // Complete the recipe (awards points only on first completion today)
       const success = await recipeService.completeRecipe(user.id, id)
       console.log('🎉 FINISH COOKING: recipeService.completeRecipe returned:', success)
-      
+
       if (success) {
         console.log('✅ FINISH COOKING: Recipe completed successfully!')
-        console.log('🎉 FINISH COOKING: Points awarded! Navigating to dashboard...')
-        
-        // Navigate to dashboard to see updated stats and points
-        router.push("/(tabs)/")
+
+        // Check if this was the first completion today to show appropriate message
+        if (alreadyCompleted) {
+          Alert.alert(
+            "Cooking Complete!",
+            "Great job! You've cooked this recipe again today. Points were already awarded for your first completion.",
+            [
+              {
+                text: "OK",
+                onPress: () => {
+                  console.log('🎉 FINISH COOKING: Multiple completion acknowledged')
+                  router.back()
+                },
+              },
+            ]
+          )
+        } else {
+          console.log('🎉 FINISH COOKING: First completion today - points awarded!')
+          Alert.alert(
+            "Recipe Completed!",
+            "Congratulations! You've earned points and XP. Check your profile to see your progress!",
+            [
+              {
+                text: "View Profile",
+                onPress: () => {
+                  console.log('🎉 FINISH COOKING: Navigating to profile')
+                  router.push("/(tabs)/profile")
+                },
+              },
+              {
+                text: "Go Back",
+                style: "cancel",
+                onPress: () => {
+                  console.log('🎉 FINISH COOKING: Going back')
+                  router.back()
+                },
+              },
+            ]
+          )
+        }
       } else {
-        console.log('⚠️ FINISH COOKING: Recipe already completed today')
-        Alert.alert("Cooking Complete!", 
-          "You've already completed this recipe today. Come back tomorrow to earn more points!", 
+        console.error('❌ FINISH COOKING: Failed to complete recipe')
+        Alert.alert(
+          "Oops!",
+          "There was an issue completing the recipe. Please try again.",
           [
             {
               text: "OK",
-              onPress: () => {
-                console.log('🎉 FINISH COOKING: User acknowledged already completed')
-                router.back()
-              },
+              onPress: () => router.back(),
             },
           ]
         )
@@ -217,7 +246,7 @@ export default function CookingModeScreen() {
     } catch (error) {
       console.error('❌ FINISH COOKING: Error completing recipe:', error)
       console.error('❌ FINISH COOKING: Error details:', JSON.stringify(error, null, 2))
-      Alert.alert("Cooking Complete!", "You've finished cooking! Enjoy your meal.", [
+      Alert.alert("Error", "An unexpected error occurred. Please try again.", [
         {
           text: "OK",
           onPress: () => {

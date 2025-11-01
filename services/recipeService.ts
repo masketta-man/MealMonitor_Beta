@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
 import { userService } from './userService'
+import { activityService } from './activityService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -249,36 +250,45 @@ export const recipeService = {
     }
   },
 
-  // Mark recipe as completed (once per day per recipe)
-  async completeRecipe(userId: string, recipeId: string): Promise<boolean> {
-    console.log(' recipeService.completeRecipe: Starting...', { userId, recipeId })
-    
+  // Mark recipe as completed (allows multiple completions per day, but only first counts toward daily goals)
+  async completeRecipe(userId: string, recipeId: string, awardPoints: boolean = true): Promise<boolean> {
+    console.log(' recipeService.completeRecipe: Starting...', { userId, recipeId, awardPoints })
+
+    // Get start and end of today in user's local timezone
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+    console.log(' recipeService.completeRecipe: Date range check:', {
+      now: now.toISOString(),
+      todayStart: todayStart.toISOString(),
+      todayEnd: todayEnd.toISOString()
+    })
+
     // Check if completed today
-    const today = new Date().toISOString().split('T')[0] // Get YYYY-MM-DD format
-    const tomorrow = new Date()
-    tomorrow.setDate(tomorrow.getDate() + 1)
-    const tomorrowStr = tomorrow.toISOString().split('T')[0]
-    
-    const { data: recentCompletion } = await supabase
+    const { data: todayCompletions, error: checkError } = await supabase
       .from('user_completed_meals')
-      .select('completed_at')
+      .select('id, completed_at, points_earned')
       .eq('user_id', userId)
       .eq('recipe_id', recipeId)
-      .gte('completed_at', `${today}T00:00:00.000Z`)
-      .lt('completed_at', `${tomorrowStr}T00:00:00.000Z`)
+      .gte('completed_at', todayStart.toISOString())
+      .lte('completed_at', todayEnd.toISOString())
       .order('completed_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
 
-    if (recentCompletion && 'completed_at' in recentCompletion && recentCompletion.completed_at) {
-      console.log(' recipeService.completeRecipe: Recipe already completed today')
-      return false
+    if (checkError) {
+      console.error(' recipeService.completeRecipe: Error checking completions:', checkError)
     }
 
-    // Get recipe points
+    const completedToday = todayCompletions && todayCompletions.length > 0
+    console.log(' recipeService.completeRecipe: Today completions:', {
+      count: todayCompletions?.length || 0,
+      completedToday
+    })
+
+    // Get recipe details
     const { data: recipe, error: recipeError } = await supabase
       .from('recipes')
-      .select('points')
+      .select('points, title')
       .eq('id', recipeId)
       .single()
 
@@ -287,7 +297,13 @@ export const recipeService = {
       return false
     }
 
-    console.log('📊 recipeService.completeRecipe: Recipe points:', (recipe as any).points)
+    const recipePoints = (recipe as any).points
+    const recipeTitle = (recipe as any).title
+    console.log('📊 recipeService.completeRecipe: Recipe details:', { title: recipeTitle, points: recipePoints })
+
+    // Determine if this completion should award points
+    const shouldAwardPoints = awardPoints && !completedToday
+    const pointsToAward = shouldAwardPoints ? recipePoints : 0
 
     // Add to completed meals
     const { error: insertError } = await supabase
@@ -295,7 +311,7 @@ export const recipeService = {
       .insert({
         user_id: userId,
         recipe_id: recipeId,
-        points_earned: (recipe as any).points,
+        points_earned: pointsToAward,
       } as any)
 
     if (insertError) {
@@ -303,21 +319,38 @@ export const recipeService = {
       return false
     }
 
-    console.log(' recipeService.completeRecipe: Completion recorded, updating XP...')
-
-    // Update user experience and level
-    const updatedProfile = await userService.updateExperience(userId, (recipe as any).points)
-    
-    if (!updatedProfile) {
-      console.error(' recipeService.completeRecipe: Error updating user XP')
-      return false
-    }
-
-    console.log(' recipeService.completeRecipe: XP updated successfully!', {
-      newXP: updatedProfile.experience,
-      newLevel: updatedProfile.level,
-      totalPoints: updatedProfile.total_points
+    console.log(' recipeService.completeRecipe: Completion recorded', {
+      pointsAwarded: pointsToAward,
+      isFirstCompletionToday: !completedToday
     })
+
+    // Update user experience and level only if points awarded
+    if (shouldAwardPoints && pointsToAward > 0) {
+      const updatedProfile = await userService.updateExperience(userId, pointsToAward)
+
+      if (!updatedProfile) {
+        console.error(' recipeService.completeRecipe: Error updating user XP')
+        return false
+      }
+
+      console.log(' recipeService.completeRecipe: XP updated successfully!', {
+        newXP: updatedProfile.experience,
+        newLevel: updatedProfile.level,
+        totalPoints: updatedProfile.total_points
+      })
+
+      // Log activity to user's feed (only on first completion today)
+      await activityService.logActivity(
+        userId,
+        'recipe_completed',
+        `Completed ${recipeTitle}`,
+        `Cooked a delicious meal and earned ${pointsToAward} points!`,
+        pointsToAward,
+        { recipe_id: recipeId }
+      )
+    } else {
+      console.log(' recipeService.completeRecipe: No points awarded (already completed today or points disabled)')
+    }
 
     return true
   },
@@ -378,15 +411,35 @@ export const recipeService = {
     }))
   },
 
-  // Check if a recipe was completed within a date range
-  async checkCompletion(userId: string, recipeId: string, startDate: string, endDate: string) {
-    return await supabase
+  // Check if a recipe was completed today (in user's local timezone)
+  async checkCompletion(userId: string, recipeId: string): Promise<{ data: any; error: any }> {
+    const now = new Date()
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0)
+    const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999)
+
+    const { data, error } = await supabase
       .from('user_completed_meals')
-      .select('completed_at')
+      .select('completed_at, points_earned')
       .eq('user_id', userId)
       .eq('recipe_id', recipeId)
-      .gte('completed_at', `${startDate}T00:00:00.000Z`)
-      .lt('completed_at', `${endDate}T00:00:00.000Z`)
+      .gte('completed_at', todayStart.toISOString())
+      .lte('completed_at', todayEnd.toISOString())
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    return { data, error }
+  },
+
+  // Check if a recipe was completed within a custom date range (for legacy support)
+  async checkCompletionInRange(userId: string, recipeId: string, startDate: Date, endDate: Date) {
+    return await supabase
+      .from('user_completed_meals')
+      .select('completed_at, points_earned')
+      .eq('user_id', userId)
+      .eq('recipe_id', recipeId)
+      .gte('completed_at', startDate.toISOString())
+      .lt('completed_at', endDate.toISOString())
       .order('completed_at', { ascending: false })
       .limit(1)
       .maybeSingle()
