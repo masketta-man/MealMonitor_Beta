@@ -9,6 +9,7 @@ import { useRouter } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
 import { userService } from "@/services/userService"
 import { badgeService, type BadgeWithProgress } from "@/services/badgeService"
+import { activityService, type ActivityWithMetadata } from "@/services/activityService"
 
 // Components
 import Card from "@/components/Card"
@@ -34,15 +35,6 @@ interface UserStats {
   } | null
 }
 
-interface ActivityItem {
-  id: string
-  type: string
-  title: string
-  points: number
-  date: string
-  icon: string
-  color: string
-}
 
 export default function ProfileScreen() {
   const router = useRouter()
@@ -50,8 +42,12 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState("achievements")
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [badges, setBadges] = useState<BadgeWithProgress[]>([])
-  const [activityHistory, setActivityHistory] = useState<ActivityItem[]>([])
+  const [activityHistory, setActivityHistory] = useState<ActivityWithMetadata[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [hasMoreActivities, setHasMoreActivities] = useState(true)
+  const [activityOffset, setActivityOffset] = useState(0)
+  const ACTIVITY_PAGE_SIZE = 10
 
   useEffect(() => {
     if (user) {
@@ -73,42 +69,37 @@ export default function ProfileScreen() {
       const badgesData = await badgeService.getBadgesWithProgress(user.id)
       setBadges(badgesData)
 
-      // Mock activity history for now - in a real app, this would come from the database
-      const mockActivity: ActivityItem[] = [
-        {
-          id: "1",
-          type: "recipe",
-          title: "Completed a delicious recipe",
-          points: 60,
-          date: "Today",
-          icon: "restaurant",
-          color: "#22c55e",
-        },
-        {
-          id: "2",
-          type: "challenge",
-          title: "Completed weekly challenge",
-          points: 200,
-          date: "Yesterday",
-          icon: "trophy",
-          color: "#f59e0b",
-        },
-        {
-          id: "3",
-          type: "level",
-          title: `Reached Level ${stats.profile?.level || 1}`,
-          points: 0,
-          date: "2 days ago",
-          icon: "star",
-          color: "#3b82f6",
-        },
-      ]
-      setActivityHistory(mockActivity)
+      // Load initial activity history
+      const activities = await activityService.getUserActivities(user.id, ACTIVITY_PAGE_SIZE, 0)
+      setActivityHistory(activities)
+      setActivityOffset(ACTIVITY_PAGE_SIZE)
+      setHasMoreActivities(activities.length === ACTIVITY_PAGE_SIZE)
 
     } catch (error) {
       console.error('Error loading user data:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadMoreActivities = async () => {
+    if (!user || loadingMore || !hasMoreActivities) return
+
+    try {
+      setLoadingMore(true)
+      const moreActivities = await activityService.getUserActivities(user.id, ACTIVITY_PAGE_SIZE, activityOffset)
+
+      if (moreActivities.length > 0) {
+        setActivityHistory(prev => [...prev, ...moreActivities])
+        setActivityOffset(prev => prev + ACTIVITY_PAGE_SIZE)
+        setHasMoreActivities(moreActivities.length === ACTIVITY_PAGE_SIZE)
+      } else {
+        setHasMoreActivities(false)
+      }
+    } catch (error) {
+      console.error('Error loading more activities:', error)
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -150,19 +141,18 @@ export default function ProfileScreen() {
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => {
-                handleSignOut()
+                router.push("/(tabs)/settings")
               }}
             >
-              <Ionicons name="log-out-outline" size={24} color="#166534" />
+              <Ionicons name="settings-outline" size={24} color="#166534" />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
               onPress={() => {
-                console.log("Share profile pressed")
-                alert("Share profile feature coming soon!")
+                handleSignOut()
               }}
             >
-              <Ionicons name="share-social-outline" size={24} color="#166534" />
+              <Ionicons name="log-out-outline" size={24} color="#166534" />
             </TouchableOpacity>
           </View>
         </View>
@@ -309,37 +299,52 @@ export default function ProfileScreen() {
                     <Text style={styles.sectionTitle}>Recent Activity</Text>
                   </View>
 
-                  {activityHistory.map((activity) => (
-                    <Card key={activity.id} style={styles.activityCard}>
-                      <View style={styles.activityContent}>
-                        <View style={[styles.activityIconContainer, { backgroundColor: activity.color }]}>
-                          <Ionicons name={activity.icon as keyof typeof Ionicons.glyphMap} size={20} color="white" />
-                        </View>
-                        <View style={styles.activityInfo}>
-                          <Text style={styles.activityTitle}>{activity.title}</Text>
-                          <Text style={styles.activityDate}>{activity.date}</Text>
-                        </View>
-                        {activity.points > 0 && (
-                          <View style={styles.activityPoints}>
-                            <Ionicons name="star" size={16} color="#f59e0b" />
-                            <Text style={styles.activityPointsText}>+{activity.points}</Text>
+                  {activityHistory.length === 0 ? (
+                    <View style={styles.emptyStateContainer}>
+                      <Ionicons name="time-outline" size={48} color="#94a3b8" />
+                      <Text style={styles.emptyStateText}>No activities yet</Text>
+                      <Text style={styles.emptyStateSubtext}>Start cooking and completing challenges!</Text>
+                    </View>
+                  ) : (
+                    <>
+                      {activityHistory.map((activity) => (
+                        <Card key={activity.id} style={styles.activityCard}>
+                          <View style={styles.activityContent}>
+                            <View style={[styles.activityIconContainer, { backgroundColor: activity.color }]}>
+                              <Ionicons name={activity.icon as keyof typeof Ionicons.glyphMap} size={20} color="white" />
+                            </View>
+                            <View style={styles.activityInfo}>
+                              <Text style={styles.activityTitle}>{activity.activity_title}</Text>
+                              <Text style={styles.activityDate}>{activity.displayDate}</Text>
+                            </View>
+                            {activity.points_earned > 0 && (
+                              <View style={styles.activityPoints}>
+                                <Ionicons name="star" size={16} color="#f59e0b" />
+                                <Text style={styles.activityPointsText}>+{activity.points_earned}</Text>
+                              </View>
+                            )}
                           </View>
-                        )}
-                      </View>
-                    </Card>
-                  ))}
+                        </Card>
+                      ))}
 
-                  <TouchableOpacity
-                    style={styles.viewMoreButton}
-                    onPress={() => {
-                      console.log("View more activity pressed")
-                      // In a real app, you would load more activity items
-                      alert("More activity history coming soon!")
-                    }}
-                  >
-                    <Text style={styles.viewMoreText}>View More Activity</Text>
-                    <Ionicons name="chevron-down" size={16} color="#22c55e" />
-                  </TouchableOpacity>
+                      {hasMoreActivities && (
+                        <TouchableOpacity
+                          style={styles.viewMoreButton}
+                          onPress={loadMoreActivities}
+                          disabled={loadingMore}
+                        >
+                          {loadingMore ? (
+                            <Text style={styles.viewMoreText}>Loading...</Text>
+                          ) : (
+                            <>
+                              <Text style={styles.viewMoreText}>View More Activity</Text>
+                              <Ionicons name="chevron-down" size={16} color="#22c55e" />
+                            </>
+                          )}
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
                 </View>
               )}
             </TabView>
@@ -650,6 +655,22 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#22c55e",
     marginRight: 4,
+  },
+  emptyStateContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 48,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#64748b",
+    marginTop: 16,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: "#94a3b8",
+    marginTop: 8,
   },
   bottomPadding: {
     height: 50,

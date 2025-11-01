@@ -24,6 +24,7 @@ export interface Database {
           experience: number
           total_points: number
           streak_days: number
+          onboarding_completed: boolean | null
           created_at: string
           updated_at: string
         }
@@ -41,6 +42,7 @@ export interface Database {
           experience?: number
           total_points?: number
           streak_days?: number
+          onboarding_completed?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -58,6 +60,7 @@ export interface Database {
           experience?: number
           total_points?: number
           streak_days?: number
+          onboarding_completed?: boolean | null
           created_at?: string
           updated_at?: string
         }
@@ -484,6 +487,76 @@ export interface Database {
           badge_id?: string
           earned_at?: string
           created_at?: string
+        }
+      }
+      user_activity_log: {
+        Row: {
+          id: string
+          user_id: string
+          activity_type: string
+          activity_title: string
+          activity_description: string | null
+          points_earned: number
+          metadata: Json | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          activity_type: string
+          activity_title: string
+          activity_description?: string | null
+          points_earned?: number
+          metadata?: Json | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          activity_type?: string
+          activity_title?: string
+          activity_description?: string | null
+          points_earned?: number
+          metadata?: Json | null
+          created_at?: string
+        }
+      }
+      user_settings: {
+        Row: {
+          id: string
+          user_id: string
+          daily_calorie_target: number
+          weight_goal: string
+          activity_level: string
+          dietary_restrictions: string[]
+          favorite_cuisines: string[]
+          meal_preferences: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          daily_calorie_target?: number
+          weight_goal?: string
+          activity_level?: string
+          dietary_restrictions?: string[]
+          favorite_cuisines?: string[]
+          meal_preferences?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          daily_calorie_target?: number
+          weight_goal?: string
+          activity_level?: string
+          dietary_restrictions?: string[]
+          favorite_cuisines?: string[]
+          meal_preferences?: Json
+          created_at?: string
+          updated_at?: string
         }
       }
     }
