@@ -1,16 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
+import { useFocusEffect } from "@react-navigation/native"
 import { useAuth } from "@/hooks/useAuth"
 import { userService } from "@/services/userService"
 import { recipeService } from "@/services/recipeService"
 import { challengeService } from "@/services/challengeService"
 import { ingredientService } from "@/services/ingredientService"
+import { LevelProgress } from "@/components/LevelProgress"
 
 // Components
 import Card from "@/components/Card"
@@ -25,6 +27,12 @@ interface UserStats {
     challengesCompleted: number
     badgesEarned: number
   }
+  levelProgress: {
+    level: number
+    currentLevelXp: number
+    nextLevelXp: number
+    progress: number
+  } | null
 }
 
 interface Recipe {
@@ -78,6 +86,16 @@ export default function HomeScreen() {
       router.replace("/(auth)/login")
     }
   }, [user])
+
+  // Reload data when screen comes into focus (e.g., after completing a recipe)
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🏠 Dashboard: Screen focused, reloading data...')
+      if (user) {
+        loadUserData()
+      }
+    }, [user])
+  )
 
   const loadUserData = async () => {
     if (!user) return
@@ -166,6 +184,10 @@ export default function HomeScreen() {
     router.push("/(tabs)/profile")
   }
 
+  const handleStartCooking = (recipeId: string) => {
+    router.push(`/(tabs)/cooking/${recipeId}`)
+  }
+
   const handleCompleteRecipe = async (recipeId: string) => {
     if (!user) return
 
@@ -196,7 +218,7 @@ export default function HomeScreen() {
   }
 
   const profile = userStats?.profile
-  const expPercentage = profile ? (profile.experience / ((profile.level * 500) || 500)) * 100 : 0
+  const levelProgress = userStats?.levelProgress
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
@@ -222,14 +244,20 @@ export default function HomeScreen() {
             <View style={styles.progressHeader}>
               <View style={styles.levelBadge}>
                 <Ionicons name="star" size={16} color="#f59e0b" />
-                <Text style={styles.levelText}>Level {profile?.level || 1}</Text>
+                <Text style={styles.levelText}>Level {levelProgress?.level || profile?.level || 1}</Text>
               </View>
               <Text style={styles.expText}>
-                {profile?.experience || 0}/{(profile?.level || 1) * 500} XP
+                {levelProgress?.currentLevelXp ?? profile?.experience ?? 0}/{levelProgress?.nextLevelXp ?? 500} XP
               </Text>
             </View>
-            <ProgressBar progress={expPercentage / 100} colors={["#4ade80", "#22c55e"]} height={8} />
-            
+            <LevelProgress
+              level={levelProgress?.level || profile?.level || 1}
+              currentXp={levelProgress?.currentLevelXp ?? profile?.experience ?? 0}
+              nextLevelXp={levelProgress?.nextLevelXp ?? 500}
+              progress={levelProgress?.progress ?? ((profile?.experience || 0) % 500) / 500}
+              showDetails={false}
+            />
+
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{profile?.streak_days || 0}</Text>
@@ -301,10 +329,10 @@ export default function HomeScreen() {
                     </View>
                   )}
                   <Button
-                    text="Cook Now"
+                    text="Start Cooking"
                     color="white"
                     backgroundColor="#22c55e"
-                    onPress={() => handleCompleteRecipe(recipe.id)}
+                    onPress={() => handleStartCooking(recipe.id)}
                     style={styles.cookButton}
                   />
                 </View>

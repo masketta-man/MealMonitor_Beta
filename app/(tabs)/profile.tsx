@@ -14,6 +14,7 @@ import { badgeService, type BadgeWithProgress } from "@/services/badgeService"
 import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import ProgressBar from "@/components/ProgressBar"
+import { LevelProgress } from "@/components/LevelProgress"
 import TabView from "@/components/TabView"
 
 const { width } = Dimensions.get("window")
@@ -25,6 +26,12 @@ interface UserStats {
     challengesCompleted: number
     badgesEarned: number
   }
+  levelProgress: {
+    level: number
+    currentLevelXp: number
+    nextLevelXp: number
+    progress: number
+  } | null
 }
 
 interface ActivityItem {
@@ -127,8 +134,7 @@ export default function ProfileScreen() {
   }
 
   const profile = userStats.profile
-  const nextLevelExp = profile.level * 500
-  const expPercentage = (profile.experience / nextLevelExp) * 100
+  const levelProgress = userStats.levelProgress
   const joinDate = new Date(profile.created_at).toLocaleDateString('en-US', { 
     year: 'numeric', 
     month: 'long' 
@@ -181,15 +187,12 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.levelContainer}>
-              <View style={styles.levelHeader}>
-                <View style={styles.levelBadge}>
-                  <Text style={styles.levelText}>Level {profile.level}</Text>
-                </View>
-                <Text style={styles.expText}>
-                  {profile.experience}/{nextLevelExp} XP
-                </Text>
-              </View>
-              <ProgressBar progress={expPercentage / 100} colors={["#4ade80", "#22c55e"]} height={8} />
+              <LevelProgress
+                level={levelProgress?.level || profile.level}
+                currentXp={levelProgress?.currentLevelXp ?? profile.experience}
+                nextLevelXp={levelProgress?.nextLevelXp ?? 500}
+                progress={levelProgress?.progress ?? ((profile.experience % 500) / 500)}
+              />
             </View>
 
             <View style={styles.statsContainer}>

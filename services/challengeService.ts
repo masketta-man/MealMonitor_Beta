@@ -1,16 +1,80 @@
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
+import { userService } from './userService'
 
+// Define types before using them
 type Challenge = Database['public']['Tables']['challenges']['Row']
+type ChallengeInsert = Database['public']['Tables']['challenges']['Insert']
+type ChallengeUpdate = Database['public']['Tables']['challenges']['Update']
 type ChallengeTask = Database['public']['Tables']['challenge_tasks']['Row']
+type ChallengeTaskInsert = Database['public']['Tables']['challenge_tasks']['Insert']
+type ChallengeTaskUpdate = Database['public']['Tables']['challenge_tasks']['Update']
 type UserChallengeProgress = Database['public']['Tables']['user_challenge_progress']['Row']
+type UserChallengeProgressInsert = Database['public']['Tables']['user_challenge_progress']['Insert']
+type UserChallengeProgressUpdate = Database['public']['Tables']['user_challenge_progress']['Update']
 type UserChallengeTaskProgress = Database['public']['Tables']['user_challenge_task_progress']['Row']
+type UserChallengeTaskProgressInsert = Database['public']['Tables']['user_challenge_task_progress']['Insert']
+type UserChallengeTaskProgressUpdate = Database['public']['Tables']['user_challenge_task_progress']['Update']
 
-export interface ChallengeWithDetails extends Challenge {
+type ChallengeRowWithTasks = Challenge & { challenge_tasks: ChallengeTask[] | null }
+type UserChallengeProgressWithChallenge = UserChallengeProgress & {
+  challenges: ChallengeRowWithTasks
+}
+
+export interface ChallengeWithDetails extends Omit<Challenge, 'challenge_tasks'> {
+  challenge_tasks: ChallengeTask[]
   tasks: ChallengeTask[]
   userProgress?: UserChallengeProgress
   userTaskProgress?: UserChallengeTaskProgress[]
   daysLeft?: number
+}
+
+// Helper function to enrich challenges with user progress
+const enrichChallengesWithUserProgress = async (challenges: ChallengeWithDetails[], userId: string): Promise<ChallengeWithDetails[]> => {
+  const challengeIds = challenges.map((c) => c.id)
+
+  if (challengeIds.length === 0) {
+    return challenges
+  }
+
+  // Get user progress for all challenges
+  const { data: userProgress } = await supabase
+    .from('user_challenge_progress')
+    .select<string, UserChallengeProgress>('*')
+    .eq('user_id', userId)
+    .in('challenge_id', challengeIds)
+
+  // Get user task progress for all challenges
+  const { data: userTaskProgress } = await supabase
+    .from('user_challenge_task_progress')
+    .select<string, UserChallengeTaskProgress>('*')
+    .eq('user_id', userId)
+    .in('challenge_id', challengeIds)
+
+  const progressMap = new Map<string, UserChallengeProgress>()
+  const taskProgressMap = new Map<string, UserChallengeTaskProgress[]>()
+
+  // Populate progress map
+  if (userProgress) {
+    userProgress.forEach((progress) => {
+      progressMap.set(progress.challenge_id, progress)
+    })
+  }
+
+  // Group task progress by challenge
+  if (userTaskProgress) {
+    userTaskProgress.forEach((tp: UserChallengeTaskProgress) => {
+      const existing = taskProgressMap.get(tp.challenge_id) || []
+      existing.push(tp)
+      taskProgressMap.set(tp.challenge_id, existing)
+    })
+  }
+
+  return challenges.map((challenge) => ({
+    ...challenge,
+    userProgress: progressMap.get(challenge.id),
+    userTaskProgress: taskProgressMap.get(challenge.id) || [],
+  }))
 }
 
 export const challengeService = {
@@ -18,7 +82,7 @@ export const challengeService = {
   async getActiveChallenges(userId?: string): Promise<ChallengeWithDetails[]> {
     const { data, error } = await supabase
       .from('challenges')
-      .select(`
+      .select<string, ChallengeRowWithTasks>(`
         *,
         challenge_tasks (*)
       `)
@@ -30,15 +94,22 @@ export const challengeService = {
       return []
     }
 
-    const challenges: ChallengeWithDetails[] = data.map((challenge: any) => ({
-      ...challenge,
-      tasks: challenge.challenge_tasks.sort((a: any, b: any) => a.order_number - b.order_number),
-      daysLeft: this.calculateDaysLeft(challenge.end_date),
-    }))
+    const challenges: ChallengeWithDetails[] = (data ?? []).map((challenge) => {
+      const sortedTasks = [...(challenge.challenge_tasks ?? [])].sort(
+        (a, b) => (a?.order_number ?? 0) - (b?.order_number ?? 0)
+      )
+
+      return {
+        ...challenge,
+        challenge_tasks: challenge.challenge_tasks ?? [],
+        tasks: sortedTasks,
+        daysLeft: this.calculateDaysLeft(challenge.end_date),
+      }
+    })
 
     // If userId provided, get user progress
     if (userId) {
-      return this.enrichChallengesWithUserProgress(challenges, userId)
+      return enrichChallengesWithUserProgress(challenges, userId)
     }
 
     return challenges
@@ -48,28 +119,33 @@ export const challengeService = {
   async getChallenge(challengeId: string, userId?: string): Promise<ChallengeWithDetails | null> {
     const { data, error } = await supabase
       .from('challenges')
-      .select(`
+      .select<string, ChallengeRowWithTasks>(`
         *,
         challenge_tasks (*)
       `)
       .eq('id', challengeId)
       .single()
 
-    if (error) {
+    if (error || !data) {
       console.error('Error fetching challenge:', error)
       return null
     }
 
+    const sortedTasks = [...(data.challenge_tasks ?? [])].sort(
+      (a, b) => (a?.order_number ?? 0) - (b?.order_number ?? 0)
+    )
+
     const challenge: ChallengeWithDetails = {
       ...data,
-      tasks: data.challenge_tasks.sort((a: any, b: any) => a.order_number - b.order_number),
+      challenge_tasks: data.challenge_tasks ?? [],
+      tasks: sortedTasks,
       daysLeft: this.calculateDaysLeft(data.end_date),
     }
 
     // If userId provided, get user progress
     if (userId) {
-      const [enrichedChallenge] = await this.enrichChallengesWithUserProgress([challenge], userId)
-      return enrichedChallenge
+      const enrichedChallenges = await enrichChallengesWithUserProgress([challenge], userId)
+      return enrichedChallenges[0]
     }
 
     return challenge
@@ -79,12 +155,12 @@ export const challengeService = {
   async getUserChallengeProgress(userId: string, challengeId: string): Promise<UserChallengeProgress | null> {
     const { data, error } = await supabase
       .from('user_challenge_progress')
-      .select('*')
+      .select<string, UserChallengeProgress>('*')
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
-      .single()
+      .maybeSingle()
 
-    if (error && error.code !== 'PGRST116') { // PGRST116 is "not found"
+    if (error) {
       console.error('Error fetching user challenge progress:', error)
       return null
     }
@@ -100,14 +176,19 @@ export const challengeService = {
       return true // Already started
     }
 
+    const progressData: UserChallengeProgressInsert = {
+      user_id: userId,
+      challenge_id: challengeId,
+      completed_tasks: 0,
+      is_completed: false,
+      completed_at: null,
+    }
+
     const { error } = await supabase
       .from('user_challenge_progress')
-      .insert({
-        user_id: userId,
-        challenge_id: challengeId,
-        completed_tasks: 0,
-        is_completed: false,
-      })
+      .insert(progressData)
+      .select()
+      .single()
 
     if (error) {
       console.error('Error starting challenge:', error)
@@ -125,26 +206,32 @@ export const challengeService = {
     // Check if task is already completed
     const { data: existingTaskProgress } = await supabase
       .from('user_challenge_task_progress')
-      .select('*')
+      .select<string, UserChallengeTaskProgress>('*')
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
       .eq('task_id', taskId)
-      .single()
+      .maybeSingle()
 
     if (existingTaskProgress?.is_completed) {
       return true // Already completed
     }
 
+    // Track current challenge completion state so we only award points once
+    const currentProgress = await this.getUserChallengeProgress(userId, challengeId)
+    const wasCompleted = currentProgress?.is_completed ?? false
+
     // Mark task as completed
+    const upsertTask: UserChallengeTaskProgressInsert = {
+      user_id: userId,
+      challenge_id: challengeId,
+      task_id: taskId,
+      is_completed: true,
+      completed_at: new Date().toISOString(),
+    }
+
     const { error: taskError } = await supabase
       .from('user_challenge_task_progress')
-      .upsert({
-        user_id: userId,
-        challenge_id: challengeId,
-        task_id: taskId,
-        is_completed: true,
-        completed_at: new Date().toISOString(),
-      })
+      .upsert(upsertTask)
 
     if (taskError) {
       console.error('Error completing task:', taskError)
@@ -152,34 +239,40 @@ export const challengeService = {
     }
 
     // Update challenge progress
-    const { data: completedTasks } = await supabase
+    const { count: completedCount, error: completedCountError } = await supabase
       .from('user_challenge_task_progress')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
       .eq('is_completed', true)
 
-    const completedCount = completedTasks?.length || 0
+    if (completedCountError) {
+      console.error('Error counting completed challenge tasks:', completedCountError)
+      return false
+    }
 
     // Get total tasks for this challenge
     const { data: challenge } = await supabase
       .from('challenges')
-      .select('total_tasks, reward_points')
+      .select<string, Pick<Challenge, 'total_tasks' | 'reward_points'>>('total_tasks, reward_points')
       .eq('id', challengeId)
       .single()
 
     if (!challenge) return false
 
-    const isCompleted = completedCount >= challenge.total_tasks
+    const totalTasks = challenge.total_tasks ?? 0
+    const isCompleted = totalTasks > 0 ? (completedCount ?? 0) >= totalTasks : false
 
     // Update user challenge progress
+    const progressUpdate: UserChallengeProgressUpdate = {
+      completed_tasks: completedCount ?? 0,
+      is_completed: isCompleted,
+      completed_at: isCompleted ? new Date().toISOString() : null,
+    }
+
     const { error: progressError } = await supabase
       .from('user_challenge_progress')
-      .update({
-        completed_tasks: completedCount,
-        is_completed: isCompleted,
-        completed_at: isCompleted ? new Date().toISOString() : null,
-      })
+      .update(progressUpdate)
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
 
@@ -189,9 +282,18 @@ export const challengeService = {
     }
 
     // If challenge is completed, award points (handled by userService)
-    if (isCompleted) {
-      // This would typically trigger a badge check and point award
-      console.log(`Challenge completed! User ${userId} earned ${challenge.reward_points} points`)
+    if (isCompleted && !wasCompleted) {
+      const rewardPoints = challenge.reward_points ?? 0
+
+      if (rewardPoints > 0) {
+        const updatedProfile = await userService.updateExperience(userId, rewardPoints)
+
+        if (!updatedProfile) {
+          console.error('Error awarding challenge reward points to user profile')
+        }
+      }
+
+      console.log(`Challenge completed! User ${userId} earned ${rewardPoints} points`)
     }
 
     return true
@@ -200,12 +302,14 @@ export const challengeService = {
   // Uncomplete a challenge task
   async uncompleteTask(userId: string, challengeId: string, taskId: string): Promise<boolean> {
     // Mark task as not completed
+    const taskUpdate: UserChallengeTaskProgressUpdate = {
+      is_completed: false,
+      completed_at: null,
+    }
+
     const { error: taskError } = await supabase
       .from('user_challenge_task_progress')
-      .update({
-        is_completed: false,
-        completed_at: null,
-      })
+      .update(taskUpdate)
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
       .eq('task_id', taskId)
@@ -216,23 +320,28 @@ export const challengeService = {
     }
 
     // Update challenge progress
-    const { data: completedTasks } = await supabase
+    const { count: completedCount, error: completedCountError } = await supabase
       .from('user_challenge_task_progress')
-      .select('*', { count: 'exact' })
+      .select('*', { count: 'exact', head: true })
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
       .eq('is_completed', true)
 
-    const completedCount = completedTasks?.length || 0
+    if (completedCountError) {
+      console.error('Error counting completed challenge tasks:', completedCountError)
+      return false
+    }
 
     // Update user challenge progress
+    const progressUpdate: UserChallengeProgressUpdate = {
+      completed_tasks: completedCount ?? 0,
+      is_completed: false,
+      completed_at: null,
+    }
+
     const { error: progressError } = await supabase
       .from('user_challenge_progress')
-      .update({
-        completed_tasks: completedCount,
-        is_completed: false,
-        completed_at: null,
-      })
+      .update(progressUpdate)
       .eq('user_id', userId)
       .eq('challenge_id', challengeId)
 
@@ -248,7 +357,7 @@ export const challengeService = {
   async getUserActiveChallenges(userId: string): Promise<ChallengeWithDetails[]> {
     const { data, error } = await supabase
       .from('user_challenge_progress')
-      .select(`
+      .select<string, UserChallengeProgressWithChallenge>(`
         *,
         challenges (
           *,
@@ -263,28 +372,40 @@ export const challengeService = {
       return []
     }
 
-    return data.map((progress: any) => ({
-      ...progress.challenges,
-      tasks: progress.challenges.challenge_tasks.sort((a: any, b: any) => a.order_number - b.order_number),
-      userProgress: {
-        id: progress.id,
-        user_id: progress.user_id,
-        challenge_id: progress.challenge_id,
-        completed_tasks: progress.completed_tasks,
-        is_completed: progress.is_completed,
-        completed_at: progress.completed_at,
-        created_at: progress.created_at,
-        updated_at: progress.updated_at,
-      },
-      daysLeft: this.calculateDaysLeft(progress.challenges.end_date),
-    }))
+    const progressEntries = (data ?? []).filter(
+      (progress): progress is UserChallengeProgressWithChallenge => !!progress.challenges
+    )
+
+    return progressEntries.map((progress) => {
+      const challenge = progress.challenges
+      const sortedTasks = [...(challenge.challenge_tasks ?? [])].sort(
+        (a, b) => (a?.order_number ?? 0) - (b?.order_number ?? 0)
+      )
+
+      return {
+        ...challenge,
+        challenge_tasks: challenge.challenge_tasks ?? [],
+        tasks: sortedTasks,
+        userProgress: {
+          id: progress.id,
+          user_id: progress.user_id,
+          challenge_id: progress.challenge_id,
+          completed_tasks: progress.completed_tasks,
+          is_completed: progress.is_completed,
+          completed_at: progress.completed_at,
+          created_at: progress.created_at,
+          updated_at: progress.updated_at,
+        },
+        daysLeft: this.calculateDaysLeft(challenge.end_date),
+      }
+    })
   },
 
   // Get user's completed challenges
   async getUserCompletedChallenges(userId: string): Promise<ChallengeWithDetails[]> {
     const { data, error } = await supabase
       .from('user_challenge_progress')
-      .select(`
+      .select<string, UserChallengeProgressWithChallenge>(`
         *,
         challenges (
           *,
@@ -300,56 +421,33 @@ export const challengeService = {
       return []
     }
 
-    return data.map((progress: any) => ({
-      ...progress.challenges,
-      tasks: progress.challenges.challenge_tasks.sort((a: any, b: any) => a.order_number - b.order_number),
-      userProgress: {
-        id: progress.id,
-        user_id: progress.user_id,
-        challenge_id: progress.challenge_id,
-        completed_tasks: progress.completed_tasks,
-        is_completed: progress.is_completed,
-        completed_at: progress.completed_at,
-        created_at: progress.created_at,
-        updated_at: progress.updated_at,
-      },
-      daysLeft: 0, // Completed challenges have 0 days left
-    }))
-  },
+    const progressEntries = (data ?? []).filter(
+      (progress): progress is UserChallengeProgressWithChallenge => !!progress.challenges
+    )
 
-  // Helper method to enrich challenges with user progress
-  async enrichChallengesWithUserProgress(challenges: ChallengeWithDetails[], userId: string): Promise<ChallengeWithDetails[]> {
-    const challengeIds = challenges.map(c => c.id)
+    return progressEntries.map((progress) => {
+      const challenge = progress.challenges
+      const sortedTasks = [...(challenge.challenge_tasks ?? [])].sort(
+        (a, b) => (a?.order_number ?? 0) - (b?.order_number ?? 0)
+      )
 
-    // Get user progress for all challenges
-    const { data: userProgress } = await supabase
-      .from('user_challenge_progress')
-      .select('*')
-      .eq('user_id', userId)
-      .in('challenge_id', challengeIds)
-
-    // Get user task progress for all challenges
-    const { data: userTaskProgress } = await supabase
-      .from('user_challenge_task_progress')
-      .select('*')
-      .eq('user_id', userId)
-      .in('challenge_id', challengeIds)
-
-    const progressMap = new Map(userProgress?.map(p => [p.challenge_id, p]) || [])
-    const taskProgressMap = new Map<string, UserChallengeTaskProgress[]>()
-
-    // Group task progress by challenge
-    userTaskProgress?.forEach(tp => {
-      const existing = taskProgressMap.get(tp.challenge_id) || []
-      existing.push(tp)
-      taskProgressMap.set(tp.challenge_id, existing)
+      return {
+        ...challenge,
+        challenge_tasks: challenge.challenge_tasks ?? [],
+        tasks: sortedTasks,
+        userProgress: {
+          id: progress.id,
+          user_id: progress.user_id,
+          challenge_id: progress.challenge_id,
+          completed_tasks: progress.completed_tasks,
+          is_completed: progress.is_completed,
+          completed_at: progress.completed_at,
+          created_at: progress.created_at,
+          updated_at: progress.updated_at,
+        },
+        daysLeft: 0, // Completed challenges have 0 days left
+      }
     })
-
-    return challenges.map(challenge => ({
-      ...challenge,
-      userProgress: progressMap.get(challenge.id),
-      userTaskProgress: taskProgressMap.get(challenge.id) || [],
-    }))
   },
 
   // Helper method to calculate days left

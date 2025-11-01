@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
+import { getLevelProgress } from '@/utils/leveling'
 
 type UserProfile = Database['public']['Tables']['users']['Row']
 type UserProfileInsert = Database['public']['Tables']['users']['Insert']
@@ -26,7 +27,7 @@ export const userService = {
   async createProfile(profile: UserProfileInsert): Promise<UserProfile | null> {
     const { data, error } = await supabase
       .from('users')
-      .insert(profile)
+      .insert(profile as any)
       .select()
       .single()
 
@@ -40,37 +41,42 @@ export const userService = {
 
   // Update user profile
   async updateProfile(userId: string, updates: UserProfileUpdate): Promise<UserProfile | null> {
+    // Create a type-safe update object
+    const updateData: UserProfileUpdate = { ...updates };
+    
     const { data, error } = await supabase
       .from('users')
-      .update(updates)
+      .update(updateData as any) // Type assertion needed due to Supabase type limitations
       .eq('id', userId)
       .select()
       .single()
-
+      
     if (error) {
       console.error('Error updating user profile:', error)
       return null
     }
-
-    return data
+    return data as UserProfile
   },
 
   // Update user experience and level
   async updateExperience(userId: string, pointsEarned: number): Promise<UserProfile | null> {
-    // First get current user data
     const currentProfile = await this.getProfile(userId)
     if (!currentProfile) return null
 
-    const newExperience = currentProfile.experience + pointsEarned
-    const newTotalPoints = currentProfile.total_points + pointsEarned
-    
-    // Calculate new level (every 500 XP = 1 level)
-    const newLevel = Math.floor(newExperience / 500) + 1
+    const currentExperience = currentProfile.experience ?? 0
+    const currentLevel = currentProfile.level ?? 1
+
+    const newExperience = currentExperience + pointsEarned
+    const newTotalPoints = (currentProfile.total_points ?? 0) + pointsEarned
+
+    const progress = getLevelProgress(newExperience)
+    const leveledUp = progress.level > currentLevel
 
     const updates: UserProfileUpdate = {
       experience: newExperience,
       total_points: newTotalPoints,
-      level: newLevel,
+      level: progress.level,
+      ...(leveledUp ? { last_level_up: new Date().toISOString() } : {}),
     }
 
     return this.updateProfile(userId, updates)
@@ -97,6 +103,7 @@ export const userService = {
         challengesCompleted: challengeProgress,
         badgesEarned: badges,
       },
+      levelProgress: profile ? getLevelProgress(profile.experience ?? 0) : null,
     }
   },
 

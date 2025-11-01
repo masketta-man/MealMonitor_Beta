@@ -1,110 +1,109 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
+import { useAuth } from "@/hooks/useAuth"
+import { recipeService } from "@/services/recipeService"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useEffect, useRef, useState } from "react"
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
-import Card from "@/components/Card"
 import Button from "@/components/Button"
+import Card from "@/components/Card"
 
 // Types
-type Instruction = {
-  text: string;
-  timer: number;
-};
+interface RecipeInstruction {
+  step_number: number;
+  instruction: string;
+  timer?: number;
+}
 
-type Recipe = {
+interface RecipeData {
   id: string;
   title: string;
-  instructions: Instruction[];
-  prepTime: string;
-};
-
-// No need for RecipeId type since we're using Record<string, Recipe>
-
-// Mock recipe data (same as recipe detail)
-const MOCK_RECIPES: Record<string, Recipe> = {
-  "1": {
-    id: "1",
-    title: "Avocado & Egg Toast",
-    instructions: [
-      { text: "Toast the bread slices until golden and crispy.", timer: 3 },
-      { text: "In a small pan, fry the eggs to your liking (sunny side up recommended).", timer: 4 },
-      { text: "Mash the avocado in a bowl and add lemon juice, salt, and pepper.", timer: 2 },
-      { text: "Spread the mashed avocado on the toast.", timer: 1 },
-      { text: "Place the fried egg on top of the avocado.", timer: 1 },
-      { text: "Slice cherry tomatoes in half and arrange them around the egg.", timer: 2 },
-      { text: "Sprinkle with red pepper flakes if desired.", timer: 0 },
-      { text: "Serve immediately and enjoy!", timer: 0 },
-    ],
-    prepTime: "15 min",
-  },
-  "2": {
-    id: "2",
-    title: "Mediterranean Salad",
-    instructions: [
-      { text: "Chop the romaine lettuce and place in a large bowl.", timer: 3 },
-      { text: "Dice the cucumber, tomatoes, and red onion.", timer: 5 },
-      { text: "Slice the olives in half.", timer: 2 },
-      { text: "Crumble the feta cheese.", timer: 1 },
-      { text: "Add all vegetables and cheese to the bowl with lettuce.", timer: 1 },
-      { text: "Slice the grilled chicken breast and add to the salad.", timer: 3 },
-      { text: "In a small bowl, whisk together olive oil, lemon juice, oregano, salt, and pepper.", timer: 2 },
-      { text: "Pour the dressing over the salad and toss gently to combine.", timer: 1 },
-      { text: "Serve immediately or chill for 30 minutes to let flavors meld.", timer: 0 },
-    ],
-    prepTime: "20 min",
-  },
-  "3": {
-    id: "3",
-    title: "Vegetable Stir Fry",
-    instructions: [
-      { text: "Press tofu to remove excess water, then cut into cubes.", timer: 5 },
-      { text: "Chop all vegetables into bite-sized pieces.", timer: 8 },
-      { text: "Heat oil in a wok or large pan over high heat.", timer: 2 },
-      { text: "Add tofu and cook until golden brown on all sides.", timer: 6 },
-      { text: "Remove tofu and set aside.", timer: 1 },
-      { text: "Add garlic and ginger to the pan and stir for 30 seconds.", timer: 1 },
-      { text: "Add vegetables and stir-fry for 5-7 minutes until tender-crisp.", timer: 7 },
-      { text: "Return tofu to the pan and add soy sauce.", timer: 1 },
-      { text: "Stir everything together and cook for another 2 minutes.", timer: 2 },
-      { text: "Drizzle with sesame oil and sprinkle with green onions.", timer: 1 },
-      { text: "Serve hot over rice or noodles.", timer: 0 },
-    ],
-    prepTime: "25 min",
-  },
+  instructions: RecipeInstruction[];
+  prep_time: number;
 }
 
 export default function CookingModeScreen() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
-  const [recipe, setRecipe] = useState<Recipe | null>(null)
+  const { user } = useAuth()
   
-  if (!recipe) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading recipe...</Text>
-      </View>
-    )
-  }
+  // All state hooks must be declared before any conditional returns
+  const [recipe, setRecipe] = useState<RecipeData | null>(null)
   const [currentStep, setCurrentStep] = useState(0)
   const [timeRemaining, setTimeRemaining] = useState(0)
   const [isTimerActive, setIsTimerActive] = useState(false)
   const [isTimerPaused, setIsTimerPaused] = useState(false)
   const [completedSteps, setCompletedSteps] = useState<boolean[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [alreadyCompleted, setAlreadyCompleted] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
-    if (id && id in MOCK_RECIPES) {
-      const recipeData = MOCK_RECIPES[id];
-      setRecipe(recipeData);
-      setCompletedSteps(new Array(recipeData.instructions.length).fill(false));
+    const loadRecipe = async () => {
+      if (!id || !user) {
+        setError('Missing recipe ID or user authentication')
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        setIsLoading(true)
+        setError(null)
+        const recipeData = await recipeService.getRecipe(id, user.id)
+        
+        if (recipeData && recipeData.instructions) {
+          setRecipe(recipeData as RecipeData)
+          setCompletedSteps(new Array(recipeData.instructions.length).fill(false))
+        } else {
+          setError('Recipe not found')
+          Alert.alert('Error', 'Recipe not found', [
+            { text: 'OK', onPress: () => router.back() }
+          ])
+        }
+      } catch (err) {
+        console.error('Error loading recipe:', err)
+        setError('Failed to load recipe')
+        Alert.alert('Error', 'Failed to load recipe. Please try again.', [
+          { text: 'OK', onPress: () => router.back() }
+        ])
+      } finally {
+        setIsLoading(false)
+      }
     }
-  }, [id])
+
+    loadRecipe()
+  }, [id, user])
+
+  useEffect(() => {
+    const checkIfCompleted = async () => {
+      if (!user?.id || !id) return
+      
+      try {
+        const today = new Date().toISOString().split('T')[0]
+        const tomorrow = new Date()
+        tomorrow.setDate(tomorrow.getDate() + 1)
+        const tomorrowStr = tomorrow.toISOString().split('T')[0]
+        
+        const { data } = await recipeService.checkCompletion(user.id, id, today, tomorrowStr)
+        
+        if (data) {
+          setAlreadyCompleted(true)
+        }
+      } catch (error) {
+        console.error('Error checking recipe completion:', error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    checkIfCompleted()
+  }, [user, id])
 
   useEffect(() => {
     if (isTimerActive && !isTimerPaused && timeRemaining > 0) {
@@ -128,9 +127,11 @@ export default function CookingModeScreen() {
   }, [timeRemaining, isTimerActive, isTimerPaused, currentStep])
 
   const startTimer = () => {
+    if (!recipe) return
     const currentInstruction = recipe.instructions[currentStep]
-    if (currentInstruction.timer > 0) {
-      setTimeRemaining(currentInstruction.timer * 60) // Convert minutes to seconds
+    const timerMinutes = currentInstruction.timer || 0
+    if (timerMinutes > 0) {
+      setTimeRemaining(timerMinutes * 60) // Convert minutes to seconds
       setIsTimerActive(true)
       setIsTimerPaused(false)
     }
@@ -154,6 +155,7 @@ export default function CookingModeScreen() {
   }
 
   const nextStep = () => {
+    if (!recipe) return
     if (currentStep < recipe.instructions.length - 1) {
       setCurrentStep(currentStep + 1)
       stopTimer()
@@ -173,27 +175,84 @@ export default function CookingModeScreen() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
-  const finishCooking = () => {
-    Alert.alert("Cooking Complete!", "Congratulations! You've finished cooking this recipe. Enjoy your meal!", [
-      {
-        text: "Back to Recipe",
-        onPress: () => router.back(),
-      },
-      {
-        text: "Rate Recipe",
-        onPress: () => {
-          // Navigate to rating screen or show rating modal
-          router.back()
+  const finishCooking = async () => {
+    console.log('🎉 FINISH COOKING: Function called')
+    console.log('🎉 FINISH COOKING: User ID:', user?.id)
+    console.log('🎉 FINISH COOKING: Recipe ID:', id)
+    
+    if (!user || !id) {
+      console.warn('⚠️ FINISH COOKING: Missing user or recipe ID - aborting')
+      console.log('⚠️ FINISH COOKING: User exists?', !!user)
+      console.log('⚠️ FINISH COOKING: Recipe ID exists?', !!id)
+      return
+    }
+
+    try {
+      console.log('🎉 FINISH COOKING: Calling recipeService.completeRecipe...')
+      // Complete the recipe and award points
+      const success = await recipeService.completeRecipe(user.id, id)
+      console.log('🎉 FINISH COOKING: recipeService.completeRecipe returned:', success)
+      
+      if (success) {
+        console.log('✅ FINISH COOKING: Recipe completed successfully!')
+        console.log('🎉 FINISH COOKING: Points awarded! Navigating to dashboard...')
+        
+        // Navigate to dashboard to see updated stats and points
+        router.push("/(tabs)/")
+      } else {
+        console.log('⚠️ FINISH COOKING: Recipe already completed today')
+        Alert.alert("Cooking Complete!", 
+          "You've already completed this recipe today. Come back tomorrow to earn more points!", 
+          [
+            {
+              text: "OK",
+              onPress: () => {
+                console.log('🎉 FINISH COOKING: User acknowledged already completed')
+                router.back()
+              },
+            },
+          ]
+        )
+      }
+    } catch (error) {
+      console.error('❌ FINISH COOKING: Error completing recipe:', error)
+      console.error('❌ FINISH COOKING: Error details:', JSON.stringify(error, null, 2))
+      Alert.alert("Cooking Complete!", "You've finished cooking! Enjoy your meal.", [
+        {
+          text: "OK",
+          onPress: () => {
+            console.log('🎉 FINISH COOKING: Error case - going back')
+            router.back()
+          },
         },
-      },
-    ])
+      ])
+    }
   }
 
-  if (!recipe) {
+  // Handle loading and error states
+  if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading recipe...</Text>
+        <ActivityIndicator size="large" color="#4CAF50" />
       </View>
+    )
+  }
+
+  if (error || !recipe) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Ionicons name="alert-circle" size={48} color="#ef4444" />
+          <Text style={styles.errorText}>{error || 'Recipe not found'}</Text>
+          <Button
+            text="Go Back"
+            color="white"
+            backgroundColor="#22c55e"
+            onPress={() => router.back()}
+            style={{ marginTop: 16 }}
+          />
+        </View>
+      </SafeAreaView>
     )
   }
 
@@ -202,8 +261,19 @@ export default function CookingModeScreen() {
   const allStepsCompleted = completedSteps.every((step) => step)
 
   return (
-    <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+    <SafeAreaView style={styles.container}>
+      <LinearGradient
+        colors={['#f0fdf4', '#ecfdf5']}
+        style={styles.background}
+      >
+        {alreadyCompleted && (
+          <View style={styles.warningBanner}>
+            <Ionicons name="warning" size={20} color="#fff" style={styles.warningIcon} />
+            <Text style={styles.warningText}>
+              You've already completed this recipe today. Come back tomorrow to earn more points!
+            </Text>
+          </View>
+        )}
         {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
@@ -243,10 +313,10 @@ export default function CookingModeScreen() {
                 {completedSteps[currentStep] && <Ionicons name="checkmark-circle" size={24} color="#22c55e" />}
               </View>
             </View>
-            <Text style={styles.stepText}>{currentInstruction.text}</Text>
+            <Text style={styles.stepText}>{currentInstruction.instruction}</Text>
 
             {/* Timer Section */}
-            {currentInstruction.timer > 0 && (
+            {currentInstruction.timer && currentInstruction.timer > 0 && (
               <View style={styles.timerSection}>
                 <Text style={styles.timerLabel}>Suggested Time: {currentInstruction.timer} minutes</Text>
                 <View style={styles.timerDisplay}>
@@ -359,9 +429,9 @@ export default function CookingModeScreen() {
                   ]}
                   numberOfLines={2}
                 >
-                  {instruction.text}
+                  {instruction.instruction}
                 </Text>
-                {instruction.timer > 0 && (
+                {instruction.timer && instruction.timer > 0 && (
                   <View style={styles.overviewTimer}>
                     <Ionicons name="time-outline" size={14} color="#64748b" />
                     <Text style={styles.overviewTimerText}>{instruction.timer}m</Text>
@@ -373,22 +443,56 @@ export default function CookingModeScreen() {
 
           <View style={styles.bottomPadding} />
         </ScrollView>
-      </SafeAreaView>
-    </LinearGradient>
+      </LinearGradient>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fff',
   },
-  safeArea: {
+  background: {
     flex: 1,
+  },
+  warningBanner: {
+    backgroundColor: '#FFA000',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    margin: 10,
+    borderRadius: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  warningIcon: {
+    marginRight: 8,
+  },
+  warningText: {
+    color: '#fff',
+    flex: 1,
+    fontWeight: '500',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: "#166534",
+    marginTop: 16,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#dc2626",
+    marginTop: 16,
+    textAlign: "center",
   },
   header: {
     flexDirection: "row",

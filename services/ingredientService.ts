@@ -3,6 +3,8 @@ import { Database } from '@/types/database'
 
 type Ingredient = Database['public']['Tables']['ingredients']['Row']
 type UserIngredient = Database['public']['Tables']['user_ingredients']['Row']
+type UserIngredientInsert = Database['public']['Tables']['user_ingredients']['Insert']
+type UserIngredientUpdate = Database['public']['Tables']['user_ingredients']['Update']
 
 export interface UserIngredientWithDetails extends UserIngredient {
   ingredient: Ingredient
@@ -57,17 +59,19 @@ export const ingredientService = {
     quantity?: string,
     expiryDate?: string
   ): Promise<UserIngredient | null> {
+    const insertData: UserIngredientInsert = {
+      user_id: userId,
+      ingredient_id: ingredientId,
+      quantity: quantity || null,
+      expiry_date: expiryDate || null,
+      in_stock: true,
+    }
+
     const { data, error } = await supabase
       .from('user_ingredients')
-      .insert({
-        user_id: userId,
-        ingredient_id: ingredientId,
-        quantity,
-        expiry_date: expiryDate,
-        in_stock: true,
-      })
+      .insert(insertData)
       .select()
-      .single()
+      .single<UserIngredient>()
 
     if (error) {
       console.error('Error adding user ingredient:', error)
@@ -86,18 +90,18 @@ export const ingredientService = {
       inStock?: boolean
     }
   ): Promise<UserIngredient | null> {
-    const updateData: any = {}
-    
+    const updateData: Partial<UserIngredientUpdate> = {}
+
     if (updates.quantity !== undefined) updateData.quantity = updates.quantity
     if (updates.expiryDate !== undefined) updateData.expiry_date = updates.expiryDate
     if (updates.inStock !== undefined) updateData.in_stock = updates.inStock
 
     const { data, error } = await supabase
       .from('user_ingredients')
-      .update(updateData)
+      .update(updateData as UserIngredientUpdate)
       .eq('id', userIngredientId)
       .select()
-      .single()
+      .single<UserIngredient>()
 
     if (error) {
       console.error('Error updating user ingredient:', error)
@@ -115,40 +119,40 @@ export const ingredientService = {
       .select('*')
       .eq('user_id', userId)
       .eq('ingredient_id', ingredientId)
-      .single()
+      .single<UserIngredient>()
 
     if (existing) {
       // Update existing ingredient
+      const newStockState = !existing.in_stock
       const { data, error } = await supabase
         .from('user_ingredients')
-        .update({ in_stock: !existing.in_stock })
+        .update({ in_stock: newStockState } as UserIngredientUpdate)
         .eq('id', existing.id)
         .select()
-        .single()
+        .single<UserIngredient>()
 
       if (error) {
         console.error('Error toggling ingredient stock:', error)
         return existing.in_stock // Return original state on error
       }
-
-      return data.in_stock
+      return data?.in_stock ?? existing.in_stock
     } else {
       // Add new ingredient as in stock
-      const { data, error } = await supabase
+      const insertData: UserIngredientInsert = {
+        user_id: userId,
+        ingredient_id: ingredientId,
+        in_stock: true,
+        quantity: null,
+        expiry_date: null
+      }
+      const { error } = await supabase
         .from('user_ingredients')
-        .insert({
-          user_id: userId,
-          ingredient_id: ingredientId,
-          in_stock: true,
-        })
-        .select()
-        .single()
+        .insert(insertData)
 
       if (error) {
         console.error('Error adding ingredient:', error)
         return false
       }
-
       return true
     }
   },

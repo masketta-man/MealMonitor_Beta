@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
+import { userService } from './userService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -141,21 +142,21 @@ export const recipeService = {
     }
 
     const recipe: RecipeWithDetails = {
-      ...data,
-      ingredients: data.recipe_ingredients.map((ri: any) => ({
+      ...(data as any),
+      ingredients: (data as any).recipe_ingredients.map((ri: any) => ({
         id: ri.ingredients.id,
         name: ri.ingredients.name,
         amount: ri.amount,
         category: ri.ingredients.category,
       })),
-      instructions: data.recipe_instructions
+      instructions: (data as any).recipe_instructions
         .sort((a: any, b: any) => a.step_number - b.step_number)
         .map((inst: any) => ({
           step_number: inst.step_number,
           instruction: inst.instruction,
           timer_minutes: inst.timer_minutes,
         })),
-      tags: data.recipe_tags.map((tag: any) => ({
+      tags: (data as any).recipe_tags.map((tag: any) => ({
         tag: tag.tag,
         tag_type: tag.tag_type,
       })),
@@ -238,7 +239,7 @@ export const recipeService = {
       // Add to favorites
       const { error } = await supabase
         .from('user_favorites')
-        .insert({ user_id: userId, recipe_id: recipeId })
+        .insert({ user_id: userId, recipe_id: recipeId } as any)
 
       if (error) {
         console.error('Error adding favorite:', error)
@@ -248,32 +249,76 @@ export const recipeService = {
     }
   },
 
-  // Mark recipe as completed
+  // Mark recipe as completed (once per day per recipe)
   async completeRecipe(userId: string, recipeId: string): Promise<boolean> {
+    console.log(' recipeService.completeRecipe: Starting...', { userId, recipeId })
+    
+    // Check if completed today
+    const today = new Date().toISOString().split('T')[0] // Get YYYY-MM-DD format
+    const tomorrow = new Date()
+    tomorrow.setDate(tomorrow.getDate() + 1)
+    const tomorrowStr = tomorrow.toISOString().split('T')[0]
+    
+    const { data: recentCompletion } = await supabase
+      .from('user_completed_meals')
+      .select('completed_at')
+      .eq('user_id', userId)
+      .eq('recipe_id', recipeId)
+      .gte('completed_at', `${today}T00:00:00.000Z`)
+      .lt('completed_at', `${tomorrowStr}T00:00:00.000Z`)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (recentCompletion && 'completed_at' in recentCompletion && recentCompletion.completed_at) {
+      console.log(' recipeService.completeRecipe: Recipe already completed today')
+      return false
+    }
+
     // Get recipe points
-    const { data: recipe } = await supabase
+    const { data: recipe, error: recipeError } = await supabase
       .from('recipes')
       .select('points')
       .eq('id', recipeId)
       .single()
 
-    if (!recipe) return false
+    if (recipeError || !recipe) {
+      console.error(' recipeService.completeRecipe: Error fetching recipe:', recipeError)
+      return false
+    }
+
+    console.log('📊 recipeService.completeRecipe: Recipe points:', (recipe as any).points)
 
     // Add to completed meals
-    const { error } = await supabase
+    const { error: insertError } = await supabase
       .from('user_completed_meals')
       .insert({
         user_id: userId,
         recipe_id: recipeId,
-        points_earned: recipe.points,
-      })
+        points_earned: (recipe as any).points,
+      } as any)
 
-    if (error) {
-      console.error('Error completing recipe:', error)
+    if (insertError) {
+      console.error(' recipeService.completeRecipe: Error inserting completion:', insertError)
       return false
     }
 
-    // Update user experience (handled by userService)
+    console.log(' recipeService.completeRecipe: Completion recorded, updating XP...')
+
+    // Update user experience and level
+    const updatedProfile = await userService.updateExperience(userId, (recipe as any).points)
+    
+    if (!updatedProfile) {
+      console.error(' recipeService.completeRecipe: Error updating user XP')
+      return false
+    }
+
+    console.log(' recipeService.completeRecipe: XP updated successfully!', {
+      newXP: updatedProfile.experience,
+      newLevel: updatedProfile.level,
+      totalPoints: updatedProfile.total_points
+    })
+
     return true
   },
 
@@ -333,6 +378,20 @@ export const recipeService = {
     }))
   },
 
+  // Check if a recipe was completed within a date range
+  async checkCompletion(userId: string, recipeId: string, startDate: string, endDate: string) {
+    return await supabase
+      .from('user_completed_meals')
+      .select('completed_at')
+      .eq('user_id', userId)
+      .eq('recipe_id', recipeId)
+      .gte('completed_at', `${startDate}T00:00:00.000Z`)
+      .lt('completed_at', `${endDate}T00:00:00.000Z`)
+      .order('completed_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+  },
+
   // Helper method to enrich recipes with user-specific data
   async enrichRecipesWithUserData(recipes: RecipeWithDetails[], userId: string): Promise<RecipeWithDetails[]> {
     // Get user favorites
@@ -341,7 +400,7 @@ export const recipeService = {
       .select('recipe_id')
       .eq('user_id', userId)
 
-    const favoriteIds = new Set(favorites?.map(f => f.recipe_id) || [])
+    const favoriteIds = new Set(favorites?.map((f: any) => f.recipe_id) || [])
 
     // Get user's available ingredients
     const { data: userIngredients } = await supabase
