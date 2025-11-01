@@ -170,6 +170,10 @@ export default function CookingModeScreen() {
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
   }
 
+  const goToDashboard = () => {
+    router.replace("/(tabs)/index")
+  }
+
   const finishCooking = async () => {
     console.log('🎉 FINISH COOKING: Function called')
     console.log('🎉 FINISH COOKING: User ID:', user?.id)
@@ -201,7 +205,7 @@ export default function CookingModeScreen() {
                 text: "OK",
                 onPress: () => {
                   console.log('🎉 FINISH COOKING: Multiple completion acknowledged')
-                  router.back()
+                  goToDashboard()
                 },
               },
             ]
@@ -216,15 +220,15 @@ export default function CookingModeScreen() {
                 text: "View Profile",
                 onPress: () => {
                   console.log('🎉 FINISH COOKING: Navigating to profile')
-                  router.push("/(tabs)/profile")
+                  router.replace("/(tabs)/profile")
                 },
               },
               {
-                text: "Go Back",
+                text: "Go to Dashboard",
                 style: "cancel",
                 onPress: () => {
-                  console.log('🎉 FINISH COOKING: Going back')
-                  router.back()
+                  console.log('🎉 FINISH COOKING: Navigating to dashboard')
+                  goToDashboard()
                 },
               },
             ]
