@@ -106,6 +106,9 @@ export const calorieService = {
     mealType?: string,
     recipeId?: string
   ): Promise<boolean> {
+    // Ensure meal_type is one of: breakfast, lunch, dinner, snack
+    const validMealType = mealType?.toLowerCase() || 'snack'
+
     const { data: mealData, error: mealError } = await supabase
       .from('meal_logs')
       .insert({
@@ -113,7 +116,7 @@ export const calorieService = {
         recipe_id: recipeId || null,
         meal_name: mealName,
         calories,
-        meal_type: mealType || 'meal',
+        meal_type: validMealType,
       })
       .select()
       .single()

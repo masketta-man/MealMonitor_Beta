@@ -290,7 +290,7 @@ export const recipeService = {
     // Get recipe details
     const { data: recipe, error: recipeError } = await supabase
       .from('recipes')
-      .select('points, title, calories')
+      .select('points, title, calories, meal_type')
       .eq('id', recipeId)
       .single()
 
@@ -302,7 +302,8 @@ export const recipeService = {
     const recipePoints = (recipe as any).points
     const recipeTitle = (recipe as any).title
     const recipeCalories = (recipe as any).calories || 0
-    console.log('📊 recipeService.completeRecipe: Recipe details:', { title: recipeTitle, points: recipePoints, calories: recipeCalories })
+    const recipeMealType = (recipe as any).meal_type || 'Snack'
+    console.log('📊 recipeService.completeRecipe: Recipe details:', { title: recipeTitle, points: recipePoints, calories: recipeCalories, mealType: recipeMealType })
 
     // Determine if this completion should award points
     const shouldAwardPoints = awardPoints && !completedToday
@@ -329,8 +330,9 @@ export const recipeService = {
 
     // Log meal calories if recipe has calorie data
     if (recipeCalories > 0) {
-      await calorieService.logMeal(userId, recipeTitle, recipeCalories, 'meal', recipeId)
-      console.log('📊 Logged calories for meal:', recipeTitle, recipeCalories)
+      const mealTypeForLog = recipeMealType.toLowerCase()
+      await calorieService.logMeal(userId, recipeTitle, recipeCalories, mealTypeForLog, recipeId)
+      console.log('📊 Logged calories for meal:', recipeTitle, recipeCalories, mealTypeForLog)
     }
 
     // Update streak for completing a meal
