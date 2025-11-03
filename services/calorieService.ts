@@ -33,7 +33,7 @@ export const calorieService = {
     const today = new Date().toISOString().split('T')[0]
 
     const { data, error } = await supabase
-      .from('daily_calorie_log')
+      .from('daily_calories')
       .select('*')
       .eq('user_id', userId)
       .eq('date', today)
@@ -52,7 +52,7 @@ export const calorieService = {
     today.setHours(0, 0, 0, 0)
 
     const { data, error } = await supabase
-      .from('meal_log')
+      .from('meal_logs')
       .select('*')
       .eq('user_id', userId)
       .gte('logged_at', today.toISOString())
@@ -76,7 +76,7 @@ export const calorieService = {
       const today = new Date().toISOString().split('T')[0]
 
       const { data, error } = await supabase
-        .from('daily_calorie_log')
+        .from('daily_calories')
         .insert({
           user_id: userId,
           date: today,
@@ -107,13 +107,13 @@ export const calorieService = {
     recipeId?: string
   ): Promise<boolean> {
     const { data: mealData, error: mealError } = await supabase
-      .from('meal_log')
+      .from('meal_logs')
       .insert({
         user_id: userId,
         recipe_id: recipeId || null,
         meal_name: mealName,
         calories,
-        meal_type: mealType || null,
+        meal_type: mealType || 'meal',
       })
       .select()
       .single()
@@ -138,7 +138,7 @@ export const calorieService = {
     const goalMet = totalCalories > 0 && totalCalories <= todaysLog.calorie_goal
 
     const { error } = await supabase
-      .from('daily_calorie_log')
+      .from('daily_calories')
       .update({
         total_calories: totalCalories,
         goal_met: goalMet,
@@ -160,7 +160,7 @@ export const calorieService = {
 
     if (updatedProfile) {
       const { error } = await supabase
-        .from('daily_calorie_log')
+        .from('daily_calories')
         .update({ xp_awarded: true })
         .eq('id', logId)
 
@@ -182,7 +182,7 @@ export const calorieService = {
 
   async deleteMeal(userId: string, mealId: string): Promise<boolean> {
     const { error } = await supabase
-      .from('meal_log')
+      .from('meal_logs')
       .delete()
       .eq('id', mealId)
       .eq('user_id', userId)
@@ -202,7 +202,7 @@ export const calorieService = {
     startDate.setDate(startDate.getDate() - days)
 
     const { data, error } = await supabase
-      .from('daily_calorie_log')
+      .from('daily_calories')
       .select('*')
       .eq('user_id', userId)
       .gte('date', startDate.toISOString().split('T')[0])
