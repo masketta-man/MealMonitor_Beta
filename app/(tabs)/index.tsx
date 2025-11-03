@@ -13,7 +13,6 @@ import { recipeService } from "@/services/recipeService"
 import { challengeService } from "@/services/challengeService"
 import { ingredientService } from "@/services/ingredientService"
 import { calorieService } from "@/services/calorieService"
-import { streakService } from "@/services/streakService"
 import { LevelProgress } from "@/components/LevelProgress"
 import { CalorieCounter } from "@/components/CalorieCounter"
 import { useTutorial } from "@/contexts/TutorialContext"
@@ -110,9 +109,6 @@ export default function HomeScreen() {
 
     setLoading(true)
     try {
-      // Update streak on dashboard load
-      await streakService.checkAndUpdateStreak(user.id)
-
       // Load user stats
       const stats = await userService.getUserStats(user.id)
       setUserStats(stats)

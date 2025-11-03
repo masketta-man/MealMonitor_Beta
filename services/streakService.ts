@@ -12,31 +12,28 @@ export const streakService = {
     }
 
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
     const todayString = today.toISOString().split('T')[0]
+    const lastActivityString = profile.last_activity_date || null
 
-    const lastActivityDate = profile.last_activity_date
-      ? new Date(profile.last_activity_date)
-      : null
-
-    if (lastActivityDate) {
-      lastActivityDate.setHours(0, 0, 0, 0)
-    }
-
-    const lastActivityString = lastActivityDate
-      ? lastActivityDate.toISOString().split('T')[0]
-      : null
+    console.log('🔥 Streak check:', {
+      userId,
+      todayString,
+      lastActivityString,
+      currentStreak: profile.streak_days,
+    })
 
     if (lastActivityString === todayString) {
+      console.log('✅ Already recorded activity today, no streak update needed')
       return { streak: profile.streak_days || 0, isNewStreak: false }
     }
 
     let newStreakDays = profile.streak_days || 0
     let isNewStreak = false
 
-    if (!lastActivityDate) {
+    if (!lastActivityString) {
       newStreakDays = 1
       isNewStreak = true
+      console.log('🆕 First activity ever, starting streak at 1')
     } else {
       const yesterday = new Date(today)
       yesterday.setDate(yesterday.getDate() - 1)
@@ -45,9 +42,11 @@ export const streakService = {
       if (lastActivityString === yesterdayString) {
         newStreakDays = (profile.streak_days || 0) + 1
         isNewStreak = true
+        console.log('🔥 Activity yesterday, incrementing streak to', newStreakDays)
       } else {
         newStreakDays = 1
         isNewStreak = true
+        console.log('💔 Streak broken, resetting to 1')
       }
     }
 
@@ -63,6 +62,11 @@ export const streakService = {
       console.error('Error updating streak:', error)
       return { streak: profile.streak_days || 0, isNewStreak: false }
     }
+
+    console.log('✅ Streak updated successfully:', {
+      newStreak: newStreakDays,
+      isNewStreak,
+    })
 
     if (isNewStreak && newStreakDays > 1 && newStreakDays % 7 === 0) {
       await this.awardStreakBonus(userId, newStreakDays)
