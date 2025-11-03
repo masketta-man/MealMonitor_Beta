@@ -2,6 +2,8 @@ import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
 import { userService } from './userService'
 import { activityService } from './activityService'
+import { calorieService } from './calorieService'
+import { streakService } from './streakService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -288,7 +290,7 @@ export const recipeService = {
     // Get recipe details
     const { data: recipe, error: recipeError } = await supabase
       .from('recipes')
-      .select('points, title')
+      .select('points, title, calories')
       .eq('id', recipeId)
       .single()
 
@@ -299,7 +301,8 @@ export const recipeService = {
 
     const recipePoints = (recipe as any).points
     const recipeTitle = (recipe as any).title
-    console.log('📊 recipeService.completeRecipe: Recipe details:', { title: recipeTitle, points: recipePoints })
+    const recipeCalories = (recipe as any).calories || 0
+    console.log('📊 recipeService.completeRecipe: Recipe details:', { title: recipeTitle, points: recipePoints, calories: recipeCalories })
 
     // Determine if this completion should award points
     const shouldAwardPoints = awardPoints && !completedToday
@@ -323,6 +326,18 @@ export const recipeService = {
       pointsAwarded: pointsToAward,
       isFirstCompletionToday: !completedToday
     })
+
+    // Log meal calories if recipe has calorie data
+    if (recipeCalories > 0) {
+      await calorieService.logMeal(userId, recipeTitle, recipeCalories, 'meal', recipeId)
+      console.log('📊 Logged calories for meal:', recipeTitle, recipeCalories)
+    }
+
+    // Update streak for completing a meal
+    if (!completedToday) {
+      const streakInfo = await streakService.checkAndUpdateStreak(userId)
+      console.log('🔥 Streak updated:', streakInfo)
+    }
 
     // Update user experience and level only if points awarded
     if (shouldAwardPoints && pointsToAward > 0) {

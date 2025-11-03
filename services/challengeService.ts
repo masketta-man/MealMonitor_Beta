@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
 import { userService } from './userService'
+import { streakService } from './streakService'
 
 // Define types before using them
 type Challenge = Database['public']['Tables']['challenges']['Row']
@@ -292,6 +293,10 @@ export const challengeService = {
           console.error('Error awarding challenge reward points to user profile')
         }
       }
+
+      // Update streak when completing a challenge
+      const streakInfo = await streakService.checkAndUpdateStreak(userId)
+      console.log('🔥 Streak updated after challenge completion:', streakInfo)
 
       console.log(`Challenge completed! User ${userId} earned ${rewardPoints} points`)
     }

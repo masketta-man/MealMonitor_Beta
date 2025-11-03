@@ -24,6 +24,7 @@ export interface Database {
           experience: number
           total_points: number
           streak_days: number
+          last_activity_date: string | null
           onboarding_completed: boolean | null
           created_at: string
           updated_at: string
@@ -42,6 +43,7 @@ export interface Database {
           experience?: number
           total_points?: number
           streak_days?: number
+          last_activity_date?: string | null
           onboarding_completed?: boolean | null
           created_at?: string
           updated_at?: string
@@ -60,6 +62,7 @@ export interface Database {
           experience?: number
           total_points?: number
           streak_days?: number
+          last_activity_date?: string | null
           onboarding_completed?: boolean | null
           created_at?: string
           updated_at?: string
@@ -560,6 +563,73 @@ export interface Database {
           tutorial_completed?: boolean
           created_at?: string
           updated_at?: string
+        }
+      }
+      daily_calorie_log: {
+        Row: {
+          id: string
+          user_id: string
+          date: string
+          total_calories: number
+          calorie_goal: number
+          goal_met: boolean
+          xp_awarded: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          date?: string
+          total_calories?: number
+          calorie_goal: number
+          goal_met?: boolean
+          xp_awarded?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          date?: string
+          total_calories?: number
+          calorie_goal?: number
+          goal_met?: boolean
+          xp_awarded?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      meal_log: {
+        Row: {
+          id: string
+          user_id: string
+          recipe_id: string | null
+          meal_name: string
+          calories: number
+          logged_at: string
+          meal_type: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          recipe_id?: string | null
+          meal_name: string
+          calories: number
+          logged_at?: string
+          meal_type?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          recipe_id?: string | null
+          meal_name?: string
+          calories?: number
+          logged_at?: string
+          meal_type?: string | null
+          created_at?: string
         }
       }
     }

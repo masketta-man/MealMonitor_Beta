@@ -12,7 +12,10 @@ import { userService } from "@/services/userService"
 import { recipeService } from "@/services/recipeService"
 import { challengeService } from "@/services/challengeService"
 import { ingredientService } from "@/services/ingredientService"
+import { calorieService } from "@/services/calorieService"
+import { streakService } from "@/services/streakService"
 import { LevelProgress } from "@/components/LevelProgress"
+import { CalorieCounter } from "@/components/CalorieCounter"
 import { useTutorial } from "@/contexts/TutorialContext"
 import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 
@@ -72,6 +75,7 @@ export default function HomeScreen() {
   const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([])
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([])
   const [availableIngredients, setAvailableIngredients] = useState<number>(0)
+  const [calorieData, setCalorieData] = useState<{ current: number; goal: number; goalMet: boolean }>({ current: 0, goal: 2000, goalMet: false })
   const [loading, setLoading] = useState(true)
   const [tutorialTriggered, setTutorialTriggered] = useState(false)
 
@@ -106,9 +110,31 @@ export default function HomeScreen() {
 
     setLoading(true)
     try {
+      // Update streak on dashboard load
+      await streakService.checkAndUpdateStreak(user.id)
+
       // Load user stats
       const stats = await userService.getUserStats(user.id)
       setUserStats(stats)
+
+      // Load calorie data
+      const todaysLog = await calorieService.getTodaysLog(user.id)
+      if (todaysLog) {
+        setCalorieData({
+          current: todaysLog.total_calories,
+          goal: todaysLog.calorie_goal,
+          goalMet: todaysLog.goal_met,
+        })
+      } else {
+        const newLog = await calorieService.getOrCreateTodaysLog(user.id)
+        if (newLog) {
+          setCalorieData({
+            current: newLog.total_calories,
+            goal: newLog.calorie_goal,
+            goalMet: newLog.goal_met,
+          })
+        }
+      }
 
       // Check if tutorial should be shown (only once per session)
       if (shouldShowTutorial && !tutorialTriggered && !loading) {
@@ -252,6 +278,15 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+          {/* Calorie Counter */}
+          <View style={styles.calorieSection}>
+            <CalorieCounter
+              currentCalories={calorieData.current}
+              goalCalories={calorieData.goal}
+              goalMet={calorieData.goalMet}
+            />
+          </View>
+
           {/* User Progress Card */}
           <Card style={styles.progressCard}>
             <View style={styles.progressHeader}>
@@ -557,6 +592,10 @@ const styles = StyleSheet.create({
   quickActionSubtext: {
     fontSize: 12,
     color: "#64748b",
+  },
+  calorieSection: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
   },
   sectionHeader: {
     flexDirection: "row",
