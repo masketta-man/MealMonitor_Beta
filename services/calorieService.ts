@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase'
+import { activityService } from './activityService'
 import { settingsService } from './settingsService'
 import { userService } from './userService'
-import { activityService } from './activityService'
 
 export interface DailyCalorieLog {
   id: string
@@ -28,7 +28,7 @@ export interface MealLog {
 
 const CALORIE_GOAL_XP_REWARD = 50
 const CALORIE_GOAL_MIN_PERCENTAGE = 0.8 // 80% of goal
-const CALORIE_GOAL_MAX_PERCENTAGE = 1.05 // 105% of goal
+const CALORIE_GOAL_MAX_PERCENTAGE = 1.10 // 110% of goal
 
 export const calorieService = {
   async getTodaysLog(userId: string): Promise<DailyCalorieLog | null> {

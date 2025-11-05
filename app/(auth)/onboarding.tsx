@@ -218,9 +218,9 @@ export default function OnboardingScreen() {
       }
 
       if (profile) {
-        console.log('🔑 Onboarding: Profile saved successfully')
-        // Force navigation to tabs
-        router.replace('/(tabs)')
+        console.log('🔑 Onboarding: Profile saved successfully, starting tutorial')
+        // Force navigation to tabs with tutorial flag
+        router.replace('/(tabs)?startTutorial=true')
       } else {
         console.log('🔑 Onboarding: Failed to save profile')
         Alert.alert("Error", "Failed to save your preferences. Please try again.")
@@ -241,7 +241,7 @@ export default function OnboardingScreen() {
           })
 
           if (profile) {
-            router.replace('/(tabs)')
+            router.replace('/(tabs)?startTutorial=true')
             return
           }
         } catch (updateError) {
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 20,
-    paddingBottom: 32,
+    paddingBottom: 100,
   },
   nextButton: {
     marginBottom: 12,

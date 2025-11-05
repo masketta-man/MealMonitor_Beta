@@ -13,14 +13,14 @@ export const APP_TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Your Dashboard',
     description: 'This is your home screen where you\'ll see your daily meal plan, current streak, and quick stats. Check here daily to stay on track!',
     icon: 'home',
-    position: 'top',
+    position: 'center',
   },
   {
     id: 'recipes',
     title: 'Discover Recipes',
     description: 'Browse through our collection of healthy recipes. Filter by meal type, difficulty, and dietary preferences to find the perfect meal.',
     icon: 'restaurant',
-    position: 'top',
+    position: 'center',
   },
   {
     id: 'cooking',
@@ -41,7 +41,7 @@ export const APP_TUTORIAL_STEPS: TutorialStep[] = [
     title: 'Track Your Progress',
     description: 'View your level, earned badges, and activity history in your profile. See how far you\'ve come on your cooking journey!',
     icon: 'person',
-    position: 'bottom',
+    position: 'center',
   },
   {
     id: 'settings',

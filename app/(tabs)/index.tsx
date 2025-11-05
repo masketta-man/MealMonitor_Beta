@@ -5,7 +5,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } fr
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
+import { useRouter, useLocalSearchParams } from "expo-router"
 import { useFocusEffect } from "@react-navigation/native"
 import { useAuth } from "@/hooks/useAuth"
 import { userService } from "@/services/userService"
@@ -68,6 +68,7 @@ interface Challenge {
 
 export default function HomeScreen() {
   const router = useRouter()
+  const params = useLocalSearchParams()
   const { user } = useAuth()
   const { shouldShowTutorial, startTutorial } = useTutorial()
   const [userStats, setUserStats] = useState<UserStats | null>(null)
@@ -104,6 +105,26 @@ export default function HomeScreen() {
     }, [user])
   )
 
+  // Trigger tutorial after initial load for new users or when coming from onboarding
+  useEffect(() => {
+    if (!loading && !tutorialTriggered) {
+      // Check if we should start tutorial from onboarding
+      if (params.startTutorial === 'true') {
+        console.log('Starting tutorial from onboarding completion')
+        setTimeout(() => {
+          startTutorial(APP_TUTORIAL_STEPS)
+          setTutorialTriggered(true)
+        }, 500)
+      } else if (shouldShowTutorial) {
+        console.log('Starting tutorial for new user')
+        setTimeout(() => {
+          startTutorial(APP_TUTORIAL_STEPS)
+          setTutorialTriggered(true)
+        }, 1000)
+      }
+    }
+  }, [shouldShowTutorial, tutorialTriggered, loading, params.startTutorial])
+
   const loadUserData = async () => {
     if (!user) return
 
@@ -130,15 +151,6 @@ export default function HomeScreen() {
             goalMet: newLog.goal_met,
           })
         }
-      }
-
-      // Check if tutorial should be shown (only once per session)
-      if (shouldShowTutorial && !tutorialTriggered && !loading) {
-        setTimeout(() => {
-          console.log('Starting tutorial for new user')
-          startTutorial(APP_TUTORIAL_STEPS)
-          setTutorialTriggered(true)
-        }, 1000)
       }
 
       // Load recipe recommendations
@@ -591,6 +603,7 @@ const styles = StyleSheet.create({
   },
   calorieSection: {
     paddingHorizontal: 16,
+    paddingTop: 16,
     marginBottom: 16,
   },
   sectionHeader: {

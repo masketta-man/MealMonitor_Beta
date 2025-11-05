@@ -565,6 +565,6 @@ const styles = StyleSheet.create({
     color: "#166534",
   },
   bottomPadding: {
-    height: 32,
+    height: 100,
   },
 })
