@@ -253,6 +253,7 @@ export default function ProfileScreen() {
                           style={[
                             styles.badgeIconContainer,
                             { backgroundColor: badge.isEarned ? badge.color : "#e2e8f0" },
+                            badge.isEarned && styles.badgeEarnedGlow,
                           ]}
                         >
                           <Ionicons
@@ -260,6 +261,11 @@ export default function ProfileScreen() {
                             size={24}
                             color={badge.isEarned ? "white" : "#94a3b8"}
                           />
+                          {badge.isEarned && (
+                            <View style={styles.badgeCheckmark}>
+                              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
+                            </View>
+                          )}
                           {!badge.isEarned && (
                             <View style={styles.badgeLock}>
                               <Ionicons name="lock-closed" size={12} color="white" />
@@ -270,16 +276,25 @@ export default function ProfileScreen() {
                           {badge.name}
                         </Text>
                         {badge.isEarned ? (
-                          <Text style={styles.badgeEarned}>
-                            {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Earned'}
-                          </Text>
+                          <View style={styles.badgeCompletedContainer}>
+                            <View style={styles.badgeCompletedBadge}>
+                              <Ionicons name="trophy" size={12} color="#f59e0b" />
+                              <Text style={styles.badgeCompletedText}>Completed</Text>
+                            </View>
+                            <Text style={styles.badgeEarned}>
+                              {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Earned'}
+                            </Text>
+                          </View>
                         ) : (
                           <View style={styles.badgeProgressContainer}>
                             <View style={styles.badgeProgressBar}>
                               <View
                                 style={[
                                   styles.badgeProgressFill,
-                                  { width: `${(badge.progress / badge.requirement_value) * 100}%` },
+                                  {
+                                    width: `${(badge.progress / badge.requirement_value) * 100}%`,
+                                    backgroundColor: badge.color,
+                                  },
                                 ]}
                               />
                             </View>
@@ -556,6 +571,29 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     position: "relative",
   },
+  badgeEarnedGlow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  badgeCheckmark: {
+    position: "absolute",
+    bottom: -2,
+    right: -2,
+    backgroundColor: "white",
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
   badgeLock: {
     position: "absolute",
     bottom: 0,
@@ -573,6 +611,25 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 4,
   },
+  badgeCompletedContainer: {
+    alignItems: "center",
+    width: "100%",
+  },
+  badgeCompletedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 4,
+  },
+  badgeCompletedText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#f59e0b",
+    marginLeft: 4,
+  },
   badgeEarned: {
     fontSize: 10,
     color: "#64748b",
@@ -588,10 +645,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#e2e8f0",
     borderRadius: 2,
     marginBottom: 4,
+    overflow: "hidden",
   },
   badgeProgressFill: {
     height: "100%",
-    backgroundColor: "#94a3b8",
     borderRadius: 2,
   },
   badgeProgressText: {
