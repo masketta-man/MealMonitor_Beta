@@ -27,6 +27,8 @@ export interface MealLog {
 }
 
 const CALORIE_GOAL_XP_REWARD = 50
+const CALORIE_GOAL_MIN_PERCENTAGE = 0.8 // 80% of goal
+const CALORIE_GOAL_MAX_PERCENTAGE = 1.05 // 105% of goal
 
 export const calorieService = {
   async getTodaysLog(userId: string): Promise<DailyCalorieLog | null> {
@@ -138,7 +140,14 @@ export const calorieService = {
     const todaysMeals = await this.getTodaysMeals(userId)
     const totalCalories = todaysMeals.reduce((sum, meal) => sum + meal.calories, 0)
 
-    const goalMet = totalCalories > 0 && totalCalories <= todaysLog.calorie_goal
+    // Calculate min and max acceptable calorie range
+    const minCalories = todaysLog.calorie_goal * CALORIE_GOAL_MIN_PERCENTAGE
+    const maxCalories = todaysLog.calorie_goal * CALORIE_GOAL_MAX_PERCENTAGE
+
+    // Goal is met if calories are within the acceptable range (80%-105% of goal)
+    const goalMet = totalCalories > 0 && 
+                    totalCalories >= minCalories && 
+                    totalCalories <= maxCalories
 
     const { error } = await supabase
       .from('daily_calories')
