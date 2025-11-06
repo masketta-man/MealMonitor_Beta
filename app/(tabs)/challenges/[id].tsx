@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
+import { useState, useEffect, useCallback } from "react"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
+import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router"
 
 // Components
 import Card from "@/components/Card"
@@ -31,11 +31,7 @@ export default function ChallengeDetailScreen() {
   const [error, setError] = useState<string | null>(null)
   const [completingTask, setCompletingTask] = useState(false)
 
-  useEffect(() => {
-    fetchChallenge()
-  }, [id, user])
-
-  const fetchChallenge = async () => {
+  const fetchChallenge = useCallback(async () => {
     if (!id || !user) {
       setLoading(false)
       return
@@ -64,7 +60,19 @@ export default function ChallengeDetailScreen() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [id, user])
+
+  useEffect(() => {
+    fetchChallenge()
+  }, [fetchChallenge])
+
+  // Reload challenge when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('Challenge detail screen focused, reloading data...')
+      fetchChallenge()
+    }, [fetchChallenge])
+  )
 
   const toggleTaskCompletion = async (taskId: string) => {
     if (!challenge || !user || completingTask) return
@@ -90,17 +98,38 @@ export default function ChallengeDetailScreen() {
         
         // Show success message if challenge is completed
         const updatedChallenge = await challengeService.getChallenge(challenge.id, user.id)
+        console.log('Challenge update:', {
+          challengeId: challenge.id,
+          completedTasks: updatedChallenge?.userProgress?.completed_tasks,
+          totalTasks: updatedChallenge?.total_tasks,
+          isCompleted: updatedChallenge?.userProgress?.is_completed
+        })
+        
         if (updatedChallenge?.userProgress?.is_completed && !isCompleted) {
-          Alert.alert(
-            "🎉 Challenge Completed!",
-            `Congratulations! You've earned ${challenge.reward_points} points!`,
-            [{ text: "Awesome!", onPress: () => router.back() }]
-          )
+          console.log('🎉 Challenge completed! Showing alert and redirecting...')
+          if (Platform.OS === 'web') {
+            // Web platform - navigate first, then show alert
+            router.back()
+            setTimeout(() => {
+              alert(`🎉 Challenge Completed! Congratulations! You've earned ${challenge.reward_points} points!`)
+            }, 100)
+          } else {
+            // Native platform - use Alert.alert
+            Alert.alert(
+              "🎉 Challenge Completed!",
+              `Congratulations! You've earned ${challenge.reward_points} points!`,
+              [{ text: "Awesome!", onPress: () => router.back() }]
+            )
+          }
         }
       }
     } catch (err) {
       console.error("Error toggling task:", err)
-      Alert.alert("Error", "Failed to update task. Please try again.")
+      if (Platform.OS === 'web') {
+        alert("Failed to update task. Please try again.")
+      } else {
+        Alert.alert("Error", "Failed to update task. Please try again.")
+      }
     } finally {
       setCompletingTask(false)
     }

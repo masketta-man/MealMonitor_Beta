@@ -2,6 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { userService } from "@/services/userService"
+import { settingsService } from "@/services/settingsService"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
@@ -177,6 +178,56 @@ export default function OnboardingScreen() {
     )
   }
 
+  const calculateCalorieGoal = (healthGoals: string[]): number => {
+    // Default calorie goal
+    if (!healthGoals || healthGoals.length === 0) {
+      return 2000
+    }
+
+    // Map each goal to a calorie value
+    const goalCalorieMap: Record<string, number> = {
+      "Lose weight": 1800,
+      "Gain muscle": 2500,
+      "Maintain weight": 2000,
+      "Improve energy": 2000,
+      "Better nutrition": 2000,
+      "Manage health condition": 2000,
+    }
+
+    // If user selected multiple goals, calculate average
+    const selectedGoalCalories = healthGoals
+      .map(goal => goalCalorieMap[goal])
+      .filter(cal => cal !== undefined)
+
+    if (selectedGoalCalories.length === 0) {
+      return 2000 // Default if no matching goals
+    }
+
+    // Handle conflicting goals (Lose weight + Gain muscle)
+    const hasLoseWeight = healthGoals.includes("Lose weight")
+    const hasGainMuscle = healthGoals.includes("Gain muscle")
+    const hasMaintainWeight = healthGoals.includes("Maintain weight")
+
+    // If conflicting goals, prioritize maintain weight as a middle ground
+    if (hasLoseWeight && hasGainMuscle) {
+      console.log('🔑 Onboarding: Conflicting goals detected, using balanced approach')
+      return 2000 // Balanced middle ground
+    }
+
+    // If maintain weight is selected with other goals, use maintain weight
+    if (hasMaintainWeight && selectedGoalCalories.length > 1) {
+      return 2000
+    }
+
+    // Calculate average of selected goals
+    const averageCalories = Math.round(
+      selectedGoalCalories.reduce((sum, cal) => sum + cal, 0) / selectedGoalCalories.length
+    )
+
+    console.log('🔑 Onboarding: Calculated calorie goal from', healthGoals.length, 'goals:', averageCalories)
+    return averageCalories
+  }
+
   const handleComplete = async () => {
     if (!user) {
       Alert.alert("Error", "User not found. Please try logging in again.")
@@ -218,7 +269,17 @@ export default function OnboardingScreen() {
       }
 
       if (profile) {
-        console.log('🔑 Onboarding: Profile saved successfully, starting tutorial')
+        console.log('🔑 Onboarding: Profile saved successfully')
+        
+        // Calculate initial calorie goal based on health goals
+        const initialCalorieGoal = calculateCalorieGoal(preferences.healthGoals)
+        console.log('🔑 Onboarding: Setting initial calorie goal to', initialCalorieGoal)
+        
+        // Create user settings with the calculated calorie goal
+        await settingsService.createUserSettings(user.id, {
+          daily_calorie_target: initialCalorieGoal,
+        })
+        
         // Force navigation to tabs with tutorial flag
         router.replace('/(tabs)?startTutorial=true')
       } else {
@@ -241,6 +302,12 @@ export default function OnboardingScreen() {
           })
 
           if (profile) {
+            // Calculate and set initial calorie goal
+            const initialCalorieGoal = calculateCalorieGoal(preferences.healthGoals)
+            await settingsService.createUserSettings(user.id, {
+              daily_calorie_target: initialCalorieGoal,
+            })
+            
             router.replace('/(tabs)?startTutorial=true')
             return
           }

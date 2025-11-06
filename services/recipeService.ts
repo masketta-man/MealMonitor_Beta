@@ -4,6 +4,7 @@ import { userService } from './userService'
 import { activityService } from './activityService'
 import { calorieService } from './calorieService'
 import { streakService } from './streakService'
+import { badgeService } from './badgeService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -365,6 +366,12 @@ export const recipeService = {
         pointsToAward,
         { recipe_id: recipeId }
       )
+
+      // Check and award badges
+      const newBadges = await badgeService.checkAndAwardBadges(userId)
+      if (newBadges.length > 0) {
+        console.log(`🏆 User ${userId} earned ${newBadges.length} new badge(s) after completing recipe!`)
+      }
     } else {
       console.log(' recipeService.completeRecipe: No points awarded (already completed today or points disabled)')
     }

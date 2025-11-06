@@ -70,11 +70,12 @@ export const calorieService = {
 
   async getOrCreateTodaysLog(userId: string): Promise<DailyCalorieLog | null> {
     let todaysLog = await this.getTodaysLog(userId)
+    
+    // Always get current settings to sync calorie goal
+    const settings = await settingsService.getOrCreateSettings(userId)
+    const calorieGoal = settings?.daily_calorie_target || 2000
 
     if (!todaysLog) {
-      const settings = await settingsService.getOrCreateSettings(userId)
-      const calorieGoal = settings?.daily_calorie_target || 2000
-
       const today = new Date().toISOString().split('T')[0]
 
       const { data, error } = await supabase
@@ -96,6 +97,24 @@ export const calorieService = {
       }
 
       todaysLog = data
+    } else if (todaysLog.calorie_goal !== calorieGoal) {
+      // Update calorie goal if it has changed in settings
+      const { data, error } = await supabase
+        .from('daily_calories')
+        .update({
+          calorie_goal: calorieGoal,
+        })
+        .eq('id', todaysLog.id)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('Error updating calorie goal:', error)
+      } else {
+        todaysLog = data
+        // Recalculate goal_met status with new goal
+        await this.updateDailyTotal(userId)
+      }
     }
 
     return todaysLog

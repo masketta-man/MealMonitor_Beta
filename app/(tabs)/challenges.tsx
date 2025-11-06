@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
 import { useRouter } from "expo-router"
+import { useFocusEffect } from "expo-router"
 
 // Components
 import Card from "@/components/Card"
@@ -67,8 +68,19 @@ export default function ChallengesScreen() {
   }, [user])
 
   useEffect(() => {
-    fetchChallenges()
-  }, [fetchChallenges])
+    if (user) {
+      fetchChallenges()
+    }
+  }, [user])
+
+  // Reload challenges when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        fetchChallenges()
+      }
+    }, [user, fetchChallenges])
+  )
 
   const onRefresh = useCallback(() => {
     setRefreshing(true)

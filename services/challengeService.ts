@@ -2,6 +2,7 @@ import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
 import { userService } from './userService'
 import { streakService } from './streakService'
+import { badgeService } from './badgeService'
 
 // Define types before using them
 type Challenge = Database['public']['Tables']['challenges']['Row']
@@ -216,27 +217,45 @@ export const challengeService = {
     if (existingTaskProgress?.is_completed) {
       return true // Already completed
     }
-
     // Track current challenge completion state so we only award points once
     const currentProgress = await this.getUserChallengeProgress(userId, challengeId)
     const wasCompleted = currentProgress?.is_completed ?? false
 
     // Mark task as completed
-    const upsertTask: UserChallengeTaskProgressInsert = {
-      user_id: userId,
-      challenge_id: challengeId,
-      task_id: taskId,
-      is_completed: true,
-      completed_at: new Date().toISOString(),
-    }
+    if (existingTaskProgress) {
+      // Update existing record
+      const { error: taskError } = await supabase
+        .from('user_challenge_task_progress')
+        .update({
+          is_completed: true,
+          completed_at: new Date().toISOString(),
+        })
+        .eq('user_id', userId)
+        .eq('challenge_id', challengeId)
+        .eq('task_id', taskId)
 
-    const { error: taskError } = await supabase
-      .from('user_challenge_task_progress')
-      .upsert(upsertTask)
+      if (taskError) {
+        console.error('Error completing task:', taskError)
+        return false
+      }
+    } else {
+      // Insert new record
+      const insertTask: UserChallengeTaskProgressInsert = {
+        user_id: userId,
+        challenge_id: challengeId,
+        task_id: taskId,
+        is_completed: true,
+        completed_at: new Date().toISOString(),
+      }
 
-    if (taskError) {
-      console.error('Error completing task:', taskError)
-      return false
+      const { error: taskError } = await supabase
+        .from('user_challenge_task_progress')
+        .insert(insertTask)
+
+      if (taskError) {
+        console.error('Error completing task:', taskError)
+        return false
+      }
     }
 
     // Update challenge progress
@@ -297,6 +316,12 @@ export const challengeService = {
       // Update streak when completing a challenge
       const streakInfo = await streakService.checkAndUpdateStreak(userId)
       console.log('🔥 Streak updated after challenge completion:', streakInfo)
+
+      // Check and award badges
+      const newBadges = await badgeService.checkAndAwardBadges(userId)
+      if (newBadges.length > 0) {
+        console.log(`🏆 User ${userId} earned ${newBadges.length} new badge(s)!`)
+      }
 
       console.log(`Challenge completed! User ${userId} earned ${rewardPoints} points`)
     }

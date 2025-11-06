@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
+import { useRouter, useFocusEffect } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
 import { userService } from "@/services/userService"
 import { badgeService, type BadgeWithProgress } from "@/services/badgeService"
@@ -54,6 +54,16 @@ export default function ProfileScreen() {
       loadUserData()
     }
   }, [user])
+
+  // Reload profile data when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      if (user) {
+        console.log('Profile screen focused, reloading badges and stats...')
+        loadUserData()
+      }
+    }, [user])
+  )
 
   const loadUserData = async () => {
     if (!user) return

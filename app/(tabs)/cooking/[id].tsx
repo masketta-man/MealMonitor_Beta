@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -190,64 +190,88 @@ export default function CookingModeScreen() {
       if (success) {
         console.log('✅ FINISH COOKING: Recipe completed successfully!')
 
-        if (alreadyCompleted) {
-          console.log('🎉 FINISH COOKING: Already completed - navigating immediately')
-          router.replace("/(tabs)")
-          Alert.alert(
-            "Cooking Complete!",
-            "Great job! You've cooked this recipe again today. Points were already awarded for your first completion."
-          )
+        if (Platform.OS === 'web') {
+          // Web platform - navigate immediately with simple alert
+          if (alreadyCompleted) {
+            console.log('🎉 FINISH COOKING: Already completed - navigating immediately')
+            router.replace("/(tabs)")
+            alert("Great job! You've cooked this recipe again today. Points were already awarded for your first completion.")
+          } else {
+            console.log('🎉 FINISH COOKING: First completion today - navigating to dashboard')
+            router.replace("/(tabs)")
+            alert("Congratulations! You've earned points and XP. Check your profile to see your progress!")
+          }
         } else {
-          console.log('🎉 FINISH COOKING: First completion today - showing alert then navigating')
+          // Native platform - use Alert.alert with buttons
+          if (alreadyCompleted) {
+            console.log('🎉 FINISH COOKING: Already completed - navigating immediately')
+            router.replace("/(tabs)")
+            Alert.alert(
+              "Cooking Complete!",
+              "Great job! You've cooked this recipe again today. Points were already awarded for your first completion."
+            )
+          } else {
+            console.log('🎉 FINISH COOKING: First completion today - showing alert then navigating')
+            Alert.alert(
+              "Recipe Completed!",
+              "Congratulations! You've earned points and XP. Check your profile to see your progress!",
+              [
+                {
+                  text: "View Profile",
+                  onPress: () => {
+                    console.log('🎉 FINISH COOKING: Navigating to profile')
+                    router.replace("/(tabs)/profile")
+                  },
+                },
+                {
+                  text: "Back to Dashboard",
+                  onPress: () => {
+                    console.log('🎉 FINISH COOKING: Navigating to dashboard')
+                    router.replace("/(tabs)")
+                  },
+                },
+              ]
+            )
+          }
+        }
+      } else {
+        console.error('❌ FINISH COOKING: Failed to complete recipe')
+        if (Platform.OS === 'web') {
+          router.replace("/(tabs)")
+          alert("There was an issue completing the recipe. Please try again.")
+        } else {
           Alert.alert(
-            "Recipe Completed!",
-            "Congratulations! You've earned points and XP. Check your profile to see your progress!",
+            "Oops!",
+            "There was an issue completing the recipe. Please try again.",
             [
               {
-                text: "View Profile",
+                text: "OK",
                 onPress: () => {
-                  console.log('🎉 FINISH COOKING: Navigating to profile')
-                  router.replace("/(tabs)/profile")
-                },
-              },
-              {
-                text: "Back to Dashboard",
-                onPress: () => {
-                  console.log('🎉 FINISH COOKING: Navigating to dashboard')
+                  console.log('❌ FINISH COOKING: Navigating back after failure')
                   router.replace("/(tabs)")
                 },
               },
             ]
           )
         }
-      } else {
-        console.error('❌ FINISH COOKING: Failed to complete recipe')
-        Alert.alert(
-          "Oops!",
-          "There was an issue completing the recipe. Please try again.",
-          [
-            {
-              text: "OK",
-              onPress: () => {
-                console.log('❌ FINISH COOKING: Navigating back after failure')
-                router.replace("/(tabs)")
-              },
-            },
-          ]
-        )
       }
     } catch (error) {
       console.error('❌ FINISH COOKING: Error completing recipe:', error)
       console.error('❌ FINISH COOKING: Error details:', JSON.stringify(error, null, 2))
-      Alert.alert("Error", "An unexpected error occurred. Please try again.", [
-        {
-          text: "OK",
-          onPress: () => {
-            console.log('🎉 FINISH COOKING: Error case - going to dashboard')
-            router.replace("/(tabs)")
+      if (Platform.OS === 'web') {
+        router.replace("/(tabs)")
+        alert("An unexpected error occurred. Please try again.")
+      } else {
+        Alert.alert("Error", "An unexpected error occurred. Please try again.", [
+          {
+            text: "OK",
+            onPress: () => {
+              console.log('🎉 FINISH COOKING: Error case - going to dashboard')
+              router.replace("/(tabs)")
+            },
           },
-        },
-      ])
+        ])
+      }
     }
   }
 

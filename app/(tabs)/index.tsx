@@ -134,23 +134,14 @@ export default function HomeScreen() {
       const stats = await userService.getUserStats(user.id)
       setUserStats(stats)
 
-      // Load calorie data
-      const todaysLog = await calorieService.getTodaysLog(user.id)
+      // Load calorie data - always use getOrCreateTodaysLog to sync with settings
+      const todaysLog = await calorieService.getOrCreateTodaysLog(user.id)
       if (todaysLog) {
         setCalorieData({
           current: todaysLog.total_calories,
           goal: todaysLog.calorie_goal,
           goalMet: todaysLog.goal_met,
         })
-      } else {
-        const newLog = await calorieService.getOrCreateTodaysLog(user.id)
-        if (newLog) {
-          setCalorieData({
-            current: newLog.total_calories,
-            goal: newLog.calorie_goal,
-            goalMet: newLog.goal_met,
-          })
-        }
       }
 
       // Load recipe recommendations

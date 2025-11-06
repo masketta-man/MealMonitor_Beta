@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Pressable, Modal, Alert, ActivityIndicator } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Pressable, Modal, Alert, ActivityIndicator, Platform } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -165,37 +165,78 @@ export default function IngredientsScreen() {
   const handleDeleteIngredient = async (userIngredientId: string, ingredientName: string) => {
     console.log('Delete button pressed for:', ingredientName, userIngredientId)
     
-    Alert.alert(
-      'Delete Ingredient',
-      `Are you sure you want to remove ${ingredientName} from your pantry?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            console.log('Delete confirmed for:', ingredientName)
-            try {
-              const success = await ingredientService.removeUserIngredient(userIngredientId)
-              console.log('Delete result:', success)
-              
-              if (success) {
-                // Update local state
-                const updatedIngredients = ingredients.filter(ing => ing.id !== userIngredientId)
-                setIngredients(updatedIngredients)
-                filterIngredients(searchQuery, selectedCategory, showInStockOnly, updatedIngredients)
-                Alert.alert('Success', `${ingredientName} has been removed from your pantry.`)
-              } else {
+    // Web-compatible confirmation
+    if (Platform.OS === 'web') {
+      const confirmed = window.confirm(`Are you sure you want to remove ${ingredientName} from your pantry?`)
+      console.log('Web confirmation result:', confirmed)
+      
+      if (!confirmed) {
+        console.log('Deletion cancelled by user')
+        return
+      }
+      
+      console.log('Delete confirmed for:', ingredientName)
+      try {
+        const success = await ingredientService.removeUserIngredient(userIngredientId)
+        console.log('Delete result:', success)
+        
+        if (success) {
+          console.log('Updating local state after deletion')
+          // Update local state - filter out the deleted ingredient
+          const updatedIngredients = ingredients.filter(ing => ing.id !== userIngredientId)
+          const updatedFilteredIngredients = filteredIngredients.filter(ing => ing.id !== userIngredientId)
+          
+          setIngredients(updatedIngredients)
+          setFilteredIngredients(updatedFilteredIngredients)
+          
+          console.log('State updated. Remaining ingredients:', updatedIngredients.length)
+          alert(`${ingredientName} has been removed from your pantry.`)
+        } else {
+          alert('Failed to delete ingredient. Please try again.')
+        }
+      } catch (error) {
+        console.error('Error deleting ingredient:', error)
+        alert('Failed to delete ingredient. Please try again.')
+      }
+    } else {
+      // Native platform - use Alert.alert
+      Alert.alert(
+        'Delete Ingredient',
+        `Are you sure you want to remove ${ingredientName} from your pantry?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              console.log('Delete confirmed for:', ingredientName)
+              try {
+                const success = await ingredientService.removeUserIngredient(userIngredientId)
+                console.log('Delete result:', success)
+                
+                if (success) {
+                  console.log('Updating local state after deletion')
+                  // Update local state - filter out the deleted ingredient
+                  const updatedIngredients = ingredients.filter(ing => ing.id !== userIngredientId)
+                  const updatedFilteredIngredients = filteredIngredients.filter(ing => ing.id !== userIngredientId)
+                  
+                  setIngredients(updatedIngredients)
+                  setFilteredIngredients(updatedFilteredIngredients)
+                  
+                  console.log('State updated. Remaining ingredients:', updatedIngredients.length)
+                  Alert.alert('Success', `${ingredientName} has been removed from your pantry.`)
+                } else {
+                  Alert.alert('Error', 'Failed to delete ingredient. Please try again.')
+                }
+              } catch (error) {
+                console.error('Error deleting ingredient:', error)
                 Alert.alert('Error', 'Failed to delete ingredient. Please try again.')
               }
-            } catch (error) {
-              console.error('Error deleting ingredient:', error)
-              Alert.alert('Error', 'Failed to delete ingredient. Please try again.')
             }
           }
-        }
-      ]
-    )
+        ]
+      )
+    }
   }
 
   const openAddModal = () => {
