@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform } from "react-native"
+import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -31,6 +31,8 @@ export default function CookingModeScreen() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { user } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   
   // All state hooks must be declared before any conditional returns
   const [recipe, setRecipe] = useState<RecipeData | null>(null)
@@ -321,7 +323,7 @@ export default function CookingModeScreen() {
           </View>
         )}
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
@@ -349,8 +351,9 @@ export default function CookingModeScreen() {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Current Step */}
-          <Card style={styles.currentStepCard}>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            {/* Current Step */}
+            <Card style={styles.currentStepCard}>
             <View style={styles.stepHeader}>
               <View style={styles.stepNumber}>
                 <Text style={styles.stepNumberText}>{currentStep + 1}</Text>
@@ -488,6 +491,7 @@ export default function CookingModeScreen() {
           </Card>
 
           <View style={styles.bottomPadding} />
+          </View>
         </ScrollView>
       </LinearGradient>
     </SafeAreaView>
@@ -501,6 +505,15 @@ const styles = StyleSheet.create({
   },
   background: {
     flex: 1,
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   warningBanner: {
     backgroundColor: '#FFA000',
@@ -546,6 +559,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   backButton: {
     width: 40,
