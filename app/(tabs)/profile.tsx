@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -18,7 +18,7 @@ import ProgressBar from "@/components/ProgressBar"
 import { LevelProgress } from "@/components/LevelProgress"
 import TabView from "@/components/TabView"
 
-const { width } = Dimensions.get("window")
+// Removed static width calculation - now using useWindowDimensions hook
 
 interface UserStats {
   profile: any
@@ -39,6 +39,8 @@ interface UserStats {
 export default function ProfileScreen() {
   const router = useRouter()
   const { user, signOut } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [activeTab, setActiveTab] = useState("achievements")
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [badges, setBadges] = useState<BadgeWithProgress[]>([])
@@ -145,7 +147,7 @@ export default function ProfileScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <Text style={styles.headerTitle}>Profile</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity
@@ -168,8 +170,9 @@ export default function ProfileScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* User Profile Card */}
-          <Card style={styles.profileCard}>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            {/* User Profile Card */}
+            <Card style={styles.profileCard}>
             <View style={styles.profileHeader}>
               <View style={styles.profileImageContainer}>
                 <Text style={styles.profileImageText}>{profile.full_name?.charAt(0) || 'U'}</Text>
@@ -375,8 +378,9 @@ export default function ProfileScreen() {
             </TabView>
           </View>
 
-          {/* Bottom padding to account for tab bar */}
-          <View style={styles.bottomPadding} />
+            {/* Bottom padding to account for tab bar */}
+            <View style={styles.bottomPadding} />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -389,10 +393,19 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
-    paddingBottom: 80, // Space for tab bar
+    paddingBottom: 80,
   },
   scrollContent: {
     paddingBottom: 30,
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: "row",
@@ -408,6 +421,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   headerTitle: {
     fontSize: 20,

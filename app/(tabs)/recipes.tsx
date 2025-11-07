@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
@@ -26,6 +26,8 @@ export default function RecipesScreen() {
   const router = useRouter()
   const { user } = useAuth()
   const params = useLocalSearchParams<{ suggestions?: string }>()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [searchQuery, setSearchQuery] = useState("")
   const [recipes, setRecipes] = useState<RecipeWithDetails[]>([])
   const [filteredRecipes, setFilteredRecipes] = useState<RecipeWithDetails[]>([])
@@ -172,30 +174,71 @@ export default function RecipesScreen() {
     router.push(`/(tabs)/recipe/${id}`)
   }
 
+  // Helper to get recommendation badges
+  const getRecommendationBadges = (recipe: RecipeWithDetails) => {
+    const badges = []
+    const currentHour = new Date().getHours()
+    let preferredMealType = 'Snack'
+    if (currentHour >= 6 && currentHour < 11) preferredMealType = 'Breakfast'
+    else if (currentHour >= 11 && currentHour < 16) preferredMealType = 'Lunch'
+    else if (currentHour >= 16 && currentHour < 22) preferredMealType = 'Dinner'
+
+    // Time-appropriate badge
+    if (recipe.meal_type === preferredMealType) {
+      badges.push({ text: `⏰ Perfect for ${preferredMealType}`, color: '#1e40af', bg: '#dbeafe' })
+    }
+
+    // High ingredient match badge
+    if (recipe.matchPercentage && recipe.matchPercentage >= 80) {
+      badges.push({ text: '✨ Perfect Match', color: '#166534', bg: '#dcfce7' })
+    }
+
+    return badges
+  }
+
   // Render recipe card
-  const renderRecipeCard = ({ item }: { item: RecipeWithDetails }) => (
-    <Card style={styles.recipeCard}>
-      <View style={styles.recipeImageContainer}>
-        <Image source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
-        <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(item.id)}>
-          <Ionicons
-            name={item.isFavorite ? "heart" : "heart-outline"}
-            size={24}
-            color={item.isFavorite ? "#ef4444" : "white"}
-          />
-        </TouchableOpacity>
-        <Badge text={`+${item.points}`} color="white" backgroundColor="#22c55e" style={styles.pointsBadgeOverlay} />
-      </View>
+  const renderRecipeCard = ({ item }: { item: RecipeWithDetails }) => {
+    const recommendationBadges = showSuggestions ? getRecommendationBadges(item) : []
+    
+    return (
+      <Card style={styles.recipeCard}>
+        <View style={styles.recipeImageContainer}>
+          <Image source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
+          <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(item.id)}>
+            <Ionicons
+              name={item.isFavorite ? "heart" : "heart-outline"}
+              size={24}
+              color={item.isFavorite ? "#ef4444" : "white"}
+            />
+          </TouchableOpacity>
+          <Badge text={`+${item.points}`} color="white" backgroundColor="#22c55e" style={styles.pointsBadgeOverlay} />
+        </View>
 
-      <View style={styles.recipeContent}>
-        <Text style={styles.recipeTitle}>{item.title}</Text>
+        <View style={styles.recipeContent}>
+          <Text style={styles.recipeTitle}>{item.title}</Text>
 
-        {showSuggestions && item.matchPercentage && (
-          <View style={styles.matchContainer}>
-            <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
-            <Text style={styles.matchText}>{item.matchPercentage}% match</Text>
-          </View>
-        )}
+          {/* Recommendation badges */}
+          {recommendationBadges.length > 0 && (
+            <View style={styles.recommendationBadgesContainer}>
+              {recommendationBadges.map((badge, index) => (
+                <Badge
+                  key={index}
+                  text={badge.text}
+                  color={badge.color}
+                  backgroundColor={badge.bg}
+                  small
+                  style={index > 0 ? styles.secondBadge : undefined}
+                />
+              ))}
+            </View>
+          )}
+
+          {showSuggestions && item.matchPercentage && (
+            <View style={styles.matchContainer}>
+              <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
+              <Text style={styles.matchText}>{Math.round(item.matchPercentage)}% ingredient match</Text>
+            </View>
+          )}
 
         <View style={styles.recipeMetaContainer}>
           <View style={styles.recipeMeta}>
@@ -260,13 +303,14 @@ export default function RecipesScreen() {
         </View>
       </View>
     </Card>
-  )
+    )
+  }
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <Text style={styles.headerTitle}>Recipes</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerButton} onPress={() => alert("Saved recipes coming soon!")}>
@@ -278,132 +322,146 @@ export default function RecipesScreen() {
           </View>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search recipes or ingredients..."
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery ? (
-              <TouchableOpacity onPress={() => setSearchQuery("")}>
-                <Ionicons name="close-circle" size={20} color="#9ca3af" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-          <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
-            <Ionicons name="options-outline" size={22} color="#166534" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Suggestion Banner */}
-        {showSuggestions && (
-          <View style={styles.suggestionBanner}>
-            <Ionicons name="nutrition" size={20} color="#166534" />
-            <Text style={styles.suggestionText}>Showing recipes based on your available ingredients</Text>
-            <TouchableOpacity
-              style={styles.clearSuggestionsButton}
-              onPress={() => {
-                setShowSuggestions(false)
-                loadRecipes()
-                router.setParams({ suggestions: "false" })
-              }}
-            >
-              <Ionicons name="close-circle" size={20} color="#166534" />
+        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search recipes or ingredients..."
+                placeholderTextColor="#9ca3af"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+              />
+              {searchQuery ? (
+                <TouchableOpacity onPress={() => setSearchQuery("")}>
+                  <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
+              <Ionicons name="options-outline" size={22} color="#166534" />
             </TouchableOpacity>
           </View>
-        )}
 
-        {/* Filters */}
-        {showFilters && (
-          <View style={styles.filtersContainer}>
-            <Text style={styles.filterSectionTitle}>Meal Type</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterChipsContainer}
-            >
-              {MEAL_TYPES.map((type) => (
-                <FilterChip
-                  key={type}
-                  label={type}
-                  isSelected={selectedMealType === type}
-                  onPress={() => setSelectedMealType(type)}
-                />
-              ))}
-            </ScrollView>
-
-            <Text style={styles.filterSectionTitle}>Difficulty</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterChipsContainer}
-            >
-              {DIFFICULTY_LEVELS.map((level) => (
-                <FilterChip
-                  key={level}
-                  label={level}
-                  isSelected={selectedDifficulty === level}
-                  onPress={() => setSelectedDifficulty(level)}
-                />
-              ))}
-            </ScrollView>
-
-            <Text style={styles.filterSectionTitle}>Sort By</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterChipsContainer}
-            >
-              {SORT_OPTIONS.map((option) => (
-                <FilterChip
-                  key={option}
-                  label={option}
-                  isSelected={selectedSortOption === option}
-                  onPress={() => setSelectedSortOption(option)}
-                />
-              ))}
-            </ScrollView>
-
-            <View style={styles.ingredientFilterContainer}>
+          {/* Suggestion Banner */}
+          {showSuggestions && (
+            <View style={styles.suggestionBanner}>
+              <Ionicons name="nutrition" size={20} color="#166534" />
+              <Text style={styles.suggestionText}>Showing recipes based on your available ingredients</Text>
               <TouchableOpacity
-                style={styles.ingredientFilterButton}
-                onPress={() => setShowIngredientFilter(!showIngredientFilter)}
+                style={styles.clearSuggestionsButton}
+                onPress={() => {
+                  setShowSuggestions(false)
+                  loadRecipes()
+                  router.setParams({ suggestions: "false" })
+                }}
               >
-                <View style={[styles.checkboxContainer, showIngredientFilter ? styles.checkboxChecked : {}]}>
-                  {showIngredientFilter && <Ionicons name="checkmark" size={16} color="white" />}
-                </View>
-                <Text style={styles.ingredientFilterText}>Show only recipes with ingredients I have</Text>
+                <Ionicons name="close-circle" size={20} color="#166534" />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          )}
 
-        {/* Recipe List */}
-        {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#22c55e" />
-            <Text style={styles.loadingText}>Loading recipes...</Text>
+          {/* Filter Toggle Button */}
+          <View style={styles.filterToggleContainer}>
+            <TouchableOpacity style={styles.filterToggle} onPress={() => setShowFilters(!showFilters)}>
+              <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={20} color="#166534" />
+              <Text style={styles.filterToggleText}>{showFilters ? "Hide" : "Show"} Filters</Text>
+            </TouchableOpacity>
           </View>
-        ) : filteredRecipes.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Ionicons name="restaurant-outline" size={64} color="#9ca3af" />
-            <Text style={styles.emptyTitle}>No recipes found</Text>
-            <Text style={styles.emptyText}>Try adjusting your filters or search for different ingredients</Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredRecipes}
-            renderItem={renderRecipeCard}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.recipeListContainer}
-            showsVerticalScrollIndicator={false}
-          />
-        )}
+
+          {/* Filters Section */}
+          {showFilters && (
+            <View style={styles.filtersContainer}>
+              <Text style={styles.filterSectionTitle}>Meal Type</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterChipsContainer}
+              >
+                {MEAL_TYPES.map((type) => (
+                  <FilterChip
+                    key={type}
+                    label={type}
+                    isSelected={selectedMealType === type}
+                    onPress={() => setSelectedMealType(type)}
+                  />
+                ))}
+              </ScrollView>
+
+              <Text style={styles.filterSectionTitle}>Difficulty</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterChipsContainer}
+              >
+                {DIFFICULTY_LEVELS.map((level) => (
+                  <FilterChip
+                    key={level}
+                    label={level}
+                    isSelected={selectedDifficulty === level}
+                    onPress={() => setSelectedDifficulty(level)}
+                  />
+                ))}
+              </ScrollView>
+
+              <Text style={styles.filterSectionTitle}>Sort By</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.filterChipsContainer}
+              >
+                {SORT_OPTIONS.map((option) => (
+                  <FilterChip
+                    key={option}
+                    label={option}
+                    isSelected={selectedSortOption === option}
+                    onPress={() => setSelectedSortOption(option)}
+                  />
+                ))}
+              </ScrollView>
+
+              <View style={styles.ingredientFilterContainer}>
+                <TouchableOpacity
+                  style={styles.ingredientFilterButton}
+                  onPress={() => setShowIngredientFilter(!showIngredientFilter)}
+                >
+                  <View style={[styles.checkboxContainer, showIngredientFilter ? styles.checkboxChecked : {}]}>
+                    {showIngredientFilter && <Ionicons name="checkmark" size={16} color="white" />}
+                  </View>
+                  <Text style={styles.ingredientFilterText}>Show only recipes with ingredients I have</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          {/* Recipe List */}
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#22c55e" />
+              <Text style={styles.loadingText}>Loading recipes...</Text>
+            </View>
+          ) : filteredRecipes.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="restaurant-outline" size={64} color="#9ca3af" />
+              <Text style={styles.emptyTitle}>No recipes found</Text>
+              <Text style={styles.emptyText}>Try adjusting your filters or search for different ingredients</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={filteredRecipes}
+              renderItem={renderRecipeCard}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.recipeListContainer}
+              showsVerticalScrollIndicator={false}
+              numColumns={isWeb ? 2 : 1}
+              key={isWeb ? 'web' : 'mobile'}
+            />
+          )}
+        </View>
       </SafeAreaView>
     </LinearGradient>
   )
@@ -416,6 +474,15 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingBottom: 80, // Space for tab bar
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: "row",
@@ -431,6 +498,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   headerTitle: {
     fontSize: 20,
@@ -541,8 +611,11 @@ const styles = StyleSheet.create({
   },
   recipeCard: {
     marginBottom: 16,
+    marginHorizontal: 8,
     padding: 0,
     overflow: "hidden",
+    flex: 1,
+    maxWidth: "100%",
   },
   recipeImageContainer: {
     position: "relative",
@@ -669,6 +742,36 @@ const styles = StyleSheet.create({
   },
   clearSuggestionsButton: {
     padding: 4,
+  },
+  filterToggleContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  filterToggle: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "white",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  filterToggleText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#166534",
+    marginLeft: 8,
+  },
+  recommendationBadgesContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 8,
+    gap: 6,
   },
   matchContainer: {
     flexDirection: "row",

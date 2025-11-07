@@ -5,6 +5,7 @@ import { activityService } from './activityService'
 import { calorieService } from './calorieService'
 import { streakService } from './streakService'
 import { badgeService } from './badgeService'
+import { settingsService } from './settingsService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -175,45 +176,121 @@ export const recipeService = {
     return recipe
   },
 
-  // Get recipe recommendations based on user's available ingredients
+  // Get recipe recommendations based on user's available ingredients, preferences, and goals
   async getRecommendations(userId: string, limit: number = 10): Promise<RecipeWithDetails[]> {
-    // Get user's available ingredients
-    const { data: userIngredients, error: ingredientsError } = await supabase
-      .from('user_ingredients')
-      .select('ingredient_id, ingredients(name)')
-      .eq('user_id', userId)
-      .eq('in_stock', true)
+    // Get user data in parallel for performance
+    const [userIngredients, userProfile, userSettings, todaysLog] = await Promise.all([
+      supabase
+        .from('user_ingredients')
+        .select('ingredient_id, ingredients(name)')
+        .eq('user_id', userId)
+        .eq('in_stock', true),
+      userService.getProfile(userId),
+      settingsService.getOrCreateSettings(userId),
+      calorieService.getTodaysLog(userId)
+    ])
 
-    if (ingredientsError) {
-      console.error('Error fetching user ingredients:', ingredientsError)
+    if (userIngredients.error) {
+      console.error('Error fetching user ingredients:', userIngredients.error)
       return []
     }
 
-    const availableIngredientNames = userIngredients.map((ui: any) => ui.ingredients.name)
+    const availableIngredientNames = (userIngredients.data || []).map((ui: any) => ui.ingredients.name)
 
     // Get all recipes
     const allRecipes = await this.getRecipes({ userId })
 
-    // Calculate match percentage for each recipe
-    const recipesWithMatches = allRecipes.map(recipe => {
+    // Determine time-based meal type preference
+    const currentHour = new Date().getHours()
+    let preferredMealType = 'Snack'
+    if (currentHour >= 6 && currentHour < 11) preferredMealType = 'Breakfast'
+    else if (currentHour >= 11 && currentHour < 16) preferredMealType = 'Lunch'
+    else if (currentHour >= 16 && currentHour < 22) preferredMealType = 'Dinner'
+
+    // Calculate remaining calories for the day
+    const calorieGoal = todaysLog?.calorie_goal || userSettings?.daily_calorie_target || 2000
+    const currentCalories = todaysLog?.total_calories || 0
+    const remainingCalories = calorieGoal - currentCalories
+
+    // Get dietary preferences and restrictions
+    const dietaryPreferences = userProfile?.dietary_preferences || []
+    const foodRestrictions = userSettings?.dietary_restrictions || []
+
+    // Calculate smart scores for each recipe
+    const recipesWithScores = allRecipes.map(recipe => {
+      let score = 0
+      
+      // 1. Ingredient match scoring (0-50 points)
       const recipeIngredientNames = recipe.ingredients.map(ing => ing.name)
       const matchingIngredients = recipeIngredientNames.filter(name => 
         availableIngredientNames.includes(name)
       )
       const matchPercentage = (matchingIngredients.length / recipeIngredientNames.length) * 100
+      score += matchPercentage * 0.5 // Max 50 points
+
+      // 2. Time-based meal type bonus (0-20 points)
+      if (recipe.meal_type === preferredMealType) {
+        score += 20
+      }
+
+      // 3. Calorie alignment scoring (0-20 points)
+      const recipeCalories = recipe.calories || 0
+      if (recipeCalories > 0 && remainingCalories > 0) {
+        // Ideal if recipe is 25-40% of remaining calories
+        const calorieRatio = recipeCalories / remainingCalories
+        if (calorieRatio >= 0.25 && calorieRatio <= 0.4) {
+          score += 20
+        } else if (calorieRatio > 0.4 && calorieRatio <= 0.6) {
+          score += 10
+        } else if (recipeCalories <= remainingCalories) {
+          score += 5
+        }
+      }
+
+      // 4. Dietary preference matching (0-10 points)
+      const recipeTags = recipe.tags.map(t => t.tag.toLowerCase())
+      const matchesDietaryPrefs = dietaryPreferences.some((pref: string) =>
+        recipeTags.includes(pref.toLowerCase())
+      )
+      if (matchesDietaryPrefs) {
+        score += 10
+      }
+
+      // Filter out recipes with food restrictions
+      const hasRestriction = foodRestrictions.some((restriction: string) => {
+        const restrictionLower = restriction.toLowerCase()
+        return recipeTags.some(tag => 
+          tag.includes(restrictionLower) || 
+          recipe.title.toLowerCase().includes(restrictionLower)
+        )
+      })
 
       return {
         ...recipe,
         matchPercentage,
         hasAllIngredients: matchPercentage === 100,
+        score,
+        hasRestriction
       }
     })
 
-    // Sort by match percentage and return top recommendations
-    return recipesWithMatches
-      .filter(recipe => recipe.matchPercentage >= 50) // At least 50% match
-      .sort((a, b) => (b.matchPercentage || 0) - (a.matchPercentage || 0))
+    // Filter and sort recipes
+    const filteredRecipes = recipesWithScores
+      .filter(recipe => !recipe.hasRestriction) // Exclude recipes with restrictions
+      .filter(recipe => recipe.matchPercentage >= 30) // Lower threshold for more variety
+      .sort((a, b) => b.score - a.score)
       .slice(0, limit)
+
+    console.log('🍽️ Meal Recommendations:', {
+      totalRecipes: allRecipes.length,
+      filteredCount: filteredRecipes.length,
+      preferredMealType,
+      remainingCalories,
+      dietaryPreferences,
+      topScores: filteredRecipes.slice(0, 3).map(r => ({ title: r.title, score: r.score, match: r.matchPercentage }))
+    })
+
+    return filteredRecipes
   },
 
   // Toggle favorite recipe

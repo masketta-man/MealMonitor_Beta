@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Platform } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, useWindowDimensions, Platform } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -50,6 +50,8 @@ const ACTIVITY_LEVELS = [
 export default function SettingsScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const { startTutorial } = useTutorial()
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -181,7 +183,7 @@ export default function SettingsScreen() {
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
@@ -190,52 +192,53 @@ export default function SettingsScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Personal Goals</Text>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>Personal Goals</Text>
 
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Daily Calorie Target</Text>
-              <TextInput
-                style={styles.input}
-                value={calorieTarget}
-                onChangeText={setCalorieTarget}
-                keyboardType="numeric"
-                placeholder="2000"
-                placeholderTextColor="#94a3b8"
-              />
-              <Text style={styles.inputHint}>Recommended: 1500-2500 calories/day</Text>
-            </View>
-
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Weight Goal</Text>
-              <View style={styles.optionsContainer}>
-                {WEIGHT_GOALS.map((goal) => (
-                  <TouchableOpacity
-                    key={goal.id}
-                    style={[
-                      styles.optionButton,
-                      weightGoal === goal.id && styles.optionButtonActive,
-                    ]}
-                    onPress={() => setWeightGoal(goal.id)}
-                  >
-                    <Ionicons
-                      name={goal.icon as keyof typeof Ionicons.glyphMap}
-                      size={20}
-                      color={weightGoal === goal.id ? "#22c55e" : "#64748b"}
-                    />
-                    <Text
-                      style={[
-                        styles.optionText,
-                        weightGoal === goal.id && styles.optionTextActive,
-                      ]}
-                    >
-                      {goal.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Daily Calorie Target</Text>
+                <TextInput
+                  style={styles.input}
+                  value={calorieTarget}
+                  onChangeText={setCalorieTarget}
+                  keyboardType="numeric"
+                  placeholder="2000"
+                  placeholderTextColor="#94a3b8"
+                />
+                <Text style={styles.inputHint}>Recommended: 1500-2500 calories/day</Text>
               </View>
-            </View>
-          </Card>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Weight Goal</Text>
+                <View style={styles.optionsContainer}>
+                  {WEIGHT_GOALS.map((goal) => (
+                    <TouchableOpacity
+                      key={goal.id}
+                      style={[
+                        styles.optionButton,
+                        weightGoal === goal.id && styles.optionButtonActive,
+                      ]}
+                      onPress={() => setWeightGoal(goal.id)}
+                    >
+                      <Ionicons
+                        name={goal.icon as keyof typeof Ionicons.glyphMap}
+                        size={20}
+                        color={weightGoal === goal.id ? "#22c55e" : "#64748b"}
+                      />
+                      <Text
+                        style={[
+                          styles.optionText,
+                          weightGoal === goal.id && styles.optionTextActive,
+                        ]}
+                      >
+                        {goal.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </Card>
 
           <Card style={styles.card}>
             <Text style={styles.sectionTitle}>Activity Level</Text>
@@ -343,7 +346,8 @@ export default function SettingsScreen() {
             />
           </View>
 
-          <View style={styles.bottomPadding} />
+            <View style={styles.bottomPadding} />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -366,6 +370,18 @@ const styles = StyleSheet.create({
     backgroundColor: "white",
     borderBottomWidth: 1,
     borderBottomColor: "#f0fdf4",
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   backButton: {
     padding: 8,

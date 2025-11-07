@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -19,6 +19,8 @@ import { challengeService, ChallengeWithDetails } from "@/services/challengeServ
 export default function ChallengesScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [activeTab, setActiveTab] = useState("active")
   const [activeChallenges, setActiveChallenges] = useState<ChallengeWithDetails[]>([])
   const [upcomingChallenges, setUpcomingChallenges] = useState<ChallengeWithDetails[]>([])
@@ -110,7 +112,7 @@ export default function ChallengesScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <Text style={styles.headerTitle}>Challenges</Text>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerButton}>
@@ -170,7 +172,8 @@ export default function ChallengesScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#166534"]} />
           }
         >
-          {/* Loading State */}
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            {/* Loading State */}
           {loading && (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color="#166534" />
@@ -354,6 +357,7 @@ export default function ChallengesScreen() {
 
           {/* Bottom padding to account for tab bar */}
           <View style={styles.bottomPadding} />
+        </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -371,6 +375,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 30,
   },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -385,6 +398,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   headerTitle: {
     fontSize: 20,

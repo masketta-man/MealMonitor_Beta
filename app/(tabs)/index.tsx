@@ -1,27 +1,27 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Alert } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
-import { useFocusEffect } from "@react-navigation/native"
+import { CalorieCounter } from "@/components/CalorieCounter"
+import { LevelProgress } from "@/components/LevelProgress"
+import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
+import { useTutorial } from "@/contexts/TutorialContext"
 import { useAuth } from "@/hooks/useAuth"
-import { userService } from "@/services/userService"
-import { recipeService } from "@/services/recipeService"
+import { calorieService } from "@/services/calorieService"
 import { challengeService } from "@/services/challengeService"
 import { ingredientService } from "@/services/ingredientService"
-import { calorieService } from "@/services/calorieService"
-import { LevelProgress } from "@/components/LevelProgress"
-import { CalorieCounter } from "@/components/CalorieCounter"
-import { useTutorial } from "@/contexts/TutorialContext"
-import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
+import { recipeService } from "@/services/recipeService"
+import { userService } from "@/services/userService"
+import { Ionicons } from "@expo/vector-icons"
+import { useFocusEffect } from "@react-navigation/native"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useCallback, useEffect, useState } from "react"
+import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
-import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
+import Card from "@/components/Card"
 import ProgressBar from "@/components/ProgressBar"
 
 interface UserStats {
@@ -47,6 +47,7 @@ interface Recipe {
   difficulty: string
   meal_type: string
   points: number
+  calories?: number | null
   nutrition_score: number | null
   isFavorite?: boolean
   hasAllIngredients?: boolean
@@ -71,6 +72,8 @@ export default function HomeScreen() {
   const params = useLocalSearchParams()
   const { user } = useAuth()
   const { shouldShowTutorial, startTutorial } = useTutorial()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768 // Tablet and above
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([])
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([])
@@ -262,9 +265,9 @@ export default function HomeScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Hello, {profile?.full_name?.split(' ')[0] || 'Chef'}! 👋</Text>
+            <Text style={styles.greeting}>Hello, {profile?.full_name?.split(' ')[0] || 'Chef'}! </Text>
             <Text style={styles.subGreeting}>Ready to cook something delicious?</Text>
           </View>
           <TouchableOpacity style={styles.profileButton} onPress={navigateToProfile}>
@@ -277,8 +280,9 @@ export default function HomeScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* Calorie Counter */}
-          <View style={styles.calorieSection}>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            {/* Calorie Counter */}
+            <View style={styles.calorieSection}>
             <CalorieCounter
               currentCalories={calorieData.current}
               goalCalories={calorieData.goal}
@@ -349,12 +353,28 @@ export default function HomeScreen() {
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recipesScroll}>
-            {recommendedRecipes.map((recipe) => (
+          {recommendedRecipes.map((recipe) => {
+            // Determine time-appropriate badge
+            const currentHour = new Date().getHours()
+            let preferredMealType = 'Snack'
+            if (currentHour >= 6 && currentHour < 11) preferredMealType = 'Breakfast'
+            else if (currentHour >= 11 && currentHour < 16) preferredMealType = 'Lunch'
+            else if (currentHour >= 16 && currentHour < 22) preferredMealType = 'Dinner'
+            
+            const isTimeAppropriate = recipe.meal_type === preferredMealType
+            const isPerfectMatch = recipe.matchPercentage && recipe.matchPercentage >= 80
+            
+            return (
               <Card key={recipe.id} style={styles.recipeCard} onPress={() => navigateToRecipe(recipe.id)}>
                 <Image 
                   source={{ uri: recipe.image_url || 'https://via.placeholder.com/200x120?text=No+Image' }} 
                   style={styles.recipeImage} 
                 />
+                {isTimeAppropriate && (
+                  <View style={styles.timeBadgeOverlay}>
+                    <Text style={styles.timeBadgeText}>⏰ {preferredMealType}</Text>
+                  </View>
+                )}
                 <View style={styles.recipeContent}>
                   <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
                   <View style={styles.recipeMetaRow}>
@@ -372,7 +392,16 @@ export default function HomeScreen() {
                   {recipe.matchPercentage && (
                     <View style={styles.matchContainer}>
                       <Ionicons name="checkmark-circle" size={12} color="#22c55e" />
-                      <Text style={styles.matchText}>{recipe.matchPercentage}% match</Text>
+                      <Text style={styles.matchText}>
+                        {Math.round(recipe.matchPercentage)}% ingredient match
+                      </Text>
+                      {isPerfectMatch && <Text style={styles.perfectMatchEmoji}> ✨</Text>}
+                    </View>
+                  )}
+                  {recipe.calories && (
+                    <View style={styles.calorieInfo}>
+                      <Ionicons name="flame-outline" size={12} color="#f59e0b" />
+                      <Text style={styles.calorieText}>{recipe.calories} cal</Text>
                     </View>
                   )}
                   <Button
@@ -384,20 +413,19 @@ export default function HomeScreen() {
                   />
                 </View>
               </Card>
-            ))}
+            )
+          })}
           </ScrollView>
 
           {/* Active Challenges */}
-          {activeChallenges.length > 0 && (
-            <>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Active Challenges</Text>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/challenges")}>
-                  <Text style={styles.seeAllText}>See All</Text>
-                </TouchableOpacity>
-              </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Active Challenges</Text>
+            <TouchableOpacity onPress={() => router.push("/(tabs)/challenges")}>
+              <Text style={styles.seeAllText}>See All</Text>
+            </TouchableOpacity>
+          </View>
 
-              {activeChallenges.slice(0, 2).map((challenge) => (
+          {activeChallenges.slice(0, 2).map((challenge) => (
                 <Card key={challenge.id} style={styles.challengeCard} onPress={() => navigateToChallenge(challenge.id)}>
                   <View style={styles.challengeHeader}>
                     <View style={styles.challengeTitleContainer}>
@@ -432,12 +460,11 @@ export default function HomeScreen() {
                     </View>
                   </View>
                 </Card>
-              ))}
-            </>
-          )}
+          ))}
 
-          {/* Bottom padding for tab bar */}
-          <View style={styles.bottomPadding} />
+            {/* Bottom padding for tab bar */}
+            <View style={styles.bottomPadding} />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -466,6 +493,15 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 30,
   },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -480,6 +516,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   headerLeft: {
     flex: 1,
@@ -669,6 +708,40 @@ const styles = StyleSheet.create({
     color: "#166534",
     fontWeight: "500",
     marginLeft: 2,
+  },
+  timeBadgeOverlay: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#1e40af",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  timeBadgeText: {
+    fontSize: 10,
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  perfectMatchEmoji: {
+    fontSize: 10,
+  },
+  calorieInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: "#fef3c7",
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  calorieText: {
+    fontSize: 10,
+    color: "#92400e",
+    fontWeight: "500",
+    marginLeft: 4,
   },
   cookButton: {
     paddingVertical: 8,

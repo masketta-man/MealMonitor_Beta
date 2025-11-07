@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Pressable, Modal, Alert, ActivityIndicator, Platform } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Pressable, Modal, Alert, ActivityIndicator, Platform, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -29,6 +29,8 @@ const CATEGORY_STYLES: Record<IngredientCategory, { color: string; bgColor: stri
 export default function IngredientsScreen() {
   const router = useRouter()
   const { user } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [searchQuery, setSearchQuery] = useState("")
   const [ingredients, setIngredients] = useState<UserIngredientWithDetails[]>([])
   const [filteredIngredients, setFilteredIngredients] = useState<UserIngredientWithDetails[]>([])
@@ -364,7 +366,7 @@ export default function IngredientsScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
@@ -377,8 +379,9 @@ export default function IngredientsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
+        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
             <TextInput
@@ -598,6 +601,7 @@ export default function IngredientsScreen() {
             </View>
           </View>
         </Modal>
+        </View>
       </SafeAreaView>
     </LinearGradient>
   )
@@ -610,6 +614,15 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     paddingBottom: 80, // Space for tab bar
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   header: {
     flexDirection: "row",
@@ -625,6 +638,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 10,
     elevation: 2,
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   backButton: {
     padding: 8,
