@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity } from "react-native"
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -15,6 +15,8 @@ import Card from "@/components/Card"
 export default function LoginScreen() {
   const router = useRouter()
   const { signIn } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
@@ -98,102 +100,104 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.content}>
-          <Card style={styles.loginCard}>
-            <Text style={styles.title}>Welcome Back!</Text>
-            <Text style={styles.subtitle}>Sign in to continue your cooking journey</Text>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            <Card style={styles.loginCard}>
+              <Text style={styles.title}>Welcome Back!</Text>
+              <Text style={styles.subtitle}>Sign in to continue your cooking journey</Text>
 
-            {errors.general && (
-              <View style={styles.errorBanner}>
-                <Ionicons name="alert-circle" size={20} color="#dc2626" />
-                <Text style={styles.errorBannerText}>{errors.general}</Text>
-              </View>
-            )}
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
-                <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text)
-                    if (errors.email) {
-                      setErrors(prev => ({ ...prev, email: undefined }))
-                    }
-                  }}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
-              </View>
-              {errors.email && (
-                <View style={styles.errorContainer}>
-                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
-                  <Text style={styles.errorText}>{errors.email}</Text>
+              {errors.general && (
+                <View style={styles.errorBanner}>
+                  <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                  <Text style={styles.errorBannerText}>{errors.general}</Text>
                 </View>
               )}
-            </View>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Password</Text>
-              <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
-                <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  value={password}
-                  onChangeText={(text) => {
-                    setPassword(text)
-                    if (errors.password) {
-                      setErrors(prev => ({ ...prev, password: undefined }))
-                    }
-                  }}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  style={styles.eyeIcon}
-                  onPress={() => setShowPassword(!showPassword)}
-                >
-                  <Ionicons
-                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                    size={20}
-                    color="#64748b"
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
+                  <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text)
+                      if (errors.email) {
+                        setErrors(prev => ({ ...prev, email: undefined }))
+                      }
+                    }}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
                   />
+                </View>
+                {errors.email && (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                    <Text style={styles.errorText}>{errors.email}</Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Password</Text>
+                <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
+                  <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.textInput}
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text)
+                      if (errors.password) {
+                        setErrors(prev => ({ ...prev, password: undefined }))
+                      }
+                    }}
+                    placeholder="Enter your password"
+                    placeholderTextColor="#9ca3af"
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-outline" : "eye-off-outline"}
+                      size={20}
+                      color="#64748b"
+                    />
+                  </TouchableOpacity>
+                </View>
+                {errors.password && (
+                  <View style={styles.errorContainer}>
+                    <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                    <Text style={styles.errorText}>{errors.password}</Text>
+                  </View>
+                )}
+              </View>
+
+              <TouchableOpacity style={styles.forgotPassword} onPress={navigateToForgotPassword}>
+                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+              </TouchableOpacity>
+
+              <Button
+                text={isLoading ? "Signing In..." : "Sign In"}
+                color="white"
+                backgroundColor="#22c55e"
+                onPress={handleLogin}
+                disabled={isLoading}
+                style={styles.loginButton}
+              />
+
+              <View style={styles.signupContainer}>
+                <Text style={styles.signupText}>Don&apos;t have an account? </Text>
+                <TouchableOpacity onPress={navigateToSignUp}>
+                  <Text style={styles.signupLink}>Sign Up</Text>
                 </TouchableOpacity>
               </View>
-              {errors.password && (
-                <View style={styles.errorContainer}>
-                  <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
-                  <Text style={styles.errorText}>{errors.password}</Text>
-                </View>
-              )}
-            </View>
-
-            <TouchableOpacity style={styles.forgotPassword} onPress={navigateToForgotPassword}>
-              <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-            </TouchableOpacity>
-
-            <Button
-              text={isLoading ? "Signing In..." : "Sign In"}
-              color="white"
-              backgroundColor="#22c55e"
-              onPress={handleLogin}
-              disabled={isLoading}
-              style={styles.loginButton}
-            />
-
-            <View style={styles.signupContainer}>
-              <Text style={styles.signupText}>Don&apos;t have an account? </Text>
-              <TouchableOpacity onPress={navigateToSignUp}>
-                <Text style={styles.signupLink}>Sign Up</Text>
-              </TouchableOpacity>
-            </View>
-          </Card>
+            </Card>
+          </View>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -242,6 +246,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 500,
+    alignSelf: "center",
+    width: "100%",
   },
   loginCard: {
     padding: 24,

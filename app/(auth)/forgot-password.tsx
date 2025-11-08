@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert } from "react-native"
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, useWindowDimensions, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -13,6 +13,8 @@ import Card from "@/components/Card"
 export default function ForgotPasswordScreen() {
   const router = useRouter()
   const { resetPassword } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
 
@@ -49,7 +51,8 @@ export default function ForgotPasswordScreen() {
         </View>
 
         <View style={styles.content}>
-          <Card style={styles.resetCard}>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            <Card style={styles.resetCard}>
             <Text style={styles.title}>Forgot Password?</Text>
             <Text style={styles.subtitle}>
               Enter your email address and we'll send you instructions to reset your password.
@@ -84,7 +87,8 @@ export default function ForgotPasswordScreen() {
             <TouchableOpacity style={styles.backToLogin} onPress={() => router.back()}>
               <Text style={styles.backToLoginText}>Back to Login</Text>
             </TouchableOpacity>
-          </Card>
+            </Card>
+          </View>
         </View>
       </SafeAreaView>
     </LinearGradient>
@@ -130,6 +134,14 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     justifyContent: "center",
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 500,
+    alignSelf: "center",
+    width: "100%",
   },
   resetCard: {
     padding: 24,

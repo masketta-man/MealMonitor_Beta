@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert } from "react-native"
+import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -20,6 +20,8 @@ export default function RecipeDetailScreen() {
   const router = useRouter()
   const params = useLocalSearchParams<{ id: string }>()
   const { user } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [recipe, setRecipe] = useState<RecipeWithDetails | null>(null)
   const [isFavorite, setIsFavorite] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
@@ -64,11 +66,7 @@ export default function RecipeDetailScreen() {
     }
   }
 
-  const handleEditRecipe = () => {
-    if (params.id) {
-      router.push(`/(tabs)/edit-recipe/${params.id}`)
-    }
-  }
+  // Edit recipe feature removed
 
   const handleStartCooking = () => {
     if (params.id) {
@@ -93,7 +91,7 @@ export default function RecipeDetailScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, isWeb && styles.headerWeb]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1f2937" />
           </TouchableOpacity>
@@ -108,8 +106,9 @@ export default function RecipeDetailScreen() {
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
-          {/* Recipe Image */}
-          <View style={styles.imageContainer}>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            {/* Recipe Image */}
+            <View style={styles.imageContainer}>
             <Image source={{ uri: recipe.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
             <View style={styles.badgesOverlay}>
               <Badge
@@ -220,15 +219,8 @@ export default function RecipeDetailScreen() {
             </View>
           </Card>
 
-          {/* Action Buttons */}
+          {/* Action Button */}
           <View style={styles.actionButtons}>
-            <Button
-              text="Edit Recipe"
-              color="#166534"
-              backgroundColor="#dcfce7"
-              style={styles.editButton}
-              onPress={handleEditRecipe}
-            />
             <Button
               text="Start Cooking"
               color="white"
@@ -238,8 +230,9 @@ export default function RecipeDetailScreen() {
             />
           </View>
 
-          {/* Bottom padding */}
-          <View style={styles.bottomPadding} />
+            {/* Bottom padding */}
+            <View style={styles.bottomPadding} />
+          </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -252,6 +245,15 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   loadingContainer: {
     flex: 1,
@@ -277,6 +279,9 @@ const styles = StyleSheet.create({
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+  },
+  headerWeb: {
+    paddingHorizontal: 24,
   },
   headerTitle: {
     flex: 1,
@@ -457,17 +462,11 @@ const styles = StyleSheet.create({
     color: "#4b5563",
   },
   actionButtons: {
-    flexDirection: "row",
     paddingHorizontal: 16,
     marginBottom: 16,
   },
-  editButton: {
-    flex: 1,
-    marginRight: 8,
-  },
   cookButton: {
-    flex: 1,
-    marginLeft: 8,
+    width: "100%",
   },
   bottomPadding: {
     height: 100,

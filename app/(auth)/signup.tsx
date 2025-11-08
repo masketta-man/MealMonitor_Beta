@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView } from "react-native"
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, useWindowDimensions } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -15,6 +15,8 @@ import Card from "@/components/Card"
 export default function SignUpScreen() {
   const router = useRouter()
   const { signUp } = useAuth()
+  const { width } = useWindowDimensions()
+  const isWeb = width > 768
   const [formData, setFormData] = useState({
     email: "",
     password: "",
@@ -131,7 +133,8 @@ export default function SignUpScreen() {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Card style={styles.signupCard}>
+          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            <Card style={styles.signupCard}>
             <Text style={styles.title}>Join MealR!</Text>
             <Text style={styles.subtitle}>Start your healthy cooking journey today</Text>
 
@@ -301,7 +304,8 @@ export default function SignUpScreen() {
                 <Text style={styles.loginLink}>Sign In</Text>
               </TouchableOpacity>
             </View>
-          </Card>
+            </Card>
+          </View>
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -346,6 +350,14 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 16,
+  },
+  contentWrapper: {
+    width: "100%",
+  },
+  contentWrapperWeb: {
+    maxWidth: 500,
+    alignSelf: "center",
+    width: "100%",
   },
   signupCard: {
     padding: 24,
