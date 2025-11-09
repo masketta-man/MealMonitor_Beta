@@ -322,146 +322,146 @@ export default function RecipesScreen() {
           </View>
         </View>
 
-        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <View style={styles.searchInputContainer}>
-              <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search recipes or ingredients..."
-                placeholderTextColor="#9ca3af"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              {searchQuery ? (
-                <TouchableOpacity onPress={() => setSearchQuery("")}>
-                  <Ionicons name="close-circle" size={20} color="#9ca3af" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
-              <Ionicons name="options-outline" size={22} color="#166534" />
-            </TouchableOpacity>
+        {/* Recipe List with Header */}
+        {isLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#22c55e" />
+            <Text style={styles.loadingText}>Loading recipes...</Text>
           </View>
-
-          {/* Suggestion Banner */}
-          {showSuggestions && (
-            <View style={styles.suggestionBanner}>
-              <Ionicons name="nutrition" size={20} color="#166534" />
-              <Text style={styles.suggestionText}>Showing recipes based on your available ingredients</Text>
-              <TouchableOpacity
-                style={styles.clearSuggestionsButton}
-                onPress={() => {
-                  setShowSuggestions(false)
-                  loadRecipes()
-                  router.setParams({ suggestions: "false" })
-                }}
-              >
-                <Ionicons name="close-circle" size={20} color="#166534" />
-              </TouchableOpacity>
-            </View>
-          )}
-
-          {/* Filter Toggle Button */}
-          <View style={styles.filterToggleContainer}>
-            <TouchableOpacity style={styles.filterToggle} onPress={() => setShowFilters(!showFilters)}>
-              <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={20} color="#166534" />
-              <Text style={styles.filterToggleText}>{showFilters ? "Hide" : "Show"} Filters</Text>
-            </TouchableOpacity>
+        ) : filteredRecipes.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Ionicons name="restaurant-outline" size={64} color="#9ca3af" />
+            <Text style={styles.emptyTitle}>No recipes found</Text>
+            <Text style={styles.emptyText}>Try adjusting your filters or search for different ingredients</Text>
           </View>
-
-          {/* Filters Section */}
-          {showFilters && (
-            <View style={styles.filtersContainer}>
-              <Text style={styles.filterSectionTitle}>Meal Type</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterChipsContainer}
-              >
-                {MEAL_TYPES.map((type) => (
-                  <FilterChip
-                    key={type}
-                    label={type}
-                    isSelected={selectedMealType === type}
-                    onPress={() => setSelectedMealType(type)}
-                  />
-                ))}
-              </ScrollView>
-
-              <Text style={styles.filterSectionTitle}>Difficulty</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterChipsContainer}
-              >
-                {DIFFICULTY_LEVELS.map((level) => (
-                  <FilterChip
-                    key={level}
-                    label={level}
-                    isSelected={selectedDifficulty === level}
-                    onPress={() => setSelectedDifficulty(level)}
-                  />
-                ))}
-              </ScrollView>
-
-              <Text style={styles.filterSectionTitle}>Sort By</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.filterChipsContainer}
-              >
-                {SORT_OPTIONS.map((option) => (
-                  <FilterChip
-                    key={option}
-                    label={option}
-                    isSelected={selectedSortOption === option}
-                    onPress={() => setSelectedSortOption(option)}
-                  />
-                ))}
-              </ScrollView>
-
-              <View style={styles.ingredientFilterContainer}>
-                <TouchableOpacity
-                  style={styles.ingredientFilterButton}
-                  onPress={() => setShowIngredientFilter(!showIngredientFilter)}
-                >
-                  <View style={[styles.checkboxContainer, showIngredientFilter ? styles.checkboxChecked : {}]}>
-                    {showIngredientFilter && <Ionicons name="checkmark" size={16} color="white" />}
+        ) : (
+          <FlatList
+            data={filteredRecipes}
+            renderItem={renderRecipeCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={[styles.recipeListContainer, isWeb && styles.recipeListContainerWeb]}
+            showsVerticalScrollIndicator={false}
+            numColumns={isWeb ? 2 : 1}
+            key={isWeb ? 'web' : 'mobile'}
+            columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
+            ListHeaderComponent={
+              <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+                {/* Search Bar */}
+                <View style={styles.searchContainer}>
+                  <View style={styles.searchInputContainer}>
+                    <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+                    <TextInput
+                      style={styles.searchInput}
+                      placeholder="Search recipes or ingredients..."
+                      placeholderTextColor="#9ca3af"
+                      value={searchQuery}
+                      onChangeText={setSearchQuery}
+                    />
+                    {searchQuery ? (
+                      <TouchableOpacity onPress={() => setSearchQuery("")}>
+                        <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
-                  <Text style={styles.ingredientFilterText}>Show only recipes with ingredients I have</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        </View>
+                  <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
+                    <Ionicons name="options-outline" size={22} color="#166534" />
+                  </TouchableOpacity>
+                </View>
 
-        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
-          {/* Recipe List */}
-          {isLoading ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#22c55e" />
-              <Text style={styles.loadingText}>Loading recipes...</Text>
-            </View>
-          ) : filteredRecipes.length === 0 ? (
-            <View style={styles.emptyContainer}>
-              <Ionicons name="restaurant-outline" size={64} color="#9ca3af" />
-              <Text style={styles.emptyTitle}>No recipes found</Text>
-              <Text style={styles.emptyText}>Try adjusting your filters or search for different ingredients</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={filteredRecipes}
-              renderItem={renderRecipeCard}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.recipeListContainer}
-              showsVerticalScrollIndicator={false}
-              numColumns={isWeb ? 2 : 1}
-              key={isWeb ? 'web' : 'mobile'}
-            />
-          )}
-        </View>
+                {/* Suggestion Banner */}
+                {showSuggestions && (
+                  <View style={styles.suggestionBanner}>
+                    <Ionicons name="nutrition" size={20} color="#166534" />
+                    <Text style={styles.suggestionText}>Showing recipes based on your available ingredients</Text>
+                    <TouchableOpacity
+                      style={styles.clearSuggestionsButton}
+                      onPress={() => {
+                        setShowSuggestions(false)
+                        loadRecipes()
+                        router.setParams({ suggestions: "false" })
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#166534" />
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Filter Toggle Button */}
+                <View style={styles.filterToggleContainer}>
+                  <TouchableOpacity style={styles.filterToggle} onPress={() => setShowFilters(!showFilters)}>
+                    <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={20} color="#166534" />
+                    <Text style={styles.filterToggleText}>{showFilters ? "Hide" : "Show"} Filters</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Filters Section */}
+                {showFilters && (
+                  <View style={styles.filtersContainer}>
+                    <Text style={styles.filterSectionTitle}>Meal Type</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.filterChipsContainer}
+                    >
+                      {MEAL_TYPES.map((type) => (
+                        <FilterChip
+                          key={type}
+                          label={type}
+                          isSelected={selectedMealType === type}
+                          onPress={() => setSelectedMealType(type)}
+                        />
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.filterSectionTitle}>Difficulty</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.filterChipsContainer}
+                    >
+                      {DIFFICULTY_LEVELS.map((level) => (
+                        <FilterChip
+                          key={level}
+                          label={level}
+                          isSelected={selectedDifficulty === level}
+                          onPress={() => setSelectedDifficulty(level)}
+                        />
+                      ))}
+                    </ScrollView>
+
+                    <Text style={styles.filterSectionTitle}>Sort By</Text>
+                    <ScrollView
+                      horizontal
+                      showsHorizontalScrollIndicator={false}
+                      contentContainerStyle={styles.filterChipsContainer}
+                    >
+                      {SORT_OPTIONS.map((option) => (
+                        <FilterChip
+                          key={option}
+                          label={option}
+                          isSelected={selectedSortOption === option}
+                          onPress={() => setSelectedSortOption(option)}
+                        />
+                      ))}
+                    </ScrollView>
+
+                    <View style={styles.ingredientFilterContainer}>
+                      <TouchableOpacity
+                        style={styles.ingredientFilterButton}
+                        onPress={() => setShowIngredientFilter(!showIngredientFilter)}
+                      >
+                        <View style={[styles.checkboxContainer, showIngredientFilter ? styles.checkboxChecked : {}]}>
+                          {showIngredientFilter && <Ionicons name="checkmark" size={16} color="white" />}
+                        </View>
+                        <Text style={styles.ingredientFilterText}>Show only recipes with ingredients I have</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+              </View>
+            }
+          />
+        )}
       </SafeAreaView>
     </LinearGradient>
   )
@@ -608,6 +608,15 @@ const styles = StyleSheet.create({
   recipeListContainer: {
     padding: 16,
     paddingBottom: 100, // Extra padding for bottom tab bar
+  },
+  recipeListContainerWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
+  },
+  columnWrapper: {
+    justifyContent: "space-between",
   },
   recipeCard: {
     marginBottom: 16,

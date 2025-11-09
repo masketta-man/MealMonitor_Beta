@@ -379,101 +379,103 @@ export default function IngredientsScreen() {
           </TouchableOpacity>
         </View>
 
-        <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-          <View style={styles.searchInputContainer}>
-            <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search ingredients..."
-              placeholderTextColor="#9ca3af"
-              value={searchQuery}
-              onChangeText={(text) => {
-                setSearchQuery(text)
-                filterIngredients(text, selectedCategory, showInStockOnly)
-              }}
-            />
-            {searchQuery ? (
-              <TouchableOpacity
-                onPress={() => {
-                  setSearchQuery("")
-                  filterIngredients("", selectedCategory, showInStockOnly)
-                }}
-              >
-                <Ionicons name="close-circle" size={20} color="#9ca3af" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        </View>
-
-        {/* Filters */}
-        <View style={styles.filtersContainer}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilters}>
-            <Pressable
-              style={[styles.categoryChip, selectedCategory === "All" ? styles.selectedCategoryChip : {}]}
-              onPress={() => {
-                setSelectedCategory("All")
-                filterIngredients(searchQuery, "All", showInStockOnly)
-              }}
-            >
-              <Text
-                style={[styles.categoryChipText, selectedCategory === "All" ? styles.selectedCategoryChipText : {}]}
-              >
-                All
-              </Text>
-            </Pressable>
-
-            {Object.keys(CATEGORY_STYLES).map((category) => {
-              const catKey = category as IngredientCategory
-              return (
-                <Pressable
-                  key={category}
-                  style={[
-                    styles.categoryChip,
-                    selectedCategory === catKey ? styles.selectedCategoryChip : {},
-                    { backgroundColor: selectedCategory === catKey ? CATEGORY_STYLES[catKey].color : "white" },
-                  ]}
-                  onPress={() => {
-                    setSelectedCategory(catKey)
-                    filterIngredients(searchQuery, catKey, showInStockOnly)
-                  }}
-                >
-                  <Text
-                    style={[
-                      styles.categoryChipText,
-                      selectedCategory === catKey ? styles.selectedCategoryChipText : {},
-                      { color: selectedCategory === catKey ? "white" : CATEGORY_STYLES[catKey].color },
-                    ]}
-                  >
-                    {category}
-                  </Text>
-                </Pressable>
-              )
-            })}
-          </ScrollView>
-
-          <TouchableOpacity
-            style={styles.stockFilterButton}
-            onPress={() => {
-              setShowInStockOnly(!showInStockOnly)
-              filterIngredients(searchQuery, selectedCategory, !showInStockOnly)
-            }}
-          >
-            <View style={[styles.checkbox, showInStockOnly ? styles.checkboxChecked : {}]}>
-              {showInStockOnly && <Ionicons name="checkmark" size={16} color="white" />}
-            </View>
-            <Text style={styles.stockFilterText}>Show in-stock only</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Ingredients List */}
+        {/* Ingredients List with Header */}
         <FlatList
           data={filteredIngredients}
           renderItem={renderIngredientItem}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.ingredientsList}
+          contentContainerStyle={[styles.ingredientsList, isWeb && styles.ingredientsListWeb]}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+              {/* Search Bar */}
+              <View style={styles.searchContainer}>
+                <View style={styles.searchInputContainer}>
+                  <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Search ingredients..."
+                    placeholderTextColor="#9ca3af"
+                    value={searchQuery}
+                    onChangeText={(text) => {
+                      setSearchQuery(text)
+                      filterIngredients(text, selectedCategory, showInStockOnly)
+                    }}
+                  />
+                  {searchQuery ? (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSearchQuery("")
+                        filterIngredients("", selectedCategory, showInStockOnly)
+                      }}
+                    >
+                      <Ionicons name="close-circle" size={20} color="#9ca3af" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+
+              {/* Filters */}
+              <View style={styles.filtersContainer}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilters}>
+                  <Pressable
+                    style={[styles.categoryChip, selectedCategory === "All" ? styles.selectedCategoryChip : {}]}
+                    onPress={() => {
+                      setSelectedCategory("All")
+                      filterIngredients(searchQuery, "All", showInStockOnly)
+                    }}
+                  >
+                    <Text
+                      style={[styles.categoryChipText, selectedCategory === "All" ? styles.selectedCategoryChipText : {}]}
+                    >
+                      All
+                    </Text>
+                  </Pressable>
+
+                  {Object.keys(CATEGORY_STYLES).map((category) => {
+                    const catKey = category as IngredientCategory
+                    return (
+                      <Pressable
+                        key={category}
+                        style={[
+                          styles.categoryChip,
+                          selectedCategory === catKey ? styles.selectedCategoryChip : {},
+                          { backgroundColor: selectedCategory === catKey ? CATEGORY_STYLES[catKey].color : "white" },
+                        ]}
+                        onPress={() => {
+                          setSelectedCategory(catKey)
+                          filterIngredients(searchQuery, catKey, showInStockOnly)
+                        }}
+                      >
+                        <Text
+                          style={[
+                            styles.categoryChipText,
+                            selectedCategory === catKey ? styles.selectedCategoryChipText : {},
+                            { color: selectedCategory === catKey ? "white" : CATEGORY_STYLES[catKey].color },
+                          ]}
+                        >
+                          {category}
+                        </Text>
+                      </Pressable>
+                    )
+                  })}
+                </ScrollView>
+
+                <TouchableOpacity
+                  style={styles.stockFilterButton}
+                  onPress={() => {
+                    setShowInStockOnly(!showInStockOnly)
+                    filterIngredients(searchQuery, selectedCategory, !showInStockOnly)
+                  }}
+                >
+                  <View style={[styles.checkbox, showInStockOnly ? styles.checkboxChecked : {}]}>
+                    {showInStockOnly && <Ionicons name="checkmark" size={16} color="white" />}
+                  </View>
+                  <Text style={styles.stockFilterText}>Show in-stock only</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="nutrition-outline" size={64} color="#9ca3af" />
@@ -601,7 +603,6 @@ export default function IngredientsScreen() {
             </View>
           </View>
         </Modal>
-        </View>
       </SafeAreaView>
     </LinearGradient>
   )
@@ -745,6 +746,12 @@ const styles = StyleSheet.create({
   ingredientsList: {
     padding: 16,
     paddingTop: 8,
+  },
+  ingredientsListWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
   },
   ingredientCard: {
     marginBottom: 12,
