@@ -6,6 +6,8 @@ import { calorieService } from './calorieService'
 import { streakService } from './streakService'
 import { badgeService } from './badgeService'
 import { settingsService } from './settingsService'
+import { recommendationService } from './recommendationService'
+import { tagService } from './tagService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -28,10 +30,25 @@ export interface RecipeWithDetails extends Recipe {
   tags: Array<{
     tag: string
     tag_type: string
+    id?: string
+    base_weight?: number
+    relevance_weight?: number
+    popularity_score?: number
+    category?: string
   }>
   isFavorite?: boolean
   hasAllIngredients?: boolean
   matchPercentage?: number
+  recommendationScore?: number
+  scoringBreakdown?: {
+    tagMatch: number
+    ingredientMatch: number
+    calorieAlignment: number
+    timeRelevance: number
+    userPreference: number
+    novelty: number
+    popularity: number
+  }
 }
 
 export const recipeService = {
@@ -570,9 +587,67 @@ export const recipeService = {
     return recipes.map(recipe => ({
       ...recipe,
       isFavorite: favoriteIds.has(recipe.id),
-      hasAllIngredients: recipe.ingredients.every(ing => 
+      hasAllIngredients: recipe.ingredients.every(ing =>
         availableIngredientNames.has(ing.name)
       ),
     }))
+  },
+
+  // Get enhanced personalized recommendations using the new tagging system
+  async getEnhancedRecommendations(
+    userId: string,
+    options?: {
+      limit?: number
+      maxPrepTime?: number
+      preferredTags?: string[]
+      excludeTags?: string[]
+    }
+  ): Promise<RecipeWithDetails[]> {
+    const { limit = 10, maxPrepTime, preferredTags = [], excludeTags = [] } = options || {}
+
+    // Get user's available ingredients
+    const { data: userIngredients } = await supabase
+      .from('user_ingredients')
+      .select('ingredient_id, ingredients(name)')
+      .eq('user_id', userId)
+      .eq('in_stock', true)
+
+    const availableIngredients = userIngredients?.map((ui: any) => ui.ingredients.name) || []
+
+    // Get today's log to calculate calorie target
+    const todaysLog = await calorieService.getTodaysLog(userId)
+    const settings = await settingsService.getOrCreateSettings(userId)
+    const calorieGoal = todaysLog?.calorie_goal || settings?.daily_calorie_target || 2000
+    const currentCalories = todaysLog?.total_calories || 0
+    const remainingCalories = calorieGoal - currentCalories
+
+    // Call enhanced recommendation service
+    const recommendations = await recommendationService.getPersonalizedRecommendations(
+      {
+        userId,
+        availableIngredients,
+        maxPrepTime,
+        calorieTarget: remainingCalories,
+        preferredTags,
+        excludeTags,
+      },
+      limit
+    )
+
+    return recommendations
+  },
+
+  // Track user interaction with recipe for learning preferences
+  async trackRecipeInteraction(
+    userId: string,
+    recipeId: string,
+    interactionType: 'view' | 'like' | 'complete' | 'skip'
+  ): Promise<void> {
+    await recommendationService.trackRecommendationInteraction(userId, recipeId, interactionType)
+  },
+
+  // Get recipe tags using enhanced tagging system
+  async getRecipeEnhancedTags(recipeId: string) {
+    return tagService.getRecipeTags(recipeId)
   },
 }

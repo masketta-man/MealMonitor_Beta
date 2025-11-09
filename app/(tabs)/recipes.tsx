@@ -14,6 +14,7 @@ import Badge from "@/components/Badge"
 import Button from "@/components/Button"
 import Card from "@/components/Card"
 import FilterChip from "@/components/FilterChip"
+import TagChip from "@/components/TagChip"
 
 import type { RecipeWithDetails } from "@/services/recipeService"
 
@@ -74,7 +75,11 @@ export default function RecipesScreen() {
 
     try {
       setIsLoading(true)
-      const suggestedRecipes = await recipeService.getRecommendations(user.id, 20)
+      // Use enhanced recommendations with tagging system
+      const suggestedRecipes = await recipeService.getEnhancedRecommendations(user.id, {
+        limit: 20,
+        maxPrepTime: selectedSortOption === 'Prep Time' ? 30 : undefined
+      })
       setRecipes(suggestedRecipes)
       setFilteredRecipes(suggestedRecipes)
     } catch (error) {
@@ -237,6 +242,31 @@ export default function RecipesScreen() {
             <View style={styles.matchContainer}>
               <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
               <Text style={styles.matchText}>{Math.round(item.matchPercentage)}% ingredient match</Text>
+            </View>
+          )}
+
+          {showSuggestions && item.recommendationScore && (
+            <View style={styles.recommendationScoreContainer}>
+              <Ionicons name="star" size={14} color="#f59e0b" />
+              <Text style={styles.recommendationScoreText}>
+                {Math.round(item.recommendationScore)}% match score
+              </Text>
+            </View>
+          )}
+
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.recipeTagsContainer}>
+              {item.tags.slice(0, 3).map((tag: any, index: number) => (
+                <TagChip
+                  key={index}
+                  label={tag.tag}
+                  category={tag.tag_type}
+                  size="small"
+                />
+              ))}
+              {item.tags.length > 3 && (
+                <Text style={styles.moreTagsText}>+{item.tags.length - 3} more</Text>
+              )}
             </View>
           )}
 
@@ -795,6 +825,34 @@ const styles = StyleSheet.create({
   matchText: {
     fontSize: 12,
     color: "#166534",
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  recommendationScoreContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+    backgroundColor: "#fef3c7",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+  recommendationScoreText: {
+    fontSize: 12,
+    color: "#92400e",
+    fontWeight: "500",
+    marginLeft: 4,
+  },
+  recipeTagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 8,
+    alignItems: "center",
+  },
+  moreTagsText: {
+    fontSize: 11,
+    color: "#6b7280",
     fontWeight: "500",
     marginLeft: 4,
   },

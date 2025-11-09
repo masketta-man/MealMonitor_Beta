@@ -192,6 +192,9 @@ export default function CookingModeScreen() {
       if (success) {
         console.log('✅ FINISH COOKING: Recipe completed successfully!')
 
+        // Track completion interaction for learning user preferences
+        await recipeService.trackRecipeInteraction(user.id, id, 'complete')
+
         if (Platform.OS === 'web') {
           // Web platform - navigate immediately with simple alert
           if (alreadyCompleted) {

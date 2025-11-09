@@ -13,6 +13,7 @@ import { recipeService } from "@/services/recipeService"
 import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
+import TagChip from "@/components/TagChip"
 
 import type { RecipeWithDetails } from "@/services/recipeService"
 
@@ -25,6 +26,7 @@ export default function RecipeDetailScreen() {
   const [recipe, setRecipe] = useState<RecipeWithDetails | null>(null)
   const [isFavorite, setIsFavorite] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [enhancedTags, setEnhancedTags] = useState<any[]>([])
 
   useEffect(() => {
     if (params.id && user) {
@@ -37,10 +39,18 @@ export default function RecipeDetailScreen() {
 
     try {
       setIsLoading(true)
-      const recipeData = await recipeService.getRecipe(params.id, user.id)
+      const [recipeData, tagsData] = await Promise.all([
+        recipeService.getRecipe(params.id, user.id),
+        recipeService.getRecipeEnhancedTags(params.id)
+      ])
+
       if (recipeData) {
         setRecipe(recipeData)
         setIsFavorite(recipeData.isFavorite || false)
+        setEnhancedTags(tagsData)
+
+        // Track view interaction for learning
+        await recipeService.trackRecipeInteraction(user.id, params.id, 'view')
       } else {
         Alert.alert('Error', 'Recipe not found')
         router.back()
@@ -60,6 +70,13 @@ export default function RecipeDetailScreen() {
     try {
       const newFavoriteStatus = await recipeService.toggleFavorite(user.id, params.id)
       setIsFavorite(newFavoriteStatus)
+
+      // Track like/unlike interaction
+      await recipeService.trackRecipeInteraction(
+        user.id,
+        params.id,
+        newFavoriteStatus ? 'like' : 'skip'
+      )
     } catch (error) {
       console.error('Error toggling favorite:', error)
       Alert.alert('Error', 'Failed to update favorite status. Please try again.')
@@ -160,6 +177,23 @@ export default function RecipeDetailScreen() {
               </View>
             </View>
           </View>
+
+          {/* Enhanced Tags */}
+          {enhancedTags.length > 0 && (
+            <Card style={styles.section}>
+              <Text style={styles.sectionTitle}>Tags</Text>
+              <View style={styles.tagsContainer}>
+                {enhancedTags.map((tag: any, index: number) => (
+                  <TagChip
+                    key={index}
+                    label={tag.name}
+                    category={tag.category?.name}
+                    size="small"
+                  />
+                ))}
+              </View>
+            </Card>
+          )}
 
           {/* Description */}
           <Card style={styles.section}>
@@ -388,6 +422,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 22,
     color: "#4b5563",
+  },
+  tagsContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 4,
   },
   nutritionContainer: {
     flexDirection: "row",
