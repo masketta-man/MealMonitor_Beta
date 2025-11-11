@@ -81,6 +81,7 @@ export default function HomeScreen() {
   const [calorieData, setCalorieData] = useState<{ current: number; goal: number; goalMet: boolean }>({ current: 0, goal: 2000, goalMet: false })
   const [loading, setLoading] = useState(true)
   const [tutorialTriggered, setTutorialTriggered] = useState(false)
+  const [readyToCookCount, setReadyToCookCount] = useState(0)
 
   useEffect(() => {
     console.log('🏠 Dashboard: useEffect triggered', { 
@@ -150,6 +151,10 @@ export default function HomeScreen() {
       // Load recipe recommendations
       const recipes = await recipeService.getRecommendations(user.id, 5)
       setRecommendedRecipes(recipes)
+      
+      // Count recipes that are ready to cook (have all ingredients)
+      const readyCount = recipes.filter(r => r.hasAllIngredients).length
+      setReadyToCookCount(readyCount)
 
       // Load active challenges
       const challenges = await challengeService.getUserActiveChallenges(user.id)
@@ -203,6 +208,64 @@ export default function HomeScreen() {
       'Exploration': 'compass',
     }
     return icons[category] || 'star'
+  }
+
+  const getMealIdeasContext = () => {
+    const hour = new Date().getHours()
+    const hasIngredients = availableIngredients > 0
+    const caloriesRemaining = calorieData.goal - calorieData.current
+
+    // Morning context
+    if (hour >= 6 && hour < 11) {
+      return {
+        title: "Breakfast Ideas",
+        subtitle: hasIngredients 
+          ? `${readyToCookCount > 0 ? readyToCookCount + ' ready to cook' : availableIngredients + ' ingredients'}`
+          : "Browse easy breakfasts",
+        icon: "sunny",
+        color: "#f59e0b",
+        bgColor: "#fef3c7"
+      }
+    }
+
+    // Afternoon context
+    if (hour >= 11 && hour < 16) {
+      return {
+        title: "Lunch Suggestions",
+        subtitle: readyToCookCount > 0
+          ? `${readyToCookCount} ready to make`
+          : caloriesRemaining > 500
+            ? `~${Math.round(caloriesRemaining)} cal left`
+            : "Light meal options",
+        icon: "restaurant",
+        color: "#22c55e",
+        bgColor: "#dcfce7"
+      }
+    }
+
+    // Evening context
+    if (hour >= 16 && hour < 22) {
+      return {
+        title: "Dinner Plans",
+        subtitle: readyToCookCount > 0
+          ? `${readyToCookCount} recipes ready`
+          : hasIngredients
+            ? "What can you make?"
+            : "Quick dinner ideas",
+        icon: "moon",
+        color: "#8b5cf6",
+        bgColor: "#f3e8ff"
+      }
+    }
+
+    // Late night
+    return {
+      title: "Quick Bites",
+      subtitle: readyToCookCount > 0 ? `${readyToCookCount} easy options` : "Late night snacks",
+      icon: "fast-food",
+      color: "#ef4444",
+      bgColor: "#fee2e2"
+    }
   }
 
   const navigateToRecipe = (id: string) => {
@@ -326,23 +389,38 @@ export default function HomeScreen() {
           </Card>
 
           {/* Quick Actions */}
-          <View style={styles.quickActionsContainer}>
-            <TouchableOpacity style={styles.quickAction} onPress={navigateToIngredients}>
-              <View style={[styles.quickActionIcon, { backgroundColor: "#dcfce7" }]}>
-                <Ionicons name="basket" size={24} color="#22c55e" />
-              </View>
-              <Text style={styles.quickActionText}>My Pantry</Text>
-              <Text style={styles.quickActionSubtext}>{availableIngredients} items</Text>
-            </TouchableOpacity>
+          {(() => {
+            const mealIdeasContext = getMealIdeasContext()
+            return (
+              <View style={styles.quickActionsContainer}>
+                <TouchableOpacity style={styles.quickAction} onPress={navigateToIngredients}>
+                  <View style={[styles.quickActionIcon, { backgroundColor: "#dcfce7" }]}>
+                    <Ionicons name="basket" size={24} color="#22c55e" />
+                  </View>
+                  <Text style={styles.quickActionText}>My Pantry</Text>
+                  <Text style={styles.quickActionSubtext}>{availableIngredients} items</Text>
+                </TouchableOpacity>
 
-            <TouchableOpacity style={styles.quickAction} onPress={() => router.push("/(tabs)/recipes?suggestions=true")}>
-              <View style={[styles.quickActionIcon, { backgroundColor: "#fef3c7" }]}>
-                <Ionicons name="nutrition" size={24} color="#f59e0b" />
+                <TouchableOpacity 
+                  style={[styles.quickAction, readyToCookCount > 0 && styles.quickActionHighlight]} 
+                  onPress={() => router.push("/(tabs)/recipes?suggestions=true")}
+                >
+                  <View style={[styles.quickActionIcon, { backgroundColor: mealIdeasContext.bgColor }]}>
+                    <Ionicons name={mealIdeasContext.icon as any} size={24} color={mealIdeasContext.color} />
+                  </View>
+                  <Text style={styles.quickActionText}>{mealIdeasContext.title}</Text>
+                  <Text style={styles.quickActionSubtext}>{mealIdeasContext.subtitle}</Text>
+                  
+                  {/* Add notification badge if ready recipes available */}
+                  {readyToCookCount > 0 && (
+                    <View style={styles.notificationBadge}>
+                      <Ionicons name="checkmark-circle" size={12} color="white" />
+                    </View>
+                  )}
+                </TouchableOpacity>
               </View>
-              <Text style={styles.quickActionText}>Meal Ideas</Text>
-              <Text style={styles.quickActionSubtext}>Based on pantry</Text>
-            </TouchableOpacity>
-          </View>
+            )
+          })()}
 
           {/* Recommended Recipes */}
           <View style={styles.sectionHeader}>
@@ -375,35 +453,43 @@ export default function HomeScreen() {
                     <Text style={styles.timeBadgeText}>⏰ {preferredMealType}</Text>
                   </View>
                 )}
-                <View style={styles.recipeContent}>
-                  <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
-                  <View style={styles.recipeMetaRow}>
-                    <View style={styles.recipeMeta}>
-                      <Ionicons name="time-outline" size={14} color="#64748b" />
-                      <Text style={styles.recipeMetaText}>{recipe.prep_time}m</Text>
-                    </View>
-                    <Badge 
-                      text={`+${recipe.points}`} 
-                      color="white" 
-                      backgroundColor="#22c55e" 
-                      size="small"
-                    />
+                {recipe.hasAllIngredients && (
+                  <View style={styles.readyBadgeOverlay}>
+                    <Ionicons name="checkmark-circle" size={14} color="white" />
+                    <Text style={styles.readyBadgeText}>Ready to Cook!</Text>
                   </View>
-                  {recipe.matchPercentage && (
-                    <View style={styles.matchContainer}>
-                      <Ionicons name="checkmark-circle" size={12} color="#22c55e" />
-                      <Text style={styles.matchText}>
-                        {Math.round(recipe.matchPercentage)}% ingredient match
-                      </Text>
-                      {isPerfectMatch && <Text style={styles.perfectMatchEmoji}> ✨</Text>}
+                )}
+                <View style={styles.recipeContent}>
+                  <View style={styles.recipeInfo}>
+                    <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
+                    <View style={styles.recipeMetaRow}>
+                      <View style={styles.recipeMeta}>
+                        <Ionicons name="time-outline" size={14} color="#64748b" />
+                        <Text style={styles.recipeMetaText}>{recipe.prep_time}m</Text>
+                      </View>
+                      <Badge 
+                        text={`+${recipe.points}`} 
+                        color="white" 
+                        backgroundColor="#22c55e" 
+                        size="small"
+                      />
                     </View>
-                  )}
-                  {recipe.calories && (
-                    <View style={styles.calorieInfo}>
-                      <Ionicons name="flame-outline" size={12} color="#f59e0b" />
-                      <Text style={styles.calorieText}>{recipe.calories} cal</Text>
-                    </View>
-                  )}
+                    {recipe.matchPercentage && (
+                      <View style={styles.matchContainer}>
+                        <Ionicons name="checkmark-circle" size={12} color="#22c55e" />
+                        <Text style={styles.matchText}>
+                          {Math.round(recipe.matchPercentage)}% ingredient match
+                        </Text>
+                        {isPerfectMatch && <Text style={styles.perfectMatchEmoji}> ✨</Text>}
+                      </View>
+                    )}
+                    {recipe.calories && (
+                      <View style={styles.calorieInfo}>
+                        <Ionicons name="flame-outline" size={12} color="#f59e0b" />
+                        <Text style={styles.calorieText}>{recipe.calories} cal</Text>
+                      </View>
+                    )}
+                  </View>
                   <Button
                     text="Start Cooking"
                     color="white"
@@ -631,6 +717,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748b",
   },
+  quickActionHighlight: {
+    borderWidth: 2,
+    borderColor: "#22c55e",
+    shadowColor: "#22c55e",
+    shadowOpacity: 0.2,
+  },
+  notificationBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    backgroundColor: "#22c55e",
+    borderRadius: 10,
+    width: 20,
+    height: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
   calorieSection: {
     paddingHorizontal: 16,
     paddingTop: 16,
@@ -659,6 +762,7 @@ const styles = StyleSheet.create({
   },
   recipeCard: {
     width: 200,
+    height: 360,
     marginRight: 12,
     padding: 0,
     overflow: "hidden",
@@ -671,6 +775,11 @@ const styles = StyleSheet.create({
   },
   recipeContent: {
     padding: 12,
+    flex: 1,
+    justifyContent: "space-between",
+  },
+  recipeInfo: {
+    flex: 1,
   },
   recipeTitle: {
     fontSize: 14,
@@ -720,6 +829,24 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   timeBadgeText: {
+    fontSize: 10,
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  readyBadgeOverlay: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    backgroundColor: "#22c55e",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    zIndex: 1,
+  },
+  readyBadgeText: {
     fontSize: 10,
     color: "#ffffff",
     fontWeight: "600",

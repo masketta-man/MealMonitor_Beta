@@ -27,6 +27,7 @@ export default function RecipeDetailScreen() {
   const [isFavorite, setIsFavorite] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [enhancedTags, setEnhancedTags] = useState<any[]>([])
+  const [userIngredients, setUserIngredients] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     if (params.id && user) {
@@ -39,15 +40,17 @@ export default function RecipeDetailScreen() {
 
     try {
       setIsLoading(true)
-      const [recipeData, tagsData] = await Promise.all([
+      const [recipeData, tagsData, userIngredientsData] = await Promise.all([
         recipeService.getRecipe(params.id, user.id),
-        recipeService.getRecipeEnhancedTags(params.id)
+        recipeService.getRecipeEnhancedTags(params.id),
+        recipeService.getUserIngredients(user.id)
       ])
 
       if (recipeData) {
         setRecipe(recipeData)
         setIsFavorite(recipeData.isFavorite || false)
         setEnhancedTags(tagsData)
+        setUserIngredients(userIngredientsData)
 
         // Track view interaction for learning
         await recipeService.trackRecipeInteraction(user.id, params.id, 'view')
@@ -122,7 +125,7 @@ export default function RecipeDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
             {/* Recipe Image */}
             <View style={styles.imageContainer}>
@@ -226,16 +229,66 @@ export default function RecipeDetailScreen() {
 
           {/* Ingredients */}
           <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Ingredients</Text>
-            <View style={styles.ingredientsList}>
-              {recipe.ingredients.map((ingredient: any, index: number) => (
-                <View key={index} style={styles.ingredientItem}>
-                  <View style={styles.ingredientDot} />
-                  <Text style={styles.ingredientName}>{ingredient.name}</Text>
-                  <Text style={styles.ingredientAmount}>{ingredient.amount}</Text>
+            <View style={styles.ingredientsHeader}>
+              <Text style={styles.sectionTitle}>Ingredients</Text>
+              {userIngredients.size > 0 && (
+                <View style={styles.ingredientsSummary}>
+                  <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
+                  <Text style={styles.ingredientsSummaryText}>
+                    {recipe.ingredients.filter(ing => userIngredients.has(ing.name.toLowerCase().trim())).length}/{recipe.ingredients.length} in pantry
+                  </Text>
                 </View>
-              ))}
+              )}
             </View>
+            <View style={styles.ingredientsList}>
+              {recipe.ingredients.map((ingredient: any, index: number) => {
+                const normalizedName = ingredient.name.toLowerCase().trim()
+                const hasIngredient = userIngredients.has(normalizedName)
+                
+                return (
+                  <View 
+                    key={index} 
+                    style={[
+                      styles.ingredientItem,
+                      !hasIngredient && userIngredients.size > 0 && styles.missingIngredientItem
+                    ]}
+                  >
+                    <View style={[
+                      styles.ingredientDot,
+                      hasIngredient ? styles.ingredientDotAvailable : styles.ingredientDotMissing
+                    ]} />
+                    <Text style={[
+                      styles.ingredientName,
+                      !hasIngredient && userIngredients.size > 0 && styles.missingIngredientText
+                    ]}>
+                      {ingredient.name}
+                    </Text>
+                    <Text style={[
+                      styles.ingredientAmount,
+                      !hasIngredient && userIngredients.size > 0 && styles.missingIngredientText
+                    ]}>
+                      {ingredient.amount}
+                    </Text>
+                    {userIngredients.size > 0 && (
+                      <Ionicons 
+                        name={hasIngredient ? "checkmark-circle" : "close-circle"} 
+                        size={18} 
+                        color={hasIngredient ? "#22c55e" : "#ef4444"}
+                        style={styles.ingredientStatusIcon}
+                      />
+                    )}
+                  </View>
+                )
+              })}
+            </View>
+            {userIngredients.size > 0 && recipe.ingredients.some(ing => !userIngredients.has(ing.name.toLowerCase().trim())) && (
+              <View style={styles.missingIngredientsNote}>
+                <Ionicons name="information-circle" size={16} color="#f59e0b" />
+                <Text style={styles.missingIngredientsNoteText}>
+                  Red items are missing from your pantry. Update your pantry in Settings.
+                </Text>
+              </View>
+            )}
           </Card>
 
           {/* Instructions */}
@@ -279,6 +332,9 @@ const styles = StyleSheet.create({
   },
   safeArea: {
     flex: 1,
+  },
+  scrollContent: {
+    paddingTop: 60, // Account for fixed header height
   },
   contentWrapper: {
     width: "100%",
@@ -456,12 +512,63 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f1f5f9",
   },
+  ingredientsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  ingredientsSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 4,
+  },
+  ingredientsSummaryText: {
+    fontSize: 12,
+    color: '#166534',
+    fontWeight: '600',
+  },
   ingredientDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: "#22c55e",
     marginRight: 12,
+  },
+  ingredientDotAvailable: {
+    backgroundColor: "#22c55e",
+  },
+  ingredientDotMissing: {
+    backgroundColor: "#ef4444",
+  },
+  missingIngredientItem: {
+    backgroundColor: '#fef2f2',
+    borderLeftWidth: 3,
+    borderLeftColor: '#ef4444',
+    paddingLeft: 12,
+  },
+  missingIngredientText: {
+    color: '#991b1b',
+  },
+  ingredientStatusIcon: {
+    marginLeft: 8,
+  },
+  missingIngredientsNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fffbeb',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+    gap: 8,
+  },
+  missingIngredientsNoteText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#92400e',
   },
   ingredientName: {
     flex: 1,

@@ -122,7 +122,7 @@ export default function ChallengesScreen() {
         </View>
 
         {/* Challenge Stats */}
-        <View style={styles.statsContainer}>
+        <View style={[styles.statsContainer, isWeb && styles.statsContainerWeb]}>
           <Card style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -144,7 +144,7 @@ export default function ChallengesScreen() {
         </View>
 
         {/* Tabs */}
-        <View style={styles.tabsContainer}>
+        <View style={[styles.tabsContainer, isWeb && styles.tabsContainerWeb]}>
           <TouchableOpacity
             style={[styles.tabButton, activeTab === "active" ? styles.activeTabButton : {}]}
             onPress={() => setActiveTab("active")}
@@ -197,7 +197,7 @@ export default function ChallengesScreen() {
 
           {/* Active Challenges */}
           {!loading && !error && activeTab === "active" && (
-            <View style={styles.challengesContainer}>
+            <View style={[styles.challengesContainer, isWeb && styles.challengesContainerWeb]}>
               {activeChallenges.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="trophy-outline" size={64} color="#cbd5e1" />
@@ -209,39 +209,46 @@ export default function ChallengesScreen() {
                   const completedTasks = challenge.userProgress?.completed_tasks || 0
                   const totalTasks = challenge.total_tasks
                   const daysLeft = challenge.daysLeft || 0
+                  const isExpired = daysLeft <= 0
                   
                   return (
-                    <Card key={challenge.id} style={styles.challengeCard}>
+                    <Card key={challenge.id} style={{...styles.challengeCard, ...(isExpired ? styles.expiredCard : {})}}>
                       <View style={styles.challengeHeader}>
                         <View style={styles.challengeTitleContainer}>
-                          <View style={[styles.challengeIconContainer, { backgroundColor: challenge.bg_color }]}>
-                            <Ionicons name={challenge.icon as any} size={20} color={challenge.color} />
+                          <View style={[styles.challengeIconContainer, { backgroundColor: isExpired ? '#e5e7eb' : challenge.bg_color }]}>
+                            <Ionicons name={challenge.icon as any} size={20} color={isExpired ? '#9ca3af' : challenge.color} />
                           </View>
-                          <Text style={[styles.challengeTitle, { color: challenge.color }]}>{challenge.title}</Text>
+                          <Text style={[styles.challengeTitle, { color: isExpired ? '#9ca3af' : challenge.color }]}>{challenge.title}</Text>
                         </View>
-                        <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
+                        {isExpired ? (
+                          <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
+                        ) : (
+                          <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
+                        )}
                       </View>
-                      <Text style={styles.challengeDescription}>{challenge.description}</Text>
+                      <Text style={[styles.challengeDescription, isExpired && styles.expiredText]}>{challenge.description}</Text>
                       <View style={styles.challengeProgressContainer}>
                         <ProgressBar
                           progress={completedTasks / totalTasks}
-                          colors={[challenge.color, challenge.color]}
+                          colors={isExpired ? ['#9ca3af', '#9ca3af'] : [challenge.color, challenge.color]}
                           height={8}
                         />
-                        <Text style={[styles.challengeProgressText, { color: challenge.color }]}>
+                        <Text style={[styles.challengeProgressText, { color: isExpired ? '#9ca3af' : challenge.color }]}>
                           Progress: {completedTasks}/{totalTasks}
                         </Text>
                       </View>
                       <View style={styles.challengeFooter}>
                         <View style={styles.challengeDaysLeft}>
-                          <Ionicons name="time-outline" size={16} color="#64748b" />
-                          <Text style={styles.challengeDaysLeftText}>{daysLeft} days left</Text>
+                          <Ionicons name="time-outline" size={16} color={isExpired ? '#cbd5e1' : '#64748b'} />
+                          <Text style={[styles.challengeDaysLeftText, isExpired && styles.expiredText]}>
+                            {isExpired ? 'Expired' : `${daysLeft} days left`}
+                          </Text>
                         </View>
                         <Button
                           text="View Details"
-                          color={challenge.color}
+                          color={isExpired ? '#9ca3af' : challenge.color}
                           backgroundColor="transparent"
-                          outline={challenge.color}
+                          outline={isExpired ? '#cbd5e1' : challenge.color}
                           onPress={() => navigateToChallenge(challenge.id)}
                         />
                       </View>
@@ -254,7 +261,7 @@ export default function ChallengesScreen() {
 
           {/* Upcoming Challenges */}
           {!loading && !error && activeTab === "upcoming" && (
-            <View style={styles.challengesContainer}>
+            <View style={[styles.challengesContainer, isWeb && styles.challengesContainerWeb]}>
               {upcomingChallenges.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="calendar-outline" size={64} color="#cbd5e1" />
@@ -264,38 +271,46 @@ export default function ChallengesScreen() {
               ) : (
                 upcomingChallenges.map((challenge: ChallengeWithDetails) => {
                   const daysLeft = challenge.daysLeft || 0
+                  const isExpired = daysLeft <= 0
                   const startDate = new Date(challenge.start_date).toLocaleDateString()
                   const endDate = new Date(challenge.end_date).toLocaleDateString()
                   
                   return (
-                    <Card key={challenge.id} style={styles.challengeCard}>
+                    <Card key={challenge.id} style={{...styles.challengeCard, ...(isExpired ? styles.expiredCard : {})}}>
                       <View style={styles.challengeHeader}>
                         <View style={styles.challengeTitleContainer}>
-                          <View style={[styles.challengeIconContainer, { backgroundColor: challenge.bg_color }]}>
-                            <Ionicons name={challenge.icon as any} size={20} color={challenge.color} />
+                          <View style={[styles.challengeIconContainer, { backgroundColor: isExpired ? '#e5e7eb' : challenge.bg_color }]}>
+                            <Ionicons name={challenge.icon as any} size={20} color={isExpired ? '#9ca3af' : challenge.color} />
                           </View>
-                          <Text style={[styles.challengeTitle, { color: challenge.color }]}>{challenge.title}</Text>
+                          <Text style={[styles.challengeTitle, { color: isExpired ? '#9ca3af' : challenge.color }]}>{challenge.title}</Text>
                         </View>
-                        <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
+                        {isExpired ? (
+                          <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
+                        ) : (
+                          <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
+                        )}
                       </View>
-                      <Text style={styles.challengeDescription}>{challenge.description}</Text>
+                      <Text style={[styles.challengeDescription, isExpired && styles.expiredText]}>{challenge.description}</Text>
                       <View style={styles.upcomingChallengeDetails}>
                         <View style={styles.upcomingChallengeDetail}>
-                          <Ionicons name="calendar-outline" size={16} color="#64748b" />
-                          <Text style={styles.upcomingChallengeDetailText}>
+                          <Ionicons name="calendar-outline" size={16} color={isExpired ? '#cbd5e1' : '#64748b'} />
+                          <Text style={[styles.upcomingChallengeDetailText, isExpired && styles.expiredText]}>
                             {startDate} - {endDate}
                           </Text>
                         </View>
                         <View style={styles.upcomingChallengeDetail}>
-                          <Ionicons name="time-outline" size={16} color="#64748b" />
-                          <Text style={styles.upcomingChallengeDetailText}>{daysLeft} days</Text>
+                          <Ionicons name="time-outline" size={16} color={isExpired ? '#cbd5e1' : '#64748b'} />
+                          <Text style={[styles.upcomingChallengeDetailText, isExpired && styles.expiredText]}>
+                            {isExpired ? 'Expired' : `${daysLeft} days`}
+                          </Text>
                         </View>
                       </View>
                       <Button
-                        text="Start Challenge"
-                        color="white"
-                        backgroundColor={challenge.color}
-                        onPress={() => startChallenge(challenge.id)}
+                        text={isExpired ? "Expired" : "Start Challenge"}
+                        color={isExpired ? '#9ca3af' : 'white'}
+                        backgroundColor={isExpired ? '#e5e7eb' : challenge.color}
+                        onPress={() => !isExpired && startChallenge(challenge.id)}
+                        disabled={isExpired}
                         style={styles.upcomingChallengeButton}
                       />
                     </Card>
@@ -307,7 +322,7 @@ export default function ChallengesScreen() {
 
           {/* Completed Challenges */}
           {!loading && !error && activeTab === "completed" && (
-            <View style={styles.challengesContainer}>
+            <View style={[styles.challengesContainer, isWeb && styles.challengesContainerWeb]}>
               {completedChallenges.length === 0 ? (
                 <View style={styles.emptyState}>
                   <Ionicons name="medal-outline" size={64} color="#cbd5e1" />
@@ -419,6 +434,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 16,
   },
+  statsContainerWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    paddingHorizontal: 24,
+  },
   statsCard: {
     padding: 16,
   },
@@ -459,6 +480,12 @@ const styles = StyleSheet.create({
     shadowRadius: 2,
     elevation: 2,
   },
+  tabsContainerWeb: {
+    maxWidth: 1200,
+    alignSelf: "center",
+    width: "100%",
+    marginHorizontal: 24,
+  },
   tabButton: {
     flex: 1,
     paddingVertical: 10,
@@ -478,6 +505,9 @@ const styles = StyleSheet.create({
   },
   challengesContainer: {
     paddingHorizontal: 16,
+  },
+  challengesContainerWeb: {
+    paddingHorizontal: 0,
   },
   challengeCard: {
     marginBottom: 16,
@@ -588,6 +618,13 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100, // Adjust based on tab bar height
+  },
+  expiredCard: {
+    opacity: 0.6,
+    backgroundColor: '#f9fafb',
+  },
+  expiredText: {
+    color: '#9ca3af',
   },
   loadingContainer: {
     flex: 1,

@@ -52,7 +52,7 @@ export const recommendationService = {
     const [userProfile, userSettings, todaysLog, userTagPreferences, completedRecipes] =
       await Promise.all([
         userService.getProfile(userId),
-        settingsService.getSettings(userId),
+        settingsService.getUserSettings(userId),
         calorieService.getTodaysLog(userId),
         tagService.getUserTagPreferences(userId),
         this.getUserCompletedRecipes(userId)
@@ -199,9 +199,33 @@ export const recommendationService = {
       }
     })
 
-    // 8. Filter out recipes with excluded tags
+    // 8. Filter recipes based on dietary restrictions and excluded tags
+    const userRestrictions = userSettings?.dietary_restrictions || []
+    
     const filteredRecipes = scoredRecipes.filter(recipe => {
+      const recipeTagNames = recipe.tags.map((t: any) => t.tag.toLowerCase())
       const recipeTagIds = recipe.tags.map((t: any) => t.id)
+      
+      // Check dietary restrictions
+      for (const restriction of userRestrictions) {
+        const restrictionLower = restriction.toLowerCase()
+        
+        // For dietary preferences (vegetarian, vegan, etc.), recipe MUST have the tag
+        if (['vegetarian', 'vegan', 'pescatarian', 'keto', 'paleo', 'low-carb', 'mediterranean'].includes(restrictionLower)) {
+          if (!recipeTagNames.includes(restrictionLower)) {
+            return false
+          }
+        }
+        
+        // For food restrictions (gluten-free, dairy-free, etc.), recipe MUST have the tag
+        if (['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'shellfish-free'].includes(restrictionLower)) {
+          if (!recipeTagNames.includes(restrictionLower)) {
+            return false
+          }
+        }
+      }
+      
+      // Check excluded tags
       return !excludeTags.some(excludeTagId => recipeTagIds.includes(excludeTagId))
     })
 

@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context"
 // Components
 import Button from "@/components/Button"
 import Card from "@/components/Card"
+import LevelUpModal from "@/components/LevelUpModal"
 
 // Types
 interface RecipeInstruction {
@@ -25,6 +26,8 @@ interface RecipeData {
   title: string;
   instructions: RecipeInstruction[];
   prep_time: number;
+  points?: number;
+  calories?: number;
 }
 
 export default function CookingModeScreen() {
@@ -44,6 +47,8 @@ export default function CookingModeScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [alreadyCompleted, setAlreadyCompleted] = useState(false)
+  const [showLevelUp, setShowLevelUp] = useState(false)
+  const [levelUpInfo, setLevelUpInfo] = useState<{ newLevel: number } | null>(null)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -94,8 +99,6 @@ export default function CookingModeScreen() {
         }
       } catch (error) {
         console.error('Error checking recipe completion:', error)
-      } finally {
-        setIsLoading(false)
       }
     }
     
@@ -186,57 +189,81 @@ export default function CookingModeScreen() {
 
     try {
       console.log('🎉 FINISH COOKING: Calling recipeService.completeRecipe...')
-      const success = await recipeService.completeRecipe(user.id, id)
-      console.log('🎉 FINISH COOKING: recipeService.completeRecipe returned:', success)
+      const result = await recipeService.completeRecipe(user.id, id)
+      console.log('🎉 FINISH COOKING: recipeService.completeRecipe returned:', result)
 
-      if (success) {
+      if (result.success) {
         console.log('✅ FINISH COOKING: Recipe completed successfully!')
 
         // Track completion interaction for learning user preferences
         await recipeService.trackRecipeInteraction(user.id, id, 'complete')
 
+        // Get points earned
+        const pointsEarned = recipe?.points || 0
+        const caloriesLogged = recipe?.calories || 0
+        
+        // Determine if this completion awarded points (first time today)
+        const isFirstCompletionToday = result.newLevel !== undefined || result.oldLevel !== undefined
+
+        // Check if user leveled up
+        if (result.leveledUp && result.newLevel) {
+          setLevelUpInfo({ newLevel: result.newLevel })
+          setShowLevelUp(true)
+        }
+
         if (Platform.OS === 'web') {
           // Web platform - navigate immediately with simple alert
-          if (alreadyCompleted) {
-            console.log('🎉 FINISH COOKING: Already completed - navigating immediately')
+          if (!isFirstCompletionToday) {
+            console.log('🎉 FINISH COOKING: Already completed today - navigating immediately')
             router.replace("/(tabs)")
             alert("Great job! You've cooked this recipe again today. Points were already awarded for your first completion.")
           } else {
             console.log('🎉 FINISH COOKING: First completion today - navigating to dashboard')
             router.replace("/(tabs)")
-            alert("Congratulations! You've earned points and XP. Check your profile to see your progress!")
+            alert(`Recipe Completed!\n\n+${pointsEarned} XP earned!\n${caloriesLogged > 0 ? `${caloriesLogged} calories logged\n` : ''}Streak maintained!\n\nCheck your dashboard to see your updated progress!`)
           }
         } else {
           // Native platform - use Alert.alert with buttons
-          if (alreadyCompleted) {
-            console.log('🎉 FINISH COOKING: Already completed - navigating immediately')
-            router.replace("/(tabs)")
+          if (!isFirstCompletionToday) {
+            console.log('🎉 FINISH COOKING: Already completed today - navigating immediately')
             Alert.alert(
               "Cooking Complete!",
-              "Great job! You've cooked this recipe again today. Points were already awarded for your first completion."
+              "Great job! You've cooked this recipe again today. Points were already awarded for your first completion.",
+              [
+                {
+                  text: "OK",
+                  onPress: () => router.replace("/(tabs)")
+                }
+              ]
             )
           } else {
             console.log('🎉 FINISH COOKING: First completion today - showing alert then navigating')
-            Alert.alert(
-              "Recipe Completed!",
-              "Congratulations! You've earned points and XP. Check your profile to see your progress!",
-              [
-                {
-                  text: "View Profile",
-                  onPress: () => {
-                    console.log('🎉 FINISH COOKING: Navigating to profile')
-                    router.replace("/(tabs)/profile")
+            const completionMessage = `Congratulations! Here's what you earned:\n\n+${pointsEarned} XP Points${caloriesLogged > 0 ? `\n${caloriesLogged} calories logged` : ''}\nDaily streak maintained!\n\nKeep cooking to level up and unlock badges!`
+            
+            // Only show alert if not leveled up (modal will show instead)
+            if (!result.leveledUp) {
+              Alert.alert(
+                "Recipe Completed!",
+                completionMessage,
+                [
+                  {
+                    text: "View Profile",
+                    onPress: () => {
+                      console.log('🎉 FINISH COOKING: Navigating to profile')
+                      router.replace("/(tabs)/profile")
+                    },
                   },
-                },
-                {
-                  text: "Back to Dashboard",
-                  onPress: () => {
-                    console.log('🎉 FINISH COOKING: Navigating to dashboard')
-                    router.replace("/(tabs)")
+                  {
+                    text: "Dashboard",
+                    onPress: () => {
+                      console.log('🎉 FINISH COOKING: Navigating to dashboard')
+                      router.replace("/(tabs)")
+                    },
+                    style: "cancel"
                   },
-                },
-              ]
-            )
+                ]
+              )
+            }
           }
         }
       } else {
@@ -289,12 +316,12 @@ export default function CookingModeScreen() {
     )
   }
 
-  if (error || !recipe) {
+  if (error || !recipe || !recipe.instructions || recipe.instructions.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <Ionicons name="alert-circle" size={48} color="#ef4444" />
-          <Text style={styles.errorText}>{error || 'Recipe not found'}</Text>
+          <Text style={styles.errorText}>{error || 'Recipe not found or has no instructions'}</Text>
           <Button
             text="Go Back"
             color="white"
@@ -307,7 +334,24 @@ export default function CookingModeScreen() {
     )
   }
 
+  // Safety check for current step
+  if (currentStep >= recipe.instructions.length) {
+    setCurrentStep(0)
+    return null
+  }
+
   const currentInstruction = recipe.instructions[currentStep]
+  
+  // Additional safety check - if currentInstruction is undefined, go back
+  if (!currentInstruction) {
+    console.error('Current instruction is undefined, currentStep:', currentStep)
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#4CAF50" />
+      </View>
+    )
+  }
+
   const isLastStep = currentStep === recipe.instructions.length - 1
   const allStepsCompleted = completedSteps.every((step) => step)
 
@@ -497,6 +541,18 @@ export default function CookingModeScreen() {
           </View>
         </ScrollView>
       </LinearGradient>
+
+      {/* Level Up Modal */}
+      {levelUpInfo && (
+        <LevelUpModal
+          visible={showLevelUp}
+          newLevel={levelUpInfo.newLevel}
+          onClose={() => {
+            setShowLevelUp(false)
+            router.replace("/(tabs)")
+          }}
+        />
+      )}
     </SafeAreaView>
   );
 };

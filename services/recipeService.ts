@@ -1,13 +1,13 @@
 import { supabase } from '@/lib/supabase'
 import { Database } from '@/types/database'
-import { userService } from './userService'
 import { activityService } from './activityService'
-import { calorieService } from './calorieService'
-import { streakService } from './streakService'
 import { badgeService } from './badgeService'
-import { settingsService } from './settingsService'
+import { calorieService } from './calorieService'
 import { recommendationService } from './recommendationService'
+import { settingsService } from './settingsService'
+import { streakService } from './streakService'
 import { tagService } from './tagService'
+import { userService } from './userService'
 
 type Recipe = Database['public']['Tables']['recipes']['Row']
 type RecipeIngredient = Database['public']['Tables']['recipe_ingredients']['Row']
@@ -347,8 +347,8 @@ export const recipeService = {
     }
   },
 
-  // Mark recipe as completed (allows multiple completions per day, but only first counts toward daily goals)
-  async completeRecipe(userId: string, recipeId: string, awardPoints: boolean = true): Promise<boolean> {
+  // Complete a recipe and award points/XP
+  async completeRecipe(userId: string, recipeId: string, awardPoints: boolean = true): Promise<{ success: boolean; leveledUp: boolean; newLevel?: number; oldLevel?: number }> {
     console.log(' recipeService.completeRecipe: Starting...', { userId, recipeId, awardPoints })
 
     // Get start and end of today in user's local timezone
@@ -391,7 +391,7 @@ export const recipeService = {
 
     if (recipeError || !recipe) {
       console.error(' recipeService.completeRecipe: Error fetching recipe:', recipeError)
-      return false
+      return { success: false, leveledUp: false }
     }
 
     const recipePoints = (recipe as any).points
@@ -415,7 +415,7 @@ export const recipeService = {
 
     if (insertError) {
       console.error(' recipeService.completeRecipe: Error inserting completion:', insertError)
-      return false
+      return { success: false, leveledUp: false }
     }
 
     console.log(' recipeService.completeRecipe: Completion recorded', {
@@ -436,19 +436,28 @@ export const recipeService = {
       console.log('🔥 Streak updated:', streakInfo)
     }
 
+    // Get current level before update
+    const profileBefore = await userService.getProfile(userId)
+    const oldLevel = profileBefore?.level || 1
+
     // Update user experience and level only if points awarded
     if (shouldAwardPoints && pointsToAward > 0) {
       const updatedProfile = await userService.updateExperience(userId, pointsToAward)
 
       if (!updatedProfile) {
         console.error(' recipeService.completeRecipe: Error updating user XP')
-        return false
+        return { success: false, leveledUp: false }
       }
+
+      const newLevel = updatedProfile.level || 1
+      const leveledUp = newLevel > oldLevel
 
       console.log(' recipeService.completeRecipe: XP updated successfully!', {
         newXP: updatedProfile.experience,
         newLevel: updatedProfile.level,
-        totalPoints: updatedProfile.total_points
+        totalPoints: updatedProfile.total_points,
+        leveledUp,
+        oldLevel,
       })
 
       // Log activity to user's feed (only on first completion today)
@@ -466,11 +475,13 @@ export const recipeService = {
       if (newBadges.length > 0) {
         console.log(`🏆 User ${userId} earned ${newBadges.length} new badge(s) after completing recipe!`)
       }
+
+      return { success: true, leveledUp, newLevel, oldLevel }
     } else {
       console.log(' recipeService.completeRecipe: No points awarded (already completed today or points disabled)')
     }
 
-    return true
+    return { success: true, leveledUp: false }
   },
 
   // Get user's favorite recipes
@@ -565,30 +576,63 @@ export const recipeService = {
 
   // Helper method to enrich recipes with user-specific data
   async enrichRecipesWithUserData(recipes: RecipeWithDetails[], userId: string): Promise<RecipeWithDetails[]> {
-    // Get user favorites
-    const { data: favorites } = await supabase
-      .from('user_favorites')
-      .select('recipe_id')
-      .eq('user_id', userId)
+    // Get user data in parallel
+    const [favoritesData, userIngredientsData, userSettings] = await Promise.all([
+      supabase.from('user_favorites').select('recipe_id').eq('user_id', userId),
+      supabase.from('user_ingredients').select('ingredient_id, ingredients(name)').eq('user_id', userId).eq('in_stock', true),
+      settingsService.getUserSettings(userId)
+    ])
 
-    const favoriteIds = new Set(favorites?.map((f: any) => f.recipe_id) || [])
+    const favoriteIds = new Set(favoritesData.data?.map((f: any) => f.recipe_id) || [])
 
-    // Get user's available ingredients
-    const { data: userIngredients } = await supabase
-      .from('user_ingredients')
-      .select('ingredient_id, ingredients(name)')
-      .eq('user_id', userId)
-      .eq('in_stock', true)
+    // Normalize ingredient names for case-insensitive matching
+    const normalizeIngredientName = (name: string) => 
+      name.toLowerCase().trim().replace(/\s+/g, ' ')
 
     const availableIngredientNames = new Set(
-      userIngredients?.map((ui: any) => ui.ingredients.name) || []
+      userIngredientsData.data?.map((ui: any) => normalizeIngredientName(ui.ingredients.name)) || []
     )
 
-    return recipes.map(recipe => ({
+    // Only check ingredient availability if user has ingredients tracked
+    const hasIngredientsTracked = availableIngredientNames.size > 0
+
+    // Get user's dietary restrictions
+    const userRestrictions = userSettings?.dietary_restrictions || []
+
+    // Filter recipes based on dietary restrictions
+    const filteredRecipes = recipes.filter(recipe => {
+      if (userRestrictions.length === 0) return true
+
+      const recipeTagNames = recipe.tags.map((t: any) => t.tag.toLowerCase())
+
+      // Check each restriction
+      for (const restriction of userRestrictions) {
+        const restrictionLower = restriction.toLowerCase()
+
+        // For dietary preferences, recipe MUST have the tag
+        if (['vegetarian', 'vegan', 'pescatarian', 'keto', 'paleo', 'low-carb', 'mediterranean'].includes(restrictionLower)) {
+          if (!recipeTagNames.includes(restrictionLower)) {
+            return false
+          }
+        }
+
+        // For food restrictions, recipe MUST have the tag (or not have the allergen)
+        if (['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'shellfish-free'].includes(restrictionLower)) {
+          if (!recipeTagNames.includes(restrictionLower)) {
+            return false
+          }
+        }
+      }
+
+      return true
+    })
+
+    return filteredRecipes.map(recipe => ({
       ...recipe,
       isFavorite: favoriteIds.has(recipe.id),
-      hasAllIngredients: recipe.ingredients.every(ing =>
-        availableIngredientNames.has(ing.name)
+      // Only show "missing ingredients" if user is tracking ingredients
+      hasAllIngredients: !hasIngredientsTracked ? true : recipe.ingredients.every(ing =>
+        availableIngredientNames.has(normalizeIngredientName(ing.name))
       ),
     }))
   },
@@ -649,5 +693,22 @@ export const recipeService = {
   // Get recipe tags using enhanced tagging system
   async getRecipeEnhancedTags(recipeId: string) {
     return tagService.getRecipeTags(recipeId)
+  },
+
+  // Get user's ingredients from pantry
+  async getUserIngredients(userId: string): Promise<Set<string>> {
+    const { data: userIngredients } = await supabase
+      .from('user_ingredients')
+      .select('ingredient_id, ingredients(name)')
+      .eq('user_id', userId)
+      .eq('in_stock', true)
+
+    // Normalize ingredient names for matching
+    const normalizeIngredientName = (name: string) => 
+      name.toLowerCase().trim().replace(/\s+/g, ' ')
+
+    return new Set(
+      userIngredients?.map((ui: any) => normalizeIngredientName(ui.ingredients.name)) || []
+    )
   },
 }

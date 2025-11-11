@@ -12,6 +12,16 @@ import Button from "@/components/Button"
 import { useTutorial } from "@/contexts/TutorialContext"
 import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 
+// Migration map for old restriction IDs to new consistent format
+const RESTRICTION_ID_MAP: Record<string, string> = {
+  'gluten': 'gluten-free',
+  'dairy': 'dairy-free',
+  'nuts': 'nut-free',
+  'soy': 'soy-free',
+  'eggs': 'egg-free',
+  'shellfish': 'shellfish-free',
+}
+
 const DIETARY_RESTRICTIONS = [
   { id: 'vegetarian', label: 'Vegetarian' },
   { id: 'vegan', label: 'Vegan' },
@@ -22,13 +32,11 @@ const DIETARY_RESTRICTIONS = [
   { id: 'mediterranean', label: 'Mediterranean' },
   { id: 'low-carb', label: 'Low-Carb' },
   { id: 'gluten-free', label: 'Gluten-Free' },
-  { id: 'gluten', label: 'Gluten-Free' },
   { id: 'dairy-free', label: 'Dairy-Free' },
-  { id: 'dairy', label: 'Dairy-Free' },
-  { id: 'nuts', label: 'Nut-Free' },
-  { id: 'soy', label: 'Soy-Free' },
-  { id: 'eggs', label: 'Egg-Free' },
-  { id: 'shellfish', label: 'Shellfish-Free' },
+  { id: 'nut-free', label: 'Nut-Free' },
+  { id: 'soy-free', label: 'Soy-Free' },
+  { id: 'egg-free', label: 'Egg-Free' },
+  { id: 'shellfish-free', label: 'Shellfish-Free' },
   { id: 'halal', label: 'Halal' },
   { id: 'kosher', label: 'Kosher' },
 ]
@@ -84,7 +92,8 @@ export default function SettingsScreen() {
         setWeightGoal(userSettings.weight_goal)
         setActivityLevel(userSettings.activity_level)
 
-        let restrictions = userSettings.dietary_restrictions || []
+        // Migrate old restriction IDs to new consistent format
+        let restrictions = (userSettings.dietary_restrictions || []).map(r => RESTRICTION_ID_MAP[r] || r)
 
         if (userProfile?.dietary_preferences && Array.isArray(userProfile.dietary_preferences)) {
           const normalizedPreferences = userProfile.dietary_preferences.map((pref: string) =>
@@ -96,11 +105,16 @@ export default function SettingsScreen() {
         if (userProfile?.food_restrictions && Array.isArray(userProfile.food_restrictions)) {
           const normalizedRestrictions = userProfile.food_restrictions
             .filter((r: string) => r.toLowerCase() !== 'none')
-            .map((r: string) => r.toLowerCase().replace(/\s+/g, '-'))
+            .map((r: string) => {
+              const normalized = r.toLowerCase().replace(/\s+/g, '-')
+              // Migrate old IDs to new consistent format
+              return RESTRICTION_ID_MAP[normalized] || normalized
+            })
           restrictions = [...new Set([...restrictions, ...normalizedRestrictions])]
         }
 
-        setSelectedRestrictions(restrictions)
+        // Final deduplication to ensure no duplicates
+        setSelectedRestrictions([...new Set(restrictions)])
       }
     } catch (error) {
       console.error('Error loading settings:', error)
@@ -135,7 +149,7 @@ export default function SettingsScreen() {
       )
 
       const foodRestrictions = selectedRestrictions.filter(r =>
-        ['gluten', 'gluten-free', 'dairy', 'dairy-free', 'nuts', 'soy', 'eggs', 'shellfish'].includes(r)
+        ['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'shellfish-free', 'halal', 'kosher'].includes(r)
       )
 
       const [updatedSettings] = await Promise.all([

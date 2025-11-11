@@ -76,6 +76,10 @@ export default function ChallengeDetailScreen() {
 
   const toggleTaskCompletion = async (taskId: string) => {
     if (!challenge || !user || completingTask) return
+    
+    // Check if challenge is expired
+    const daysLeft = challenge.daysLeft || 0
+    if (daysLeft <= 0) return
 
     setCompletingTask(true)
     try {
@@ -174,6 +178,7 @@ export default function ChallengeDetailScreen() {
   const completedTasks = challenge.userProgress?.completed_tasks || 0
   const totalTasks = challenge.total_tasks
   const daysLeft = challenge.daysLeft || 0
+  const isExpired = daysLeft <= 0
   const startDate = new Date(challenge.start_date).toLocaleDateString()
   const endDate = new Date(challenge.end_date).toLocaleDateString()
 
@@ -195,34 +200,53 @@ export default function ChallengeDetailScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Challenge Header */}
           <View style={styles.challengeHeaderContainer}>
-            <View style={[styles.iconContainer, { backgroundColor: challenge.bg_color }]}>
-              <Ionicons name={challenge.icon as any} size={40} color={challenge.color} />
+            <View style={[styles.iconContainer, { backgroundColor: isExpired ? '#e5e7eb' : challenge.bg_color }]}>
+              <Ionicons name={challenge.icon as any} size={40} color={isExpired ? '#9ca3af' : challenge.color} />
             </View>
-            <Text style={styles.challengeTitle}>{challenge.title}</Text>
-            <Badge
-              text={challenge.category || "Challenge"}
-              color={challenge.color}
-              backgroundColor={challenge.bg_color}
-            />
+            <Text style={[styles.challengeTitle, isExpired && { color: '#9ca3af' }]}>{challenge.title}</Text>
+            {isExpired ? (
+              <Badge
+                text="Expired"
+                color="white"
+                backgroundColor="#9ca3af"
+              />
+            ) : (
+              <Badge
+                text={challenge.category || "Challenge"}
+                color={challenge.color}
+                backgroundColor={challenge.bg_color}
+              />
+            )}
           </View>
 
           {/* Challenge Progress */}
           <Card style={styles.progressCard}>
             <View style={styles.progressHeader}>
               <Text style={styles.progressTitle}>Your Progress</Text>
-              <Badge text={`${daysLeft} days left`} color="#f97316" backgroundColor="#ffedd5" />
+              {isExpired ? (
+                <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
+              ) : (
+                <Badge text={`${daysLeft} days left`} color="#f97316" backgroundColor="#ffedd5" />
+              )}
             </View>
 
             <View style={styles.progressBarContainer}>
               <ProgressBar
                 progress={completedTasks / totalTasks}
-                colors={[challenge.color, challenge.color]}
+                colors={isExpired ? ['#9ca3af', '#9ca3af'] : [challenge.color, challenge.color]}
                 height={12}
               />
-              <Text style={[styles.progressText, { color: challenge.color }]}>
+              <Text style={[styles.progressText, { color: isExpired ? '#9ca3af' : challenge.color }]}>
                 {completedTasks}/{totalTasks} completed
               </Text>
             </View>
+
+            {isExpired && (
+              <View style={styles.expiredWarning}>
+                <Ionicons name="warning" size={16} color="#ef4444" />
+                <Text style={styles.expiredWarningText}>This challenge has expired. Tasks can no longer be completed.</Text>
+              </View>
+            )}
 
             <View style={styles.rewardContainer}>
               <Ionicons name="trophy" size={20} color="#f59e0b" />
@@ -264,9 +288,9 @@ export default function ChallengeDetailScreen() {
                 return (
                   <TouchableOpacity 
                     key={task.id} 
-                    style={styles.taskItem} 
+                    style={[styles.taskItem, isExpired && { opacity: 0.5 }]} 
                     onPress={() => toggleTaskCompletion(task.id)}
-                    disabled={completingTask}
+                    disabled={completingTask || isExpired}
                   >
                     <View
                       style={[
@@ -559,5 +583,19 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  expiredWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fef2f2',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 12,
+  },
+  expiredWarningText: {
+    fontSize: 13,
+    color: '#dc2626',
+    marginLeft: 8,
+    flex: 1,
   },
 })

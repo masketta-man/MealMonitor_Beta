@@ -23,7 +23,28 @@ export const ingredientService = {
       return []
     }
 
-    return data
+    // Deduplicate ingredients by name (case-insensitive)
+    const uniqueIngredientsMap = new Map<string, Ingredient>()
+    
+    for (const ingredient of data) {
+      const normalizedName = ingredient.name.toLowerCase()
+      
+      // Keep first occurrence, or prefer properly capitalized names
+      if (!uniqueIngredientsMap.has(normalizedName)) {
+        uniqueIngredientsMap.set(normalizedName, ingredient)
+      } else {
+        const existing = uniqueIngredientsMap.get(normalizedName)!
+        // Prefer ingredient with proper capitalization (first letter uppercase)
+        const isProperCase = /^[A-Z]/.test(ingredient.name) && ingredient.name === ingredient.name.charAt(0).toUpperCase() + ingredient.name.slice(1).toLowerCase()
+        const existingIsProperCase = /^[A-Z]/.test(existing.name) && existing.name === existing.name.charAt(0).toUpperCase() + existing.name.slice(1).toLowerCase()
+        
+        if (isProperCase && !existingIsProperCase) {
+          uniqueIngredientsMap.set(normalizedName, ingredient)
+        }
+      }
+    }
+
+    return Array.from(uniqueIngredientsMap.values()).sort((a, b) => a.name.localeCompare(b.name))
   },
 
   // Get user's ingredients
