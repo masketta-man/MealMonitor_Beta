@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, useWindowDimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useRouter } from "expo-router"
+import { useState } from "react"
+import { StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
 import Button from "@/components/Button"
@@ -94,7 +94,7 @@ export default function LoginScreen() {
             <View style={styles.logo}>
               <Ionicons name="restaurant" size={32} color="#22c55e" />
             </View>
-            <Text style={styles.appName}>MealR</Text>
+            <Text style={styles.appName}>MealMonitor</Text>
             <Text style={styles.tagline}>Your Cooking Companion</Text>
           </View>
         </View>
