@@ -215,15 +215,25 @@ export default function RecipesScreen() {
             // Sort by recommendation score or match percentage
             sortedRecipes.sort((a, b) => (b.recommendationScore || b.matchPercentage || 0) - (a.recommendationScore || a.matchPercentage || 0))
           } else {
-            // Smart recommendation: prioritize nutrition score, ingredient availability, and points
+            // Smart recommendation: balanced scoring with normalized values
             sortedRecipes.sort((a, b) => {
-              // Calculate smart score for each recipe
-              const scoreA = (a.nutrition_score || 0) * 0.4 + 
-                            (a.hasAllIngredients ? 30 : 0) + 
-                            (a.points || 0) * 0.3
-              const scoreB = (b.nutrition_score || 0) * 0.4 + 
-                            (b.hasAllIngredients ? 30 : 0) + 
-                            (b.points || 0) * 0.3
+              // Normalize nutrition score (0-10 range) to 0-100
+              const nutritionScoreA = ((a.nutrition_score || 0) / 10) * 100
+              const nutritionScoreB = ((b.nutrition_score || 0) / 10) * 100
+              
+              // Normalize points (typical range 0-300) to 0-100
+              const normalizedPointsA = Math.min(((a.points || 0) / 300) * 100, 100)
+              const normalizedPointsB = Math.min(((b.points || 0) / 300) * 100, 100)
+              
+              // Ingredient availability bonus (0-100)
+              const ingredientBonusA = a.hasAllIngredients ? 100 : 0
+              const ingredientBonusB = b.hasAllIngredients ? 100 : 0
+              
+              // Calculate weighted score (all components now 0-100)
+              // 35% nutrition score, 35% points, 30% ingredient availability
+              const scoreA = (nutritionScoreA * 0.35) + (normalizedPointsA * 0.35) + (ingredientBonusA * 0.30)
+              const scoreB = (nutritionScoreB * 0.35) + (normalizedPointsB * 0.35) + (ingredientBonusB * 0.30)
+              
               return scoreB - scoreA
             })
           }

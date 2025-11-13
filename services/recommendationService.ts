@@ -218,7 +218,7 @@ export const recommendationService = {
         }
         
         // For food restrictions (gluten-free, dairy-free, etc.), recipe MUST have the tag
-        if (['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'shellfish-free'].includes(restrictionLower)) {
+        if (['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'shellfish-free', 'halal', 'kosher'].includes(restrictionLower)) {
           if (!recipeTagNames.includes(restrictionLower)) {
             return false
           }

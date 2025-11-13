@@ -124,7 +124,7 @@ function AppContent() {
       {user && session && (
         <>
           <TabNavigation />
-          <View style={styles.fabContainer}>
+          <View style={styles.fabContainer} pointerEvents="box-none">
             <FloatingActionButton />
           </View>
         </>
@@ -172,6 +172,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     left: 0,
     right: 0,
-    zIndex: 101,
+    zIndex: 9999, // Very high z-index to ensure FAB is always on top
+    elevation: 9999, // For Android
   },
 })

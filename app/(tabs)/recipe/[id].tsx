@@ -109,13 +109,13 @@ export default function RecipeDetailScreen() {
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
-      <SafeAreaView style={styles.safeArea} edges={["top"]}>
+      <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         {/* Header */}
         <View style={[styles.header, isWeb && styles.headerWeb]}>
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1f2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{recipe.title}</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{recipe.title}</Text>
           <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton}>
             <Ionicons
               name={isFavorite ? "heart" : "heart-outline"}
@@ -361,14 +361,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
     backgroundColor: 'white',
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
   },
   headerWeb: {
     paddingHorizontal: 24,
@@ -379,6 +379,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
     marginHorizontal: 8,
+    color: '#1f2937',
   },
   favoriteButton: {
     width: 40,

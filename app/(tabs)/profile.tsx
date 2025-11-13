@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable, useWindowDimensions } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable, useWindowDimensions, Alert, Platform } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -115,12 +115,43 @@ export default function ProfileScreen() {
     }
   }
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
+    if (Platform.OS === 'web') {
+      const confirmed = confirm('Are you sure you want to log out?')
+      if (confirmed) {
+        performSignOut()
+      }
+    } else {
+      Alert.alert(
+        'Log Out',
+        'Are you sure you want to log out?',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+          },
+          {
+            text: 'Log Out',
+            style: 'destructive',
+            onPress: performSignOut,
+          },
+        ],
+        { cancelable: true }
+      )
+    }
+  }
+
+  const performSignOut = async () => {
     try {
       await signOut()
       router.replace("/(auth)/login")
     } catch (error) {
       console.error('Error signing out:', error)
+      if (Platform.OS === 'web') {
+        alert('Failed to log out. Please try again.')
+      } else {
+        Alert.alert('Error', 'Failed to log out. Please try again.')
+      }
     }
   }
 

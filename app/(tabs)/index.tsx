@@ -82,6 +82,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true)
   const [tutorialTriggered, setTutorialTriggered] = useState(false)
   const [readyToCookCount, setReadyToCookCount] = useState(0)
+  const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
     console.log('🏠 Dashboard: useEffect triggered', { 
@@ -99,11 +100,26 @@ export default function HomeScreen() {
     }
   }, [user])
 
+  // Handle explicit refresh from settings or other screens
+  useEffect(() => {
+    if (params.refresh === 'true' && user) {
+      console.log('🔄 Dashboard: Refresh param detected, reloading recommendations...')
+      setIsRefreshing(true)
+      loadUserData().finally(() => {
+        setIsRefreshing(false)
+        // Clear the refresh param after loading
+        setTimeout(() => {
+          router.setParams({ refresh: undefined })
+        }, 100)
+      })
+    }
+  }, [params.refresh, user])
+
   // Reload data when screen comes into focus (e.g., after completing a recipe)
   useFocusEffect(
     useCallback(() => {
       console.log('🏠 Dashboard: Screen focused, reloading data...')
-      if (user) {
+      if (user && !params.refresh) {
         loadUserData()
       }
     }, [user])
@@ -424,7 +440,14 @@ export default function HomeScreen() {
 
           {/* Recommended Recipes */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Recommended for You</Text>
+            <View style={styles.sectionTitleRow}>
+              <Text style={styles.sectionTitle}>Recommended for You</Text>
+              {isRefreshing && (
+                <View style={styles.refreshingIndicator}>
+                  <Text style={styles.refreshingText}>Updating...</Text>
+                </View>
+              )}
+            </View>
             <TouchableOpacity onPress={navigateToRecipes}>
               <Text style={styles.seeAllText}>See All</Text>
             </TouchableOpacity>
@@ -750,6 +773,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
     color: "#166534",
+  },
+  sectionTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  refreshingIndicator: {
+    backgroundColor: "#dcfce7",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  refreshingText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#22c55e",
   },
   seeAllText: {
     fontSize: 14,

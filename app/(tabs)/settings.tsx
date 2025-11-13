@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, useWindowDimensions, Platform } from "react-native"
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Switch, useWindowDimensions, Platform, Alert } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
@@ -68,6 +68,9 @@ export default function SettingsScreen() {
   const [weightGoal, setWeightGoal] = useState<string>("maintain_weight")
   const [activityLevel, setActivityLevel] = useState<string>("moderately_active")
   const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([])
+  const [fullName, setFullName] = useState("")
+  const [username, setUsername] = useState("")
+  const [email, setEmail] = useState("")
 
   useEffect(() => {
     if (user) {
@@ -116,6 +119,13 @@ export default function SettingsScreen() {
         // Final deduplication to ensure no duplicates
         setSelectedRestrictions([...new Set(restrictions)])
       }
+
+      // Load personal details
+      if (userProfile) {
+        setFullName(userProfile.full_name || '')
+        setUsername(userProfile.username || '')
+        setEmail(userProfile.email || '')
+      }
     } catch (error) {
       console.error('Error loading settings:', error)
     } finally {
@@ -133,6 +143,34 @@ export default function SettingsScreen() {
 
   const handleSave = async () => {
     if (!user) return
+
+    // Validate personal details
+    if (!fullName.trim()) {
+      if (Platform.OS === 'web') {
+        alert('Please enter your full name')
+      } else {
+        Alert.alert('Validation Error', 'Please enter your full name')
+      }
+      return
+    }
+
+    if (!username.trim()) {
+      if (Platform.OS === 'web') {
+        alert('Please enter a username')
+      } else {
+        Alert.alert('Validation Error', 'Please enter a username')
+      }
+      return
+    }
+
+    if (!email.trim() || !email.includes('@')) {
+      if (Platform.OS === 'web') {
+        alert('Please enter a valid email address')
+      } else {
+        Alert.alert('Validation Error', 'Please enter a valid email address')
+      }
+      return
+    }
 
     try {
       setSaving(true)
@@ -155,6 +193,9 @@ export default function SettingsScreen() {
       const [updatedSettings] = await Promise.all([
         settingsService.updateUserSettings(user.id, updates),
         userService.updateProfile(user.id, {
+          full_name: fullName.trim(),
+          username: username.trim(),
+          email: email.trim(),
           dietary_preferences: dietaryPrefs.length > 0 ? dietaryPrefs : selectedRestrictions,
           food_restrictions: foodRestrictions.length > 0 ? foodRestrictions : [],
         })
@@ -165,17 +206,24 @@ export default function SettingsScreen() {
 
         if (Platform.OS === 'web') {
           alert('Settings saved successfully!')
+        } else {
+          Alert.alert('Success', 'Settings saved successfully!')
         }
-        router.back()
+        // Navigate back to dashboard with refresh flag to reload recommendations
+        router.push('/(tabs)?refresh=true')
       } else {
         if (Platform.OS === 'web') {
           alert('Failed to save settings. Please try again.')
+        } else {
+          Alert.alert('Error', 'Failed to save settings. Please try again.')
         }
       }
     } catch (error) {
       console.error('Error saving settings:', error)
       if (Platform.OS === 'web') {
         alert('An error occurred while saving settings.')
+      } else {
+        Alert.alert('Error', 'An error occurred while saving settings.')
       }
     } finally {
       setSaving(false)
@@ -207,6 +255,52 @@ export default function SettingsScreen() {
 
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            {/* Personal Details Section */}
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>Personal Details</Text>
+              <Text style={styles.sectionSubtitle}>
+                Update your profile information
+              </Text>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Full Name</Text>
+                <TextInput
+                  style={styles.input}
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholder="Enter your full name"
+                  placeholderTextColor="#94a3b8"
+                  autoCapitalize="words"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Username</Text>
+                <TextInput
+                  style={styles.input}
+                  value={username}
+                  onChangeText={setUsername}
+                  placeholder="Enter your username"
+                  placeholderTextColor="#94a3b8"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <TextInput
+                  style={styles.input}
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="Enter your email"
+                  placeholderTextColor="#94a3b8"
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <Text style={styles.inputHint}>Your email is used for account recovery</Text>
+              </View>
+            </Card>
+
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>Personal Goals</Text>
 
