@@ -63,7 +63,7 @@ $$ LANGUAGE plpgsql;
 SELECT insert_recipe_if_not_exists(
   'Mango Chia Pudding',
   'Tropical chia pudding with fresh mango. High in omega-3s, fiber, and antioxidants. Make ahead!',
-  'Breakfast', 'Asian', 'Beginner', 250, 240, 8, 32, 10, 9.0, 150,
+  'Breakfast', 'Asian', 'Beginner', 10, 240, 8, 32, 10, 9.0, 150,
   'https://images.unsplash.com/photo-1603569283847-aa295f0d016a?w=400',
   '[{"name": "Chia Seeds", "amount": "1/4 cup"}, {"name": "Coconut Milk", "amount": "1 cup"}, {"name": "Honey", "amount": "2 tbsp"}, {"name": "Vanilla Extract", "amount": "1/2 tsp"}, {"name": "Mango", "amount": "1 cup, diced"}]'::jsonb,
   '[{"step": 1, "instruction": "Mix chia seeds, coconut milk, honey, and vanilla.", "timer": null}, {"step": 2, "instruction": "Refrigerate for at least 4 hours or overnight.", "timer": 240}, {"step": 3, "instruction": "Stir before serving and top with fresh mango.", "timer": null}]'::jsonb,
@@ -87,7 +87,7 @@ SELECT insert_recipe_if_not_exists(
   'Healthier baked version of Filipino turon. Crispy banana rolls with brown sugar.',
   'Snack', 'Filipino', 'Beginner', 35, 180, 3, 32, 5, 7.5, 130,
   'https://images.unsplash.com/photo-1571091718767-18b5b1457add?w=400',
-  '[{"name": "Banana", "amount": "6 pieces, sliced lengthwise"}, {"name": "Brown Sugar", "amount": "1/4 cup"}, {"name": "Cinnamon", "amount": "1 tsp"}, {"name": "Egg", "amount": "1, beaten"}]'::jsonb,
+  '[{"name": "Banana", "amount": "6 pieces, sliced lengthwise"}, {"name": "Brown Sugar", "amount": "1/4 cup"}, {"name": "Spring Roll Wrapper", "amount": "12 pieces"}, {"name": "Cinnamon", "amount": "1 tsp"}, {"name": "Egg", "amount": "1, beaten"}]'::jsonb,
   '[{"step": 1, "instruction": "Preheat oven to 400°F (200°C). Line baking sheet with parchment.", "timer": null}, {"step": 2, "instruction": "Mix brown sugar and cinnamon. Coat banana slices.", "timer": null}, {"step": 3, "instruction": "Wrap each banana in spring roll wrapper. Seal edges with egg.", "timer": null}, {"step": 4, "instruction": "Brush rolls with egg wash.", "timer": null}, {"step": 5, "instruction": "Bake for 20 minutes until golden and crispy.", "timer": 20}]'::jsonb,
   '[{"tag": "Vegetarian", "type": "dietary"}, {"tag": "Filipino", "type": "cuisine"}, {"tag": "Halal", "type": "dietary"}, {"tag": "Kosher", "type": "dietary"}]'::jsonb
 );
@@ -109,8 +109,8 @@ SELECT insert_recipe_if_not_exists(
   'Light and fluffy pandan cake with reduced sugar. Fragrant and naturally green.',
   'Snack', 'Filipino', 'Intermediate', 50, 210, 5, 32, 8, 7.0, 140,
   'https://images.unsplash.com/photo-1562440499-64c9a74d5c92?w=400',
-  '[{"name": "Flour", "amount": "2 cups"}, {"name": "Coconut Milk", "amount": "1 cup"}, {"name": "Egg", "amount": "4"}, {"name": "Honey", "amount": "1/2 cup"}, {"name": "Coconut Oil", "amount": "1/4 cup"}, {"name": "Baking Powder", "amount": "2 tsp"}, {"name": "Vanilla Extract", "amount": "1 tsp"}]'::jsonb,
-  '[{"step": 1, "instruction": "Preheat oven to 350°F (175°C). Grease a cake pan.", "timer": null}, {"step": 2, "instruction": "Mix flour and baking powder in a bowl.", "timer": null}, {"step": 3, "instruction": "Beat eggs and honey until fluffy. Add coconut milk, oil, and vanilla.", "timer": null}, {"step": 4, "instruction": "Fold in flour mixture until just combined.", "timer": null}, {"step": 5, "instruction": "Pour into pan. Bake for 30 minutes until golden.", "timer": 30}, {"step": 6, "instruction": "Cool completely before slicing.", "timer": null}]'::jsonb,
+  '[{"name": "Flour", "amount": "2 cups"}, {"name": "Coconut Milk", "amount": "1 cup"}, {"name": "Egg", "amount": "4"}, {"name": "Honey", "amount": "1/2 cup"}, {"name": "Coconut Oil", "amount": "1/4 cup"}, {"name": "Pandan Extract", "amount": "2 tsp"}, {"name": "Baking Powder", "amount": "2 tsp"}, {"name": "Vanilla Extract", "amount": "1 tsp"}]'::jsonb,
+  '[{"step": 1, "instruction": "Preheat oven to 350°F (175°C). Grease a cake pan.", "timer": null}, {"step": 2, "instruction": "Mix flour and baking powder in a bowl.", "timer": null}, {"step": 3, "instruction": "Beat eggs and honey until fluffy. Add coconut milk, oil, pandan extract, and vanilla.", "timer": null}, {"step": 4, "instruction": "Fold in flour mixture until just combined.", "timer": null}, {"step": 5, "instruction": "Pour into pan. Bake for 30 minutes until golden.", "timer": 30}, {"step": 6, "instruction": "Cool completely before slicing.", "timer": null}]'::jsonb,
   '[{"tag": "Vegetarian", "type": "dietary"}, {"tag": "Filipino", "type": "cuisine"}, {"tag": "Halal", "type": "dietary"}, {"tag": "Kosher", "type": "dietary"}]'::jsonb
 );
 
@@ -131,8 +131,8 @@ SELECT insert_recipe_if_not_exists(
   'Fudgy brownies with matcha green tea. Made with natural sweeteners and less fat.',
   'Snack', 'Japanese', 'Intermediate', 40, 150, 4, 22, 6, 7.5, 110,
   'https://images.unsplash.com/photo-1578985545062-69928b1d9587?w=400',
-  '[{"name": "Flour", "amount": "1 cup"}, {"name": "Cocoa Powder", "amount": "1/4 cup"}, {"name": "Honey", "amount": "1/2 cup"}, {"name": "Egg", "amount": "2"}, {"name": "Coconut Oil", "amount": "1/4 cup"}, {"name": "Vanilla Extract", "amount": "1 tsp"}, {"name": "Baking Powder", "amount": "1/2 tsp"}]'::jsonb,
-  '[{"step": 1, "instruction": "Preheat oven to 350°F (175°C). Line baking pan with parchment.", "timer": null}, {"step": 2, "instruction": "Mix flour, cocoa powder, and baking powder.", "timer": null}, {"step": 3, "instruction": "Beat eggs, honey, oil, and vanilla until smooth.", "timer": null}, {"step": 4, "instruction": "Fold in dry ingredients until just combined.", "timer": null}, {"step": 5, "instruction": "Pour into pan and bake for 25 minutes.", "timer": 25}, {"step": 6, "instruction": "Cool before cutting into squares.", "timer": null}]'::jsonb,
+  '[{"name": "Flour", "amount": "1 cup"}, {"name": "Cocoa Powder", "amount": "1/4 cup"}, {"name": "Matcha Powder", "amount": "2 tbsp"}, {"name": "Honey", "amount": "1/2 cup"}, {"name": "Egg", "amount": "2"}, {"name": "Coconut Oil", "amount": "1/4 cup"}, {"name": "Vanilla Extract", "amount": "1 tsp"}, {"name": "Baking Powder", "amount": "1/2 tsp"}]'::jsonb,
+  '[{"step": 1, "instruction": "Preheat oven to 350°F (175°C). Line baking pan with parchment.", "timer": null}, {"step": 2, "instruction": "Mix flour, cocoa powder, matcha powder, and baking powder.", "timer": null}, {"step": 3, "instruction": "Beat eggs, honey, oil, and vanilla until smooth.", "timer": null}, {"step": 4, "instruction": "Fold in dry ingredients until just combined.", "timer": null}, {"step": 5, "instruction": "Pour into pan and bake for 25 minutes.", "timer": 25}, {"step": 6, "instruction": "Cool before cutting into squares.", "timer": null}]'::jsonb,
   '[{"tag": "Vegetarian", "type": "dietary"}, {"tag": "Japanese", "type": "cuisine"}, {"tag": "Halal", "type": "dietary"}, {"tag": "Kosher", "type": "dietary"}]'::jsonb
 );
 
