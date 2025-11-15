@@ -3,7 +3,7 @@ import TutorialOverlay from "@/components/TutorialOverlay"
 import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext"
 import { useAuth } from "@/hooks/useAuth"
-import { useFrameworkReady } from '@/hooks/useFrameworkReady'
+import { hideSplashScreen, useFrameworkReady } from '@/hooks/useFrameworkReady'
 import { supabase } from "@/lib/supabase"
 import { Stack, useRouter, useSegments } from "expo-router"
 import { StatusBar } from "expo-status-bar"
@@ -24,17 +24,21 @@ function AppContent() {
     // Wait for auth to be fully initialized
     if (!loading) {
       setIsInitialized(true)
+      // Hide splash screen once auth is initialized
+      hideSplashScreen()
     }
   }, [loading])
 
-  // Fallback timeout to force initialization after 12 seconds
+  // Fallback timeout to force initialization after 8 seconds
   useEffect(() => {
     const fallbackTimeout = setTimeout(() => {
       if (!isInitialized) {
         console.log('⚠️ Layout: Forcing initialization due to timeout')
         setIsInitialized(true)
+        // Force hide splash screen even on timeout
+        hideSplashScreen()
       }
-    }, 12000)
+    }, 8000)
 
     return () => clearTimeout(fallbackTimeout)
   }, [isInitialized])

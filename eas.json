@@ -9,21 +9,37 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
       }
     },
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
       }
     },
     "preview2": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
       }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
+      }
     }
   },
   "submit": {
