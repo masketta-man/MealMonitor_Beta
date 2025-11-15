@@ -18,6 +18,10 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Expo managed workflow - let EAS generate these
+android/
+ios/
+
 # Metro
 .metro-health-check*
 

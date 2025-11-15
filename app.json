@@ -23,6 +23,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#dcfce7"
+      },
+      "splash": {
+        "image": "./assets/images/splash.png",
+        "resizeMode": "contain",
+        "backgroundColor": "#dcfce7"
       }
     },
     "web": {
@@ -30,7 +35,8 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-router"
+      "expo-router",
+      "react-native-reanimated/plugin"
     ],
     "extra": {
       "router": {},
