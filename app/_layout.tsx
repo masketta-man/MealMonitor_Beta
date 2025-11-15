@@ -1,19 +1,17 @@
 "use client"
-import { Stack, useRouter, useSegments } from "expo-router"
-import { StatusBar } from "expo-status-bar"
-import { StyleSheet, View } from "react-native"
-import { SafeAreaProvider } from "react-native-safe-area-context"
+import TutorialOverlay from "@/components/TutorialOverlay"
+import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
+import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext"
 import { useAuth } from "@/hooks/useAuth"
-import { useEffect, useState } from "react"
-import { ActivityIndicator, Text } from "react-native"
-import FloatingActionButton from "../components/FloatingActionButton"
-import TabNavigation from "../components/TabNavigation"
 import { useFrameworkReady } from '@/hooks/useFrameworkReady'
 import { supabase } from "@/lib/supabase"
-import { TutorialProvider } from "@/contexts/TutorialContext"
-import TutorialOverlay from "@/components/TutorialOverlay"
-import { useTutorial } from "@/contexts/TutorialContext"
-import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
+import { Stack, useRouter, useSegments } from "expo-router"
+import { StatusBar } from "expo-status-bar"
+import { useEffect, useState } from "react"
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native"
+import { SafeAreaProvider } from "react-native-safe-area-context"
+import FloatingActionButton from "../components/FloatingActionButton"
+import TabNavigation from "../components/TabNavigation"
 
 function AppContent() {
   const { user, loading, session } = useAuth()
@@ -28,6 +26,18 @@ function AppContent() {
       setIsInitialized(true)
     }
   }, [loading])
+
+  // Fallback timeout to force initialization after 12 seconds
+  useEffect(() => {
+    const fallbackTimeout = setTimeout(() => {
+      if (!isInitialized) {
+        console.log('⚠️ Layout: Forcing initialization due to timeout')
+        setIsInitialized(true)
+      }
+    }, 12000)
+
+    return () => clearTimeout(fallbackTimeout)
+  }, [isInitialized])
 
   useEffect(() => {
     if (!isInitialized) return

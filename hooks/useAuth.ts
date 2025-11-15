@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
-import { Session, User } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { Session, User } from '@supabase/supabase-js'
+import { useEffect, useState } from 'react'
 
 export function useAuth() {
   const [session, setSession] = useState<Session | null>(null)
@@ -11,21 +11,48 @@ export function useAuth() {
   useEffect(() => {
     console.log('🔐 useAuth: Initializing auth hook...')
     
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('🔐 useAuth: Initial session loaded:', { 
-        session: !!session, 
-        userId: session?.user?.id 
-      })
-      setSession(session)
-      setUser(session?.user ?? null)
+    // Timeout for session loading (10 seconds)
+    const timeout = setTimeout(() => {
+      console.log('⚠️ useAuth: Session loading timeout - proceeding without session')
+      setSession(null)
+      setUser(null)
       setInitialized(true)
-      
-      // Small delay to ensure state propagation
-      setTimeout(() => {
+      setLoading(false)
+    }, 10000)
+    
+    // Get initial session with error handling
+    supabase.auth.getSession()
+      .then(({ data: { session }, error }) => {
+        clearTimeout(timeout)
+        
+        if (error) {
+          console.error('❌ useAuth: Error loading session:', error)
+          setSession(null)
+          setUser(null)
+        } else {
+          console.log('🔐 useAuth: Initial session loaded:', { 
+            session: !!session, 
+            userId: session?.user?.id 
+          })
+          setSession(session)
+          setUser(session?.user ?? null)
+        }
+        
+        setInitialized(true)
+        
+        // Small delay to ensure state propagation
+        setTimeout(() => {
+          setLoading(false)
+        }, 50)
+      })
+      .catch((error) => {
+        clearTimeout(timeout)
+        console.error('❌ useAuth: Failed to get session:', error)
+        setSession(null)
+        setUser(null)
+        setInitialized(true)
         setLoading(false)
-      }, 50)
-    })
+      })
 
     // Listen for auth changes
     const {

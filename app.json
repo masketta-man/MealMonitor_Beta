@@ -35,8 +35,7 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-router",
-      "react-native-reanimated/plugin"
+      "expo-router"
     ],
     "extra": {
       "router": {},
