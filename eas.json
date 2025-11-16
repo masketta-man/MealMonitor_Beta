@@ -11,8 +11,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
+        "EXPO_PUBLIC_SUPABASE_URL": "https://maroymbcazdisgazwiyx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hcm95bWJjYXpkaXNnYXp3aXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzAwOTYsImV4cCI6MjA3NDY0NjA5Nn0.611pkRokUtKxFtduaX4llg3w_785PrfKImJ0hQshcF8"
       }
     },
     "preview": {
@@ -20,8 +20,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
+        "EXPO_PUBLIC_SUPABASE_URL": "https://maroymbcazdisgazwiyx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hcm95bWJjYXpkaXNnYXp3aXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzAwOTYsImV4cCI6MjA3NDY0NjA5Nn0.611pkRokUtKxFtduaX4llg3w_785PrfKImJ0hQshcF8"
       }
     },
     "preview2": {
@@ -30,15 +30,15 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
+        "EXPO_PUBLIC_SUPABASE_URL": "https://maroymbcazdisgazwiyx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hcm95bWJjYXpkaXNnYXp3aXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzAwOTYsImV4cCI6MjA3NDY0NjA5Nn0.611pkRokUtKxFtduaX4llg3w_785PrfKImJ0hQshcF8"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_SUPABASE_URL": "",
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": ""
+        "EXPO_PUBLIC_SUPABASE_URL": "https://maroymbcazdisgazwiyx.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1hcm95bWJjYXpkaXNnYXp3aXl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwNzAwOTYsImV4cCI6MjA3NDY0NjA5Nn0.611pkRokUtKxFtduaX4llg3w_785PrfKImJ0hQshcF8"
       }
     }
   },
