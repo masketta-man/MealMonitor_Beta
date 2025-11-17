@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "mealmonitor",
+  "private_key_id": "92ba3de5fa2c76fe5a43a16a2324837919eb96fa",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDiQYoq9QlTKayw\n2FUxiR2P5/fZSNKc/fhglB2r2fdG9HBnp8WsQqPnvbqLLizw4/wh+nfGPoAT/htN\nCxiYvbgxSIw/1CqtNbk2Bzi0MgEavwwJiwTPUxrX1IqIGg5N9TnRtJ2rr/CsH0fa\nob71HepSFt6xPyV8Y9HUQA39SlV9s4QWDDa06Tyk7B8Bhv2RXQ6YsihRlUsv3Q8F\n1IkZacYltiSWDDeUYtPqYZbA709YEFVQcp7qhFaGfr0jQJo8iBuW41Fr5ltnAT7b\n3zP9Zui7ZEHieoYlZtlVX+hL3zKl3jfymu+DvUKgIPB7gIcEMu1nbnv0xS17tKFX\nGXzHXrFfAgMBAAECggEAP/ofWylBs0HYAoORh3nJoa0KsOa+I0VPS+PmBfeSy/4H\noM/Yfe60ES3dh0iNzanx3BvKbYSzy7NxPdZS5LHU2R62BcB1Ntg3oHbnSlDPbiQy\nf6pPOF67+uavK3AOtm2OpWUopmkQKWOI+mH9MKt+XCr6Wm1MKMHDDfz017gCt5GY\nqhOTVBVkw4tAV6KIpE/3pO6Ck6iQuJ9oEpG7EgL0lQqVD5itIoIYf441MMOfkGr5\nRQ1nQNuF+iJBR4ZZU6LWu1wwDcRHxW9LemBGlRg3eNQLkJMlWnSdwbKOTIoqWWPk\n/MJIS4qfRXjMHWysHUZ8R3NYidQrR6Kghqqp5dWcDQKBgQD5KXSWJqwAq++bEUMC\n3/A2ePmXsp0XkkZVOyFALJ3bZXfki1d+G4NUsayUwy2PbjXfahESYKiMILSpsoud\n0WKgLz2m5cYGW0o6Wzld2Wm2oAhNfqC/HfiXqWo0+7fpyu+xev26uutmIvF6494n\nF6NwG8EYlao8QB5RVxK4sFyWYwKBgQDodydKW+dWxfL98rnog/tBsb44xf42Z0oy\n2piu985jcllPnXA3Uy80mfT+BuQC9CwQ5zGWno40bV7GQXzlILgxISPVXN1/foLO\nvePbPyvmqMv9f7meZI9xR0bWwJ3Fgga+UsSAEWiCTQqi1oprjnL4EjxTNpeGdSxl\nWlzOu9x71QKBgAtYP962VA6TxY0h9BMlbyKLz5GAqHZySpGG57SsU2Ox8wuM7Kbp\nScmJbXo4iNKHChzqD2zuyb3Xn2I6pvDAn+T7Qatfuux/K5oMnUgQpieSkc41fcw1\n6SO+qv9OlskmXFOQbg0aha1Y2fXmei79fIuWN+yOo/mqUbcSZ9/Q5+ZRAoGBAIva\nw6SUzgUCakIluXsNjCfly09UrrAETDt0D8+T/nMN5HVlfpGKVigLR71cX+j3BVvV\n+5tmIJ+h/RbBZ2Zh3O6RxYEjsY52ijPfQioxQzQt8Su9n+qPDU1VWGTy1PhyVaRD\nHzz9PCbIOtHkyLoUpU5hijF18otOCzuetZ8anndRAoGAPhH1truP98ZDCbk8DZqX\nP5BR0Qh1G5raZobr1kQtOITOuNnd+V7BEisDXm5vIZbYONTlDEOsi5Qq4gWI9hVw\njklFDfrmUF88cpXfA3ounsTCJujmnEbSzY2zsgCQz6vCWbGh2FLl+b+/ht3qlVqa\ncwWtbVXMOHkgbWSscdZgCmI=\n-----END PRIVATE KEY-----\n",
+  "client_email": "play-console-service-account@mealmonitor.iam.gserviceaccount.com",
+  "client_id": "111951594055169248994",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/play-console-service-account%40mealmonitor.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
