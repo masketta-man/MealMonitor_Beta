@@ -1,16 +1,15 @@
-import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, Platform } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router"
+import { LinearGradient } from "expo-linear-gradient"
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
+import { useCallback, useEffect, useState } from "react"
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
-import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
+import Card from "@/components/Card"
 import ProgressBar from "@/components/ProgressBar"
-import NutritionChart from "@/components/NutritionChart"
 
 // Hooks and Services
 import { useAuth } from "@/hooks/useAuth"
@@ -190,11 +189,6 @@ export default function ChallengeDetailScreen() {
           <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="share-social-outline" size={24} color="#166534" />
-            </TouchableOpacity>
-          </View>
         </View>
 
         <ScrollView showsVerticalScrollIndicator={false}>
@@ -320,16 +314,6 @@ export default function ChallengeDetailScreen() {
           )}
 
           {/* Note: Nutrition Goals and Related Recipes can be added in future updates */}
-
-          {/* Action Button */}
-          <View style={styles.actionButtonContainer}>
-            <Button
-              text="Share Progress"
-              color="white"
-              backgroundColor={challenge.color}
-              onPress={() => alert("Sharing functionality coming soon!")}
-            />
-          </View>
 
           {/* Bottom padding */}
           <View style={styles.bottomPadding} />

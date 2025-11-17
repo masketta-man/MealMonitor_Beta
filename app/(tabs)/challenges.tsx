@@ -1,15 +1,14 @@
-import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, RefreshControl, useWindowDimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
 import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
-import { useFocusEffect } from "expo-router"
+import { LinearGradient } from "expo-linear-gradient"
+import { useFocusEffect, useRouter } from "expo-router"
+import { useCallback, useEffect, useState } from "react"
+import { ActivityIndicator, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
-import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
+import Card from "@/components/Card"
 import ProgressBar from "@/components/ProgressBar"
 
 // Hooks and Services
@@ -28,6 +27,7 @@ export default function ChallengesScreen() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showInfoModal, setShowInfoModal] = useState(false)
 
   // Fetch challenges from Supabase
   const fetchChallenges = useCallback(async () => {
@@ -115,7 +115,7 @@ export default function ChallengesScreen() {
         <View style={[styles.header, isWeb && styles.headerWeb]}>
           <Text style={styles.headerTitle}>Challenges</Text>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity style={styles.headerButton} onPress={() => setShowInfoModal(true)}>
               <Ionicons name="information-circle-outline" size={24} color="#166534" />
             </TouchableOpacity>
           </View>
@@ -374,6 +374,49 @@ export default function ChallengesScreen() {
           <View style={styles.bottomPadding} />
         </View>
         </ScrollView>
+
+        <Modal
+          visible={showInfoModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowInfoModal(false)}
+        >
+          <View style={styles.infoModalOverlay}>
+            <View style={styles.infoModalContent}>
+              <View style={styles.infoModalHeader}>
+                <Text style={styles.infoModalTitle}>How Challenges Work</Text>
+                <TouchableOpacity style={styles.headerButton} onPress={() => setShowInfoModal(false)}>
+                  <Ionicons name="close" size={24} color="#166534" />
+                </TouchableOpacity>
+              </View>
+              <ScrollView style={styles.infoModalBody} showsVerticalScrollIndicator={false}>
+                <View style={styles.infoPoint}>
+                  <Ionicons name="flash-outline" size={20} color="#16a34a" />
+                  <Text style={styles.infoPointText}>Tap “Start Challenge” to join. We’ll track your progress automatically.</Text>
+                </View>
+                <View style={styles.infoPoint}>
+                  <Ionicons name="list-outline" size={20} color="#16a34a" />
+                  <Text style={styles.infoPointText}>Complete the listed tasks (daily goals, ingredients, workouts, etc.) before the timer ends.</Text>
+                </View>
+                <View style={styles.infoPoint}>
+                  <Ionicons name="time-outline" size={20} color="#16a34a" />
+                  <Text style={styles.infoPointText}>Each challenge has a countdown. Finish every task before it expires to win.</Text>
+                </View>
+                <View style={styles.infoPoint}>
+                  <Ionicons name="trophy-outline" size={20} color="#16a34a" />
+                  <Text style={styles.infoPointText}>Complete all tasks to claim the reward points and unlock more recipes and badges.</Text>
+                </View>
+              </ScrollView>
+              <Button
+                text="Got it!"
+                color="white"
+                backgroundColor="#16a34a"
+                onPress={() => setShowInfoModal(false)}
+                style={styles.infoModalButton}
+              />
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   )
@@ -428,6 +471,55 @@ const styles = StyleSheet.create({
   },
   headerButton: {
     padding: 8,
+    marginLeft: 8,
+  },
+  infoModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  infoModalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "85%",
+    paddingBottom: 24,
+  },
+  infoModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e2e8f0",
+  },
+  infoModalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  infoModalBody: {
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    maxHeight: 320,
+  },
+  infoPoint: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+    marginBottom: 16,
+  },
+  infoPointText: {
+    flex: 1,
+    fontSize: 15,
+    color: "#334155",
+    lineHeight: 22,
+  },
+  infoModalButton: {
+    marginHorizontal: 24,
+    marginTop: 8,
   },
   statsContainer: {
     paddingHorizontal: 16,

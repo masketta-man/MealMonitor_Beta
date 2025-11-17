@@ -1,13 +1,13 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, FlatList, Image, ActivityIndicator, Alert, useWindowDimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
 import { recipeService } from "@/services/recipeService"
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useLocalSearchParams, useRouter } from "expo-router"
+import { useEffect, useMemo, useState } from "react"
+import { ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
 import Badge from "@/components/Badge"
@@ -50,6 +50,12 @@ export default function RecipesScreen() {
   const [showIngredientFilter, setShowIngredientFilter] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [showSavedRecipesModal, setShowSavedRecipesModal] = useState(false)
+
+  const favoriteRecipes = useMemo(
+    () => recipes.filter((recipe) => recipe.isFavorite),
+    [recipes],
+  )
 
   useEffect(() => {
     if (user) {
@@ -466,7 +472,10 @@ export default function RecipesScreen() {
         <View style={[styles.header, isWeb && styles.headerWeb]}>
           <Text style={styles.headerTitle}>Recipes</Text>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerButton} onPress={() => alert("Saved recipes coming soon!")}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowSavedRecipesModal(true)}
+            >
               <Ionicons name="bookmark-outline" size={24} color="#166534" />
             </TouchableOpacity>
             <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/(tabs)/ingredients")}>
@@ -669,6 +678,46 @@ export default function RecipesScreen() {
             )
           }
         />
+
+        <Modal
+          visible={showSavedRecipesModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => setShowSavedRecipesModal(false)}
+        >
+          <View style={styles.savedModalOverlay}>
+            <View style={[styles.savedModalContent, isWeb && styles.savedModalContentWeb]}>
+              <View style={styles.savedModalHeader}>
+                <Text style={styles.savedModalTitle}>Saved Recipes</Text>
+                <TouchableOpacity
+                  onPress={() => setShowSavedRecipesModal(false)}
+                  style={styles.savedModalCloseButton}
+                >
+                  <Ionicons name="close" size={24} color="#166534" />
+                </TouchableOpacity>
+              </View>
+
+              {favoriteRecipes.length === 0 ? (
+                <View style={styles.savedEmptyState}>
+                  <Ionicons name="bookmark-outline" size={48} color="#9ca3af" />
+                  <Text style={styles.savedEmptyTitle}>No saved recipes yet</Text>
+                  <Text style={styles.savedEmptyText}>Tap the heart on any recipe to save it for quick access.</Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={favoriteRecipes}
+                  renderItem={renderRecipeCard}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.savedModalList}
+                  showsVerticalScrollIndicator={false}
+                  numColumns={isWeb ? 2 : 1}
+                  key={isWeb ? 'saved-web' : 'saved-mobile'}
+                  columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
       </SafeAreaView>
     </LinearGradient>
   )
@@ -937,6 +986,62 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
+    fontSize: 14,
+    color: "#4b5563",
+    textAlign: "center",
+  },
+  savedModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.4)",
+    justifyContent: "flex-end",
+  },
+  savedModalContent: {
+    backgroundColor: "white",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: "90%",
+    paddingBottom: 16,
+  },
+  savedModalContentWeb: {
+    alignSelf: "center",
+    width: "90%",
+    maxWidth: 1100,
+  },
+  savedModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f1f5f9",
+  },
+  savedModalTitle: {
+    fontSize: 20,
+    fontWeight: "800",
+    color: "#166534",
+  },
+  savedModalCloseButton: {
+    padding: 4,
+  },
+  savedModalList: {
+    padding: 16,
+    paddingBottom: 80,
+  },
+  savedEmptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 32,
+  },
+  savedEmptyTitle: {
+    marginTop: 16,
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#166534",
+  },
+  savedEmptyText: {
+    marginTop: 8,
     fontSize: 14,
     color: "#4b5563",
     textAlign: "center",

@@ -1,18 +1,18 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, Image, TouchableOpacity, ActivityIndicator, Alert, useWindowDimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter, useLocalSearchParams } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
 import { recipeService } from "@/services/recipeService"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
+import { useCallback, useEffect, useState } from "react"
+import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
-import Card from "@/components/Card"
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
+import Card from "@/components/Card"
 import TagChip from "@/components/TagChip"
 
 import type { RecipeWithDetails } from "@/services/recipeService"
@@ -29,13 +29,7 @@ export default function RecipeDetailScreen() {
   const [enhancedTags, setEnhancedTags] = useState<any[]>([])
   const [userIngredients, setUserIngredients] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    if (params.id && user) {
-      loadRecipe()
-    }
-  }, [params.id, user])
-
-  const loadRecipe = async () => {
+  const loadRecipe = useCallback(async () => {
     if (!params.id || !user) return
 
     try {
@@ -65,7 +59,17 @@ export default function RecipeDetailScreen() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [params.id, router, user])
+
+  useEffect(() => {
+    loadRecipe()
+  }, [loadRecipe])
+
+  useFocusEffect(
+    useCallback(() => {
+      loadRecipe()
+    }, [loadRecipe])
+  )
 
   const toggleFavorite = async () => {
     if (!user || !params.id) return

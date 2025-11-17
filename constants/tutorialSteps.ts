@@ -25,7 +25,7 @@ export const APP_TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'cooking',
     title: 'Interactive Cooking Mode',
-    description: 'Follow step-by-step instructions with built-in timers for each cooking stage. Complete recipes to earn XP points, level up, and log calories automatically!',
+    description: 'Follow step-by-step instructions for each cooking stage. Complete recipes to earn XP points, level up, and log calories automatically!',
     icon: 'timer',
     position: 'center',
   },
@@ -36,7 +36,7 @@ export const APP_TUTORIAL_STEPS: TutorialStep[] = [
     icon: 'trophy',
     position: 'center',
   },
-  {
+  { 
     id: 'profile',
     title: 'Your Progress & Achievements',
     description: 'View your current level, total XP, and earned badges. Check your activity feed to see completed meals, earned achievements, and cooking milestones!',
