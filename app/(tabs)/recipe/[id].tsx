@@ -5,7 +5,7 @@ import { recipeService } from "@/services/recipeService"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
@@ -29,8 +29,26 @@ export default function RecipeDetailScreen() {
   const [enhancedTags, setEnhancedTags] = useState<any[]>([])
   const [userIngredients, setUserIngredients] = useState<Set<string>>(new Set())
 
+  const handleBackNavigation = useCallback(() => {
+    if (typeof router.canGoBack === 'function' && router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace("/(tabs)/recipes")
+    }
+  }, [router])
+
   const loadRecipe = useCallback(async () => {
-    if (!params.id || !user) return
+    if (!params.id) {
+      Alert.alert('Error', 'Recipe not found')
+      handleBackNavigation()
+      setIsLoading(false)
+      return
+    }
+
+    if (!user) {
+      setIsLoading(false)
+      return
+    }
 
     try {
       setIsLoading(true)
@@ -50,20 +68,16 @@ export default function RecipeDetailScreen() {
         await recipeService.trackRecipeInteraction(user.id, params.id, 'view')
       } else {
         Alert.alert('Error', 'Recipe not found')
-        router.back()
+        handleBackNavigation()
       }
     } catch (error) {
       console.error('Error loading recipe:', error)
       Alert.alert('Error', 'Failed to load recipe. Please try again.')
-      router.back()
+      handleBackNavigation()
     } finally {
       setIsLoading(false)
     }
-  }, [params.id, router, user])
-
-  useEffect(() => {
-    loadRecipe()
-  }, [loadRecipe])
+  }, [params.id, user, handleBackNavigation])
 
   useFocusEffect(
     useCallback(() => {
@@ -116,7 +130,7 @@ export default function RecipeDetailScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         {/* Header */}
         <View style={[styles.header, isWeb && styles.headerWeb]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={handleBackNavigation} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#1f2937" />
           </TouchableOpacity>
           <Text style={styles.headerTitle} numberOfLines={1}>{recipe.title}</Text>

@@ -1,7 +1,7 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { TutorialStep } from '@/components/TutorialOverlay'
 import { useAuth } from '@/hooks/useAuth'
 import { settingsService } from '@/services/settingsService'
-import { TutorialStep } from '@/components/TutorialOverlay'
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react'
 
 interface TutorialContextType {
   isTutorialActive: boolean
@@ -11,6 +11,7 @@ interface TutorialContextType {
   skipTutorial: () => void
   shouldShowTutorial: boolean
   checkTutorialStatus: () => Promise<void>
+  setCallbacks?: (callbacks: { onSkip?: () => void; onComplete?: () => void }) => void
 }
 
 const TutorialContext = createContext<TutorialContextType | undefined>(undefined)
@@ -20,6 +21,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const [isTutorialActive, setIsTutorialActive] = useState(false)
   const [currentSteps, setCurrentSteps] = useState<TutorialStep[]>([])
   const [shouldShowTutorial, setShouldShowTutorial] = useState(false)
+  const [callbacks, setCallbacks] = useState<{ onSkip?: () => void; onComplete?: () => void }>({})
 
   const checkTutorialStatus = async () => {
     if (!user) return

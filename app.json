@@ -2,7 +2,7 @@
   "expo": {
     "name": "MealMonitor",
     "slug": "meal-monitor",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -19,7 +19,8 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "com.yourname.mealmonitor",
+      "package": "com.jecardo.mealmonitor",
+      "versionCode": 4,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#dcfce7"

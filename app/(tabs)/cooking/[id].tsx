@@ -6,7 +6,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useEffect, useRef, useState } from "react"
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View, Platform, useWindowDimensions } from "react-native"
+import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -126,6 +126,22 @@ export default function CookingModeScreen() {
     }
   }, [timeRemaining, isTimerActive, isTimerPaused, currentStep])
 
+  useEffect(() => {
+    if (!recipe || !recipe.instructions || recipe.instructions.length === 0) {
+      return
+    }
+
+    if (currentStep >= recipe.instructions.length) {
+      setCurrentStep(0)
+      return
+    }
+
+    if (!isTimerActive && !isTimerPaused) {
+      const timerMinutes = recipe.instructions[currentStep].timer || 0
+      setTimeRemaining(timerMinutes * 60)
+    }
+  }, [recipe, currentStep, isTimerActive, isTimerPaused])
+
   const startTimer = () => {
     if (!recipe) return
     const currentInstruction = recipe.instructions[currentStep]
@@ -148,23 +164,31 @@ export default function CookingModeScreen() {
   }
 
   const markStepComplete = () => {
+    if (!recipe) return
     const newCompletedSteps = [...completedSteps]
     newCompletedSteps[currentStep] = true
     setCompletedSteps(newCompletedSteps)
     stopTimer()
+    if (currentStep < recipe.instructions.length - 1) {
+      const nextIndex = currentStep + 1
+      setCurrentStep(nextIndex)
+    }
   }
 
   const nextStep = () => {
     if (!recipe) return
-    if (currentStep < recipe.instructions.length - 1) {
-      setCurrentStep(currentStep + 1)
+    const nextIndex = currentStep + 1
+    if (nextIndex < recipe.instructions.length) {
+      setCurrentStep(nextIndex)
       stopTimer()
     }
   }
 
   const previousStep = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1)
+    if (!recipe) return
+    const prevIndex = currentStep - 1
+    if (prevIndex >= 0) {
+      setCurrentStep(prevIndex)
       stopTimer()
     }
   }
@@ -334,12 +358,6 @@ export default function CookingModeScreen() {
     )
   }
 
-  // Safety check for current step
-  if (currentStep >= recipe.instructions.length) {
-    setCurrentStep(0)
-    return null
-  }
-
   const currentInstruction = recipe.instructions[currentStep]
   
   // Additional safety check - if currentInstruction is undefined, go back
@@ -489,7 +507,8 @@ export default function CookingModeScreen() {
                 color="white"
                 backgroundColor="#16a34a"
                 onPress={finishCooking}
-                style={styles.navButton}
+                style={allStepsCompleted ? styles.navButton : { ...styles.navButton, opacity: 0.6 }}
+                disabled={!allStepsCompleted}
               />
             )}
           </View>
@@ -506,8 +525,11 @@ export default function CookingModeScreen() {
                   completedSteps[index] && styles.completedOverviewStep,
                 ]}
                 onPress={() => {
-                  setCurrentStep(index);
-                  stopTimer();
+                  if (!recipe) return
+                  if (index >= 0 && index < recipe.instructions.length) {
+                    setCurrentStep(index)
+                    stopTimer()
+                  }
                 }}
               >
                 <View style={styles.overviewStepNumber}>

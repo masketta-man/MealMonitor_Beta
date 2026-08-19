@@ -1,12 +1,12 @@
 "use client"
 
-import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, useWindowDimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useRouter } from "expo-router"
+import { useState } from "react"
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
 import Button from "@/components/Button"
@@ -40,6 +40,20 @@ export default function SignUpScreen() {
     return emailRegex.test(email)
   }
 
+  const validateFullName = (name: string): boolean => {
+    const fullNameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ'’\- ]+$/
+    return fullNameRegex.test(name.trim())
+  }
+
+  const formatFullName = (name: string): string => {
+    return name
+      .trim()
+      .replace(/\s+/g, " ")
+      .split(" ")
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join(" ")
+  }
+
   const handleSignUp = async () => {
     setErrors({})
     let validationErrors: {
@@ -51,6 +65,8 @@ export default function SignUpScreen() {
 
     if (!formData.fullName.trim()) {
       validationErrors.fullName = "Full name is required"
+    } else if (!validateFullName(formData.fullName)) {
+      validationErrors.fullName = "Full name can only contain letters, spaces, apostrophes, and hyphens"
     }
 
     if (!formData.email.trim()) {
@@ -78,8 +94,11 @@ export default function SignUpScreen() {
 
     console.log('🔑 Signup: Starting signup process...')
     setIsLoading(true)
+
+    const normalizedFullName = formatFullName(formData.fullName)
+
     const { error, data } = await signUp(formData.email, formData.password, {
-      full_name: formData.fullName,
+      full_name: normalizedFullName,
       username: formData.username,
     })
 
