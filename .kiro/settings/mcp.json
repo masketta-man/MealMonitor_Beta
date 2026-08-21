@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "fetch": {
+      "command": "uvx",
+      "args": ["mcp-server-fetch"],
+      "env": {},
+      "disabled": true,
+      "autoApprove": []
+    },
+    "supabase": {
+      "command": "C:\\Program Files\\nodejs\\npx.cmd",
+      "args": ["-y", "@supabase/mcp-server-supabase@latest", "--access-token", "sbp_87afbec6ba2495143ff94075f9799533468212b8"],
+      "disabled": false,
+      "autoApprove": ["list_projects"]
+    }
+  }
+}
