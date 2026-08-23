@@ -6,7 +6,20 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useEffect, useMemo, useState } from "react"
-import { ActivityIndicator, Alert, FlatList, Image, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -29,7 +42,7 @@ const SORT_OPTIONS = [
   "Prep Time (Shortest)",
   "Nutrition Score",
   "Newest First",
-  "A-Z"
+  "A-Z",
 ]
 
 export default function RecipesScreen() {
@@ -40,28 +53,102 @@ export default function RecipesScreen() {
   const isWeb = width > 768
   const [searchQuery, setSearchQuery] = useState("")
   const [recipes, setRecipes] = useState<RecipeWithDetails[]>([])
-  const [filteredRecipes, setFilteredRecipes] = useState<RecipeWithDetails[]>([])
+  const [filteredRecipes, setFilteredRecipes] = useState<RecipeWithDetails[]>(
+    [],
+  )
   const [selectedMealType, setSelectedMealType] = useState("All")
   const [selectedDifficulty, setSelectedDifficulty] = useState("All")
   const [selectedSortOption, setSelectedSortOption] = useState("Recommended")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
-  const [availableTags, setAvailableTags] = useState<Array<{ tag: string; type: string }>>([])
+  const [availableTags, setAvailableTags] = useState<
+    Array<{ tag: string; type: string }>
+  >([])
   const [showFilters, setShowFilters] = useState(false)
   const [showIngredientFilter, setShowIngredientFilter] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
-  const [showSavedRecipesModal, setShowSavedRecipesModal] = useState(false)
+  const [showFavoritesModal, setShowFavoritesModal] = useState(false)
+  const [showBookmarksModal, setShowBookmarksModal] = useState(false)
+  const [bookmarkCollections, setBookmarkCollections] = useState<
+    BookmarkCollection[]
+  >([])
+  const [selectedCollection, setSelectedCollection] = useState<string | null>(
+    null,
+  )
+  const [bookmarkedRecipes, setBookmarkedRecipes] = useState<any[]>([])
 
   const favoriteRecipes = useMemo(
     () => recipes.filter((recipe) => recipe.isFavorite),
     [recipes],
   )
 
+  // Group tags by type for organized filtering
+  const tagsByType = useMemo(() => {
+    const grouped: Record<string, string[]> = {}
+    availableTags.forEach((tagObj) => {
+      const type = tagObj.type || "other"
+      if (!grouped[type]) {
+        grouped[type] = []
+      }
+      grouped[type].push(tagObj.tag)
+    })
+    return grouped
+  }, [availableTags])
+
   useEffect(() => {
     if (user) {
       loadRecipes()
+      loadBookmarkCollections()
     }
   }, [user])
+
+  const loadBookmarkCollections = async () => {
+    if (!user) return
+
+    try {
+      const collections = await bookmarkService.getCollections(user.id)
+      setBookmarkCollections(collections)
+    } catch (error) {
+      console.error("Error loading bookmark collections:", error)
+    }
+  }
+
+  const loadBookmarkedRecipes = async (collectionId?: string) => {
+    if (!user) return
+
+    try {
+      const bookmarks = await bookmarkService.getBookmarks(
+        user.id,
+        collectionId,
+      )
+      // Transform bookmarks to match RecipeWithDetails format
+      const recipes = bookmarks.map((bookmark: any) => ({
+        ...bookmark.recipes,
+        ingredients: bookmark.recipes.recipe_ingredients.map((ri: any) => ({
+          id: ri.ingredients.id,
+          name: ri.ingredients.name,
+          amount: ri.amount,
+          category: ri.ingredients.category,
+        })),
+        instructions: bookmark.recipes.recipe_instructions
+          .sort((a: any, b: any) => a.step_number - b.step_number)
+          .map((inst: any) => ({
+            step_number: inst.step_number,
+            instruction: inst.instruction,
+            timer_minutes: inst.timer_minutes,
+          })),
+        tags: bookmark.recipes.recipe_tags.map((tag: any) => ({
+          tag: tag.tag,
+          tag_type: tag.tag_type,
+        })),
+        bookmarkId: bookmark.id,
+        bookmarkNotes: bookmark.notes,
+      }))
+      setBookmarkedRecipes(recipes)
+    } catch (error) {
+      console.error("Error loading bookmarked recipes:", error)
+    }
+  }
 
   // Check if we should show suggestions
   useEffect(() => {
@@ -79,31 +166,31 @@ export default function RecipesScreen() {
       const recipesData = await recipeService.getRecipes({ userId: user.id })
       setRecipes(recipesData)
       setFilteredRecipes(recipesData)
-      
+
       // Extract unique tags from all recipes (normalize capitalization)
       const tagsSet = new Map<string, { display: string; type: string }>()
-      recipesData.forEach(recipe => {
+      recipesData.forEach((recipe) => {
         if (recipe.tags) {
           recipe.tags.forEach((tag: any) => {
             const normalized = tag.tag.toLowerCase()
             // Keep first occurrence's display version or use title case
             if (!tagsSet.has(normalized)) {
-              tagsSet.set(normalized, { 
+              tagsSet.set(normalized, {
                 display: tag.tag,
-                type: tag.tag_type || 'other'
+                type: tag.tag_type || "other",
               })
             }
           })
         }
       })
-      const uniqueTags = Array.from(tagsSet.entries()).map(([_, data]) => ({ 
-        tag: data.display, 
-        type: data.type 
+      const uniqueTags = Array.from(tagsSet.entries()).map(([_, data]) => ({
+        tag: data.display,
+        type: data.type,
       }))
       setAvailableTags(uniqueTags.sort((a, b) => a.tag.localeCompare(b.tag)))
     } catch (error) {
-      console.error('Error loading recipes:', error)
-      Alert.alert('Error', 'Failed to load recipes. Please try again.')
+      console.error("Error loading recipes:", error)
+      Alert.alert("Error", "Failed to load recipes. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -115,36 +202,43 @@ export default function RecipesScreen() {
     try {
       setIsLoading(true)
       // Use enhanced recommendations with tagging system
-      const suggestedRecipes = await recipeService.getEnhancedRecommendations(user.id, {
-        limit: 20,
-        maxPrepTime: selectedSortOption === 'Prep Time (Shortest)' ? 30 : undefined
-      })
+      const suggestedRecipes = await recipeService.getEnhancedRecommendations(
+        user.id,
+        {
+          limit: 20,
+          maxPrepTime:
+            selectedSortOption === "Prep Time (Shortest)" ? 30 : undefined,
+        },
+      )
       setRecipes(suggestedRecipes)
       setFilteredRecipes(suggestedRecipes)
-      
+
       // Extract tags from suggested recipes too (normalize capitalization)
       const tagsSet = new Map<string, { display: string; type: string }>()
-      suggestedRecipes.forEach(recipe => {
+      suggestedRecipes.forEach((recipe) => {
         if (recipe.tags) {
           recipe.tags.forEach((tag: any) => {
             const normalized = tag.tag.toLowerCase()
             if (!tagsSet.has(normalized)) {
-              tagsSet.set(normalized, { 
+              tagsSet.set(normalized, {
                 display: tag.tag,
-                type: tag.tag_type || 'other'
+                type: tag.tag_type || "other",
               })
             }
           })
         }
       })
-      const uniqueTags = Array.from(tagsSet.entries()).map(([_, data]) => ({ 
-        tag: data.display, 
-        type: data.type 
+      const uniqueTags = Array.from(tagsSet.entries()).map(([_, data]) => ({
+        tag: data.display,
+        type: data.type,
       }))
       setAvailableTags(uniqueTags.sort((a, b) => a.tag.localeCompare(b.tag)))
     } catch (error) {
-      console.error('Error loading suggested recipes:', error)
-      Alert.alert('Error', 'Failed to load recipe suggestions. Please try again.')
+      console.error("Error loading suggested recipes:", error)
+      Alert.alert(
+        "Error",
+        "Failed to load recipe suggestions. Please try again.",
+      )
     } finally {
       setIsLoading(false)
     }
@@ -162,18 +256,24 @@ export default function RecipesScreen() {
         filtered = filtered.filter(
           (recipe) =>
             recipe.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            recipe.ingredients.some((ingredient) => ingredient.name.toLowerCase().includes(searchQuery.toLowerCase())),
+            recipe.ingredients.some((ingredient) =>
+              ingredient.name.toLowerCase().includes(searchQuery.toLowerCase()),
+            ),
         )
       }
 
       // Apply meal type filter
       if (selectedMealType !== "All") {
-        filtered = filtered.filter((recipe) => recipe.meal_type === selectedMealType)
+        filtered = filtered.filter(
+          (recipe) => recipe.meal_type === selectedMealType,
+        )
       }
 
       // Apply difficulty filter
       if (selectedDifficulty !== "All") {
-        filtered = filtered.filter((recipe) => recipe.difficulty === selectedDifficulty)
+        filtered = filtered.filter(
+          (recipe) => recipe.difficulty === selectedDifficulty,
+        )
       }
 
       // Apply ingredient filter if enabled
@@ -186,7 +286,9 @@ export default function RecipesScreen() {
         filtered = filtered.filter((recipe) => {
           if (!recipe.tags) return false
           const recipeTags = recipe.tags.map((t: any) => t.tag.toLowerCase())
-          return selectedTags.every(tag => recipeTags.includes(tag.toLowerCase()))
+          return selectedTags.every((tag) =>
+            recipeTags.includes(tag.toLowerCase()),
+          )
         })
       }
 
@@ -206,10 +308,16 @@ export default function RecipesScreen() {
           sortedRecipes.sort((a, b) => a.prep_time - b.prep_time)
           break
         case "Nutrition Score":
-          sortedRecipes.sort((a, b) => (b.nutrition_score || 0) - (a.nutrition_score || 0))
+          sortedRecipes.sort(
+            (a, b) => (b.nutrition_score || 0) - (a.nutrition_score || 0),
+          )
           break
         case "Newest First":
-          sortedRecipes.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime())
+          sortedRecipes.sort(
+            (a, b) =>
+              new Date(b.created_at || 0).getTime() -
+              new Date(a.created_at || 0).getTime(),
+          )
           break
         case "A-Z":
           sortedRecipes.sort((a, b) => a.title.localeCompare(b.title))
@@ -219,27 +327,43 @@ export default function RecipesScreen() {
           // 'Recommended' - use smart sorting based on multiple factors
           if (showSuggestions) {
             // Sort by recommendation score or match percentage
-            sortedRecipes.sort((a, b) => (b.recommendationScore || b.matchPercentage || 0) - (a.recommendationScore || a.matchPercentage || 0))
+            sortedRecipes.sort(
+              (a, b) =>
+                (b.recommendationScore || b.matchPercentage || 0) -
+                (a.recommendationScore || a.matchPercentage || 0),
+            )
           } else {
             // Smart recommendation: balanced scoring with normalized values
             sortedRecipes.sort((a, b) => {
               // Normalize nutrition score (0-10 range) to 0-100
               const nutritionScoreA = ((a.nutrition_score || 0) / 10) * 100
               const nutritionScoreB = ((b.nutrition_score || 0) / 10) * 100
-              
+
               // Normalize points (typical range 0-300) to 0-100
-              const normalizedPointsA = Math.min(((a.points || 0) / 300) * 100, 100)
-              const normalizedPointsB = Math.min(((b.points || 0) / 300) * 100, 100)
-              
+              const normalizedPointsA = Math.min(
+                ((a.points || 0) / 300) * 100,
+                100,
+              )
+              const normalizedPointsB = Math.min(
+                ((b.points || 0) / 300) * 100,
+                100,
+              )
+
               // Ingredient availability bonus (0-100)
               const ingredientBonusA = a.hasAllIngredients ? 100 : 0
               const ingredientBonusB = b.hasAllIngredients ? 100 : 0
-              
+
               // Calculate weighted score (all components now 0-100)
               // 35% nutrition score, 35% points, 30% ingredient availability
-              const scoreA = (nutritionScoreA * 0.35) + (normalizedPointsA * 0.35) + (ingredientBonusA * 0.30)
-              const scoreB = (nutritionScoreB * 0.35) + (normalizedPointsB * 0.35) + (ingredientBonusB * 0.30)
-              
+              const scoreA =
+                nutritionScoreA * 0.35 +
+                normalizedPointsA * 0.35 +
+                ingredientBonusA * 0.3
+              const scoreB =
+                nutritionScoreB * 0.35 +
+                normalizedPointsB * 0.35 +
+                ingredientBonusB * 0.3
+
               return scoreB - scoreA
             })
           }
@@ -256,27 +380,42 @@ export default function RecipesScreen() {
     }, 500)
 
     return () => clearTimeout(timer)
-  }, [searchQuery, selectedMealType, selectedDifficulty, selectedSortOption, selectedTags, showIngredientFilter, recipes, showSuggestions])
+  }, [
+    searchQuery,
+    selectedMealType,
+    selectedDifficulty,
+    selectedSortOption,
+    selectedTags,
+    showIngredientFilter,
+    recipes,
+    showSuggestions,
+  ])
 
   // Toggle favorite status for a recipe
   const toggleFavorite = (id: string) => {
     if (!user) return
 
-    recipeService.toggleFavorite(user.id, id).then((isFavorite) => {
-      const updatedRecipes = recipes.map((recipe) =>
-        recipe.id === id ? { ...recipe, isFavorite } : recipe,
-      )
-      setRecipes(updatedRecipes)
-      
-      // Update filtered recipes as well
-      const updatedFilteredRecipes = filteredRecipes.map((recipe) =>
-        recipe.id === id ? { ...recipe, isFavorite } : recipe,
-      )
-      setFilteredRecipes(updatedFilteredRecipes)
-    }).catch((error) => {
-      console.error('Error toggling favorite:', error)
-      Alert.alert('Error', 'Failed to update favorite status. Please try again.')
-    })
+    recipeService
+      .toggleFavorite(user.id, id)
+      .then((isFavorite) => {
+        const updatedRecipes = recipes.map((recipe) =>
+          recipe.id === id ? { ...recipe, isFavorite } : recipe,
+        )
+        setRecipes(updatedRecipes)
+
+        // Update filtered recipes as well
+        const updatedFilteredRecipes = filteredRecipes.map((recipe) =>
+          recipe.id === id ? { ...recipe, isFavorite } : recipe,
+        )
+        setFilteredRecipes(updatedFilteredRecipes)
+      })
+      .catch((error) => {
+        console.error("Error toggling favorite:", error)
+        Alert.alert(
+          "Error",
+          "Failed to update favorite status. Please try again.",
+        )
+      })
   }
 
   // Navigate to recipe detail
@@ -288,19 +427,23 @@ export default function RecipesScreen() {
   const getRecommendationBadges = (recipe: RecipeWithDetails) => {
     const badges = []
     const currentHour = new Date().getHours()
-    let preferredMealType = 'Snack'
-    if (currentHour >= 6 && currentHour < 11) preferredMealType = 'Breakfast'
-    else if (currentHour >= 11 && currentHour < 16) preferredMealType = 'Lunch'
-    else if (currentHour >= 16 && currentHour < 22) preferredMealType = 'Dinner'
+    let preferredMealType = "Snack"
+    if (currentHour >= 6 && currentHour < 11) preferredMealType = "Breakfast"
+    else if (currentHour >= 11 && currentHour < 16) preferredMealType = "Lunch"
+    else if (currentHour >= 16 && currentHour < 22) preferredMealType = "Dinner"
 
     // Time-appropriate badge
     if (recipe.meal_type === preferredMealType) {
-      badges.push({ text: `⏰ Perfect for ${preferredMealType}`, color: '#1e40af', bg: '#dbeafe' })
+      badges.push({
+        text: `⏰ Perfect for ${preferredMealType}`,
+        color: "#1e40af",
+        bg: "#dbeafe",
+      })
     }
 
     // High ingredient match badge
     if (recipe.matchPercentage && recipe.matchPercentage >= 80) {
-      badges.push({ text: '✨ Perfect Match', color: '#166534', bg: '#dcfce7' })
+      badges.push({ text: "✨ Perfect Match", color: "#166534", bg: "#dcfce7" })
     }
 
     return badges
@@ -308,20 +451,36 @@ export default function RecipesScreen() {
 
   // Render recipe card
   const renderRecipeCard = ({ item }: { item: RecipeWithDetails }) => {
-    const recommendationBadges = showSuggestions ? getRecommendationBadges(item) : []
-    
+    const recommendationBadges = showSuggestions
+      ? getRecommendationBadges(item)
+      : []
+
     return (
       <Card style={styles.recipeCard}>
         <View style={styles.recipeImageContainer}>
-          <Image source={{ uri: item.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
-          <TouchableOpacity style={styles.favoriteButton} onPress={() => toggleFavorite(item.id)}>
+          <Image
+            source={{
+              uri: item.image_url || "https://via.placeholder.com/300x200",
+            }}
+            style={styles.recipeImage}
+            resizeMode="cover"
+          />
+          <TouchableOpacity
+            style={styles.favoriteButton}
+            onPress={() => toggleFavorite(item.id)}
+          >
             <Ionicons
               name={item.isFavorite ? "heart" : "heart-outline"}
               size={24}
               color={item.isFavorite ? "#ef4444" : "white"}
             />
           </TouchableOpacity>
-          <Badge text={`+${item.points}`} color="white" backgroundColor="#22c55e" style={styles.pointsBadgeOverlay} />
+          <Badge
+            text={`+${item.points}`}
+            color="white"
+            backgroundColor="#22c55e"
+            style={styles.pointsBadgeOverlay}
+          />
         </View>
 
         <View style={styles.recipeContent}>
@@ -346,7 +505,9 @@ export default function RecipesScreen() {
           {showSuggestions && item.matchPercentage && (
             <View style={styles.matchContainer}>
               <Ionicons name="checkmark-circle" size={14} color="#22c55e" />
-              <Text style={styles.matchText}>{Math.round(item.matchPercentage)}% ingredient match</Text>
+              <Text style={styles.matchText}>
+                {Math.round(item.matchPercentage)}% ingredient match
+              </Text>
             </View>
           )}
 
@@ -361,19 +522,36 @@ export default function RecipesScreen() {
               {item.scoringBreakdown && (
                 <View style={styles.scoreBreakdownContainer}>
                   <View style={styles.scoreBreakdownRow}>
-                    <Ionicons name="nutrition-outline" size={12} color="#64748b" />
+                    <Ionicons
+                      name="nutrition-outline"
+                      size={12}
+                      color="#64748b"
+                    />
                     <Text style={styles.scoreBreakdownText}>
-                      Calorie Goal: {Math.round(item.scoringBreakdown.calorieAlignment * 0.15)}%
+                      Calorie Goal:{" "}
+                      {Math.round(
+                        item.scoringBreakdown.calorieAlignment * 0.15,
+                      )}
+                      %
                     </Text>
                   </View>
                   <View style={styles.scoreBreakdownRow}>
-                    <Ionicons name="restaurant-outline" size={12} color="#64748b" />
+                    <Ionicons
+                      name="restaurant-outline"
+                      size={12}
+                      color="#64748b"
+                    />
                     <Text style={styles.scoreBreakdownText}>
-                      Preferences: {Math.round(item.scoringBreakdown.userPreference * 0.15)}%
+                      Preferences:{" "}
+                      {Math.round(item.scoringBreakdown.userPreference * 0.15)}%
                     </Text>
                   </View>
                   <View style={styles.scoreBreakdownRow}>
-                    <Ionicons name="pricetag-outline" size={12} color="#64748b" />
+                    <Ionicons
+                      name="pricetag-outline"
+                      size={12}
+                      color="#64748b"
+                    />
                     <Text style={styles.scoreBreakdownText}>
                       Tags: {Math.round(item.scoringBreakdown.tagMatch * 0.25)}%
                     </Text>
@@ -394,74 +572,105 @@ export default function RecipesScreen() {
                 />
               ))}
               {item.tags.length > 3 && (
-                <Text style={styles.moreTagsText}>+{item.tags.length - 3} more</Text>
+                <Text style={styles.moreTagsText}>
+                  +{item.tags.length - 3} more
+                </Text>
               )}
             </View>
           )}
 
-        <View style={styles.recipeMetaContainer}>
-          <View style={styles.recipeMeta}>
-            <Ionicons name="time-outline" size={16} color="#4b5563" />
-            <Text style={styles.recipeMetaText}>{item.prep_time}m</Text>
+          <View style={styles.recipeMetaContainer}>
+            <View style={styles.recipeMeta}>
+              <Ionicons name="time-outline" size={16} color="#4b5563" />
+              <Text style={styles.recipeMetaText}>{item.prep_time}m</Text>
+            </View>
+            <View style={styles.recipeMeta}>
+              <Ionicons name="flame-outline" size={16} color="#4b5563" />
+              <Text style={styles.recipeMetaText}>
+                {item.calories || 0} cal
+              </Text>
+            </View>
+            <View style={styles.recipeMeta}>
+              <MaterialCommunityIcons
+                name="food-apple-outline"
+                size={16}
+                color="#4b5563"
+              />
+              <Text style={styles.recipeMetaText}>
+                {item.nutrition_score || 0}
+              </Text>
+            </View>
           </View>
-          <View style={styles.recipeMeta}>
-            <Ionicons name="flame-outline" size={16} color="#4b5563" />
-            <Text style={styles.recipeMetaText}>{item.calories || 0} cal</Text>
-          </View>
-          <View style={styles.recipeMeta}>
-            <MaterialCommunityIcons name="food-apple-outline" size={16} color="#4b5563" />
-            <Text style={styles.recipeMetaText}>{item.nutrition_score || 0}</Text>
-          </View>
-        </View>
 
-        <View style={styles.ingredientsContainer}>
-          <Text style={styles.ingredientsTitle}>Ingredients:</Text>
-          <Text style={styles.ingredientsList}>
-            {item.ingredients.slice(0, 4).map(ing => ing.name).join(", ")}
-            {item.ingredients.length > 4 ? "..." : ""}
-          </Text>
-          {!item.hasAllIngredients && (
-            <Badge
-              text="Missing ingredients"
-              color="#9a3412"
-              backgroundColor="#ffedd5"
-              small
-              style={styles.missingIngredientsBadge}
-            />
-          )}
-        </View>
+          <View style={styles.ingredientsContainer}>
+            <Text style={styles.ingredientsTitle}>Ingredients:</Text>
+            <Text style={styles.ingredientsList}>
+              {item.ingredients
+                .slice(0, 4)
+                .map((ing) => ing.name)
+                .join(", ")}
+              {item.ingredients.length > 4 ? "..." : ""}
+            </Text>
+            {!item.hasAllIngredients && (
+              <Badge
+                text="Missing ingredients"
+                color="#9a3412"
+                backgroundColor="#ffedd5"
+                small
+                style={styles.missingIngredientsBadge}
+              />
+            )}
+          </View>
 
-        <View style={styles.recipeFooter}>
-          <View style={styles.recipeBadges}>
-            <Badge
-              text={item.difficulty}
-              color={
-                item.difficulty === "Beginner" ? "#166534" : item.difficulty === "Intermediate" ? "#9a3412" : "#7e22ce"
-              }
-              backgroundColor={
-                item.difficulty === "Beginner" ? "#dcfce7" : item.difficulty === "Intermediate" ? "#ffedd5" : "#f3e8ff"
-              }
-              small
-            />
-            <Badge
-              text={item.meal_type}
-              color={item.meal_type === "Breakfast" ? "#1e40af" : item.meal_type === "Lunch" ? "#0e7490" : "#7e22ce"}
-              backgroundColor={
-                item.meal_type === "Breakfast" ? "#dbeafe" : item.meal_type === "Lunch" ? "#cffafe" : "#f3e8ff"
-              }
-              small
-              style={styles.secondBadge}
+          <View style={styles.recipeFooter}>
+            <View style={styles.recipeBadges}>
+              <Badge
+                text={item.difficulty}
+                color={
+                  item.difficulty === "Beginner"
+                    ? "#166534"
+                    : item.difficulty === "Intermediate"
+                      ? "#9a3412"
+                      : "#7e22ce"
+                }
+                backgroundColor={
+                  item.difficulty === "Beginner"
+                    ? "#dcfce7"
+                    : item.difficulty === "Intermediate"
+                      ? "#ffedd5"
+                      : "#f3e8ff"
+                }
+                small
+              />
+              <Badge
+                text={item.meal_type}
+                color={
+                  item.meal_type === "Breakfast"
+                    ? "#1e40af"
+                    : item.meal_type === "Lunch"
+                      ? "#0e7490"
+                      : "#7e22ce"
+                }
+                backgroundColor={
+                  item.meal_type === "Breakfast"
+                    ? "#dbeafe"
+                    : item.meal_type === "Lunch"
+                      ? "#cffafe"
+                      : "#f3e8ff"
+                }
+                small
+                style={styles.secondBadge}
+              />
+            </View>
+            <Button
+              text="View Recipe"
+              color="white"
+              backgroundColor="#22c55e"
+              onPress={() => navigateToRecipe(item.id)}
             />
           </View>
-          <Button
-            text="View Recipe"
-            color="white"
-            backgroundColor="#22c55e"
-            onPress={() => navigateToRecipe(item.id)}
-          />
         </View>
-      </View>
-    </Card>
+      </Card>
     )
   }
 
@@ -474,11 +683,27 @@ export default function RecipesScreen() {
           <View style={styles.headerRight}>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => setShowSavedRecipesModal(true)}
+              onPress={() => setShowFavoritesModal(true)}
+            >
+              <Ionicons name="heart-outline" size={24} color="#166534" />
+              {favoriteRecipes.length > 0 && (
+                <View style={styles.headerBadge}>
+                  <Text style={styles.headerBadgeText}>
+                    {favoriteRecipes.length}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowBookmarksModal(true)}
             >
               <Ionicons name="bookmark-outline" size={24} color="#166534" />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton} onPress={() => router.push("/(tabs)/ingredients")}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => router.push("/(tabs)/ingredients")}
+            >
               <Ionicons name="nutrition-outline" size={24} color="#166534" />
             </TouchableOpacity>
           </View>
@@ -489,17 +714,27 @@ export default function RecipesScreen() {
           data={isLoading ? [] : filteredRecipes}
           renderItem={renderRecipeCard}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.recipeListContainer, isWeb && styles.recipeListContainerWeb]}
+          contentContainerStyle={[
+            styles.recipeListContainer,
+            isWeb && styles.recipeListContainerWeb,
+          ]}
           showsVerticalScrollIndicator={false}
           numColumns={isWeb ? 2 : 1}
-          key={isWeb ? 'web' : 'mobile'}
+          key={isWeb ? "web" : "mobile"}
           columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
           ListHeaderComponent={
-            <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            <View
+              style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+            >
               {/* Search Bar */}
               <View style={styles.searchContainer}>
                 <View style={styles.searchInputContainer}>
-                  <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+                  <Ionicons
+                    name="search"
+                    size={20}
+                    color="#9ca3af"
+                    style={styles.searchIcon}
+                  />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search recipes or ingredients..."
@@ -513,7 +748,10 @@ export default function RecipesScreen() {
                     </TouchableOpacity>
                   ) : null}
                 </View>
-                <TouchableOpacity style={styles.filterButton} onPress={() => setShowFilters(!showFilters)}>
+                <TouchableOpacity
+                  style={styles.filterButton}
+                  onPress={() => setShowFilters(!showFilters)}
+                >
                   <Ionicons name="options-outline" size={22} color="#166534" />
                 </TouchableOpacity>
               </View>
@@ -522,7 +760,9 @@ export default function RecipesScreen() {
               {showSuggestions && (
                 <View style={styles.suggestionBanner}>
                   <Ionicons name="nutrition" size={20} color="#166534" />
-                  <Text style={styles.suggestionText}>Showing recipes based on your available ingredients</Text>
+                  <Text style={styles.suggestionText}>
+                    Showing recipes based on your available ingredients
+                  </Text>
                   <TouchableOpacity
                     style={styles.clearSuggestionsButton}
                     onPress={() => {
@@ -538,9 +778,18 @@ export default function RecipesScreen() {
 
               {/* Filter Toggle Button */}
               <View style={styles.filterToggleContainer}>
-                <TouchableOpacity style={styles.filterToggle} onPress={() => setShowFilters(!showFilters)}>
-                  <Ionicons name={showFilters ? "chevron-up" : "chevron-down"} size={20} color="#166534" />
-                  <Text style={styles.filterToggleText}>{showFilters ? "Hide" : "Show"} Filters</Text>
+                <TouchableOpacity
+                  style={styles.filterToggle}
+                  onPress={() => setShowFilters(!showFilters)}
+                >
+                  <Ionicons
+                    name={showFilters ? "chevron-up" : "chevron-down"}
+                    size={20}
+                    color="#166534"
+                  />
+                  <Text style={styles.filterToggleText}>
+                    {showFilters ? "Hide" : "Show"} Filters
+                  </Text>
                 </TouchableOpacity>
               </View>
 
@@ -600,63 +849,122 @@ export default function RecipesScreen() {
                     <View style={styles.tagFilterSection}>
                       <View style={styles.tagFilterHeader}>
                         <View style={styles.tagFilterHeaderLeft}>
-                          <Text style={styles.filterSectionTitle}>Filter by Tags</Text>
+                          <Text style={styles.filterSectionTitle}>
+                            Filter by Tags
+                          </Text>
                           {selectedTags.length > 0 && (
                             <View style={styles.tagCountBadge}>
-                              <Text style={styles.tagCountText}>{selectedTags.length}</Text>
+                              <Text style={styles.tagCountText}>
+                                {selectedTags.length}
+                              </Text>
                             </View>
                           )}
                         </View>
                         {selectedTags.length > 0 && (
-                          <TouchableOpacity onPress={() => setSelectedTags([])} style={styles.clearTagsButton}>
-                            <Ionicons name="close-circle" size={16} color="#ef4444" />
+                          <TouchableOpacity
+                            onPress={() => setSelectedTags([])}
+                            style={styles.clearTagsButton}
+                          >
+                            <Ionicons
+                              name="close-circle"
+                              size={16}
+                              color="#ef4444"
+                            />
                             <Text style={styles.clearTagsText}>Clear All</Text>
                           </TouchableOpacity>
                         )}
                       </View>
-                      <View style={styles.tagChipsContainer}>
-                        {availableTags.map((tagObj) => {
-                          const isSelected = selectedTags.includes(tagObj.tag)
-                          return (
-                            <TouchableOpacity
-                              key={tagObj.tag}
-                              style={[
-                                styles.tagFilterChip,
-                                isSelected && styles.tagFilterChipSelected
-                              ]}
-                              onPress={() => {
-                                if (isSelected) {
-                                  setSelectedTags(selectedTags.filter(t => t !== tagObj.tag))
-                                } else {
-                                  setSelectedTags([...selectedTags, tagObj.tag])
-                                }
-                              }}
-                            >
-                              {isSelected && (
-                                <Ionicons name="checkmark-circle" size={14} color="#22c55e" style={{ marginRight: 4 }} />
-                              )}
-                              <Text style={[
-                                styles.tagFilterChipText,
-                                isSelected && styles.tagFilterChipTextSelected
-                              ]}>
-                                {tagObj.tag}
-                              </Text>
-                            </TouchableOpacity>
-                          )
-                        })}
-                      </View>
+
+                      {/* Grouped tags by type */}
+                      {Object.entries(tagsByType).map(([type, tags]) => {
+                        // Capitalize type for display
+                        const displayType =
+                          type === "cuisine"
+                            ? "Cuisine"
+                            : type === "dietary"
+                              ? "Dietary Preferences"
+                              : type === "meal_type"
+                                ? "Meal Type"
+                                : type === "cooking_method"
+                                  ? "Cooking Method"
+                                  : type === "other"
+                                    ? "Other"
+                                    : type.charAt(0).toUpperCase() +
+                                      type.slice(1)
+
+                        return (
+                          <View key={type} style={styles.tagGroupContainer}>
+                            <Text style={styles.tagGroupTitle}>
+                              {displayType}
+                            </Text>
+                            <View style={styles.tagChipsContainer}>
+                              {tags.map((tag) => {
+                                const isSelected = selectedTags.includes(tag)
+                                return (
+                                  <TouchableOpacity
+                                    key={tag}
+                                    style={[
+                                      styles.tagFilterChip,
+                                      isSelected &&
+                                        styles.tagFilterChipSelected,
+                                    ]}
+                                    onPress={() => {
+                                      if (isSelected) {
+                                        setSelectedTags(
+                                          selectedTags.filter((t) => t !== tag),
+                                        )
+                                      } else {
+                                        setSelectedTags([...selectedTags, tag])
+                                      }
+                                    }}
+                                  >
+                                    {isSelected && (
+                                      <Ionicons
+                                        name="checkmark-circle"
+                                        size={14}
+                                        color="#22c55e"
+                                        style={{ marginRight: 4 }}
+                                      />
+                                    )}
+                                    <Text
+                                      style={[
+                                        styles.tagFilterChipText,
+                                        isSelected &&
+                                          styles.tagFilterChipTextSelected,
+                                      ]}
+                                    >
+                                      {tag}
+                                    </Text>
+                                  </TouchableOpacity>
+                                )
+                              })}
+                            </View>
+                          </View>
+                        )
+                      })}
                     </View>
                   )}
 
                   <View style={styles.ingredientFilterContainer}>
                     <TouchableOpacity
                       style={styles.ingredientFilterButton}
-                      onPress={() => setShowIngredientFilter(!showIngredientFilter)}
+                      onPress={() =>
+                        setShowIngredientFilter(!showIngredientFilter)
+                      }
                     >
-                      <View style={[styles.checkboxContainer, showIngredientFilter ? styles.checkboxChecked : {}]}>
-                        {showIngredientFilter && <Ionicons name="checkmark" size={16} color="white" />}
+                      <View
+                        style={[
+                          styles.checkboxContainer,
+                          showIngredientFilter ? styles.checkboxChecked : {},
+                        ]}
+                      >
+                        {showIngredientFilter && (
+                          <Ionicons name="checkmark" size={16} color="white" />
+                        )}
                       </View>
-                      <Text style={styles.ingredientFilterText}>Show only recipes I can make with my ingredients</Text>
+                      <Text style={styles.ingredientFilterText}>
+                        Show only recipes I can make with my ingredients
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -673,24 +981,35 @@ export default function RecipesScreen() {
               <View style={styles.emptyContainer}>
                 <Ionicons name="restaurant-outline" size={64} color="#9ca3af" />
                 <Text style={styles.emptyTitle}>No recipes found</Text>
-                <Text style={styles.emptyText}>Try adjusting your filters or search for different ingredients</Text>
+                <Text style={styles.emptyText}>
+                  Try adjusting your filters or search for different ingredients
+                </Text>
               </View>
             )
           }
         />
 
+        {/* Favorites Modal */}
         <Modal
-          visible={showSavedRecipesModal}
+          visible={showFavoritesModal}
           animationType="slide"
           transparent
-          onRequestClose={() => setShowSavedRecipesModal(false)}
+          onRequestClose={() => setShowFavoritesModal(false)}
         >
           <View style={styles.savedModalOverlay}>
-            <View style={[styles.savedModalContent, isWeb && styles.savedModalContentWeb]}>
+            <View
+              style={[
+                styles.savedModalContent,
+                isWeb && styles.savedModalContentWeb,
+              ]}
+            >
               <View style={styles.savedModalHeader}>
-                <Text style={styles.savedModalTitle}>Saved Recipes</Text>
+                <View style={styles.savedModalTitleContainer}>
+                  <Ionicons name="heart" size={24} color="#ef4444" />
+                  <Text style={styles.savedModalTitle}>Favorite Recipes</Text>
+                </View>
                 <TouchableOpacity
-                  onPress={() => setShowSavedRecipesModal(false)}
+                  onPress={() => setShowFavoritesModal(false)}
                   style={styles.savedModalCloseButton}
                 >
                   <Ionicons name="close" size={24} color="#166534" />
@@ -699,9 +1018,13 @@ export default function RecipesScreen() {
 
               {favoriteRecipes.length === 0 ? (
                 <View style={styles.savedEmptyState}>
-                  <Ionicons name="bookmark-outline" size={48} color="#9ca3af" />
-                  <Text style={styles.savedEmptyTitle}>No saved recipes yet</Text>
-                  <Text style={styles.savedEmptyText}>Tap the heart on any recipe to save it for quick access.</Text>
+                  <Ionicons name="heart-outline" size={48} color="#9ca3af" />
+                  <Text style={styles.savedEmptyTitle}>
+                    No favorite recipes yet
+                  </Text>
+                  <Text style={styles.savedEmptyText}>
+                    Tap the heart on any recipe to add it to your favorites.
+                  </Text>
                 </View>
               ) : (
                 <FlatList
@@ -711,7 +1034,138 @@ export default function RecipesScreen() {
                   contentContainerStyle={styles.savedModalList}
                   showsVerticalScrollIndicator={false}
                   numColumns={isWeb ? 2 : 1}
-                  key={isWeb ? 'saved-web' : 'saved-mobile'}
+                  key={isWeb ? "fav-web" : "fav-mobile"}
+                  columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
+                />
+              )}
+            </View>
+          </View>
+        </Modal>
+
+        {/* Bookmarks Modal */}
+        <Modal
+          visible={showBookmarksModal}
+          animationType="slide"
+          transparent
+          onRequestClose={() => {
+            setShowBookmarksModal(false)
+            setSelectedCollection(null)
+          }}
+        >
+          <View style={styles.savedModalOverlay}>
+            <View
+              style={[
+                styles.savedModalContent,
+                isWeb && styles.savedModalContentWeb,
+              ]}
+            >
+              <View style={styles.savedModalHeader}>
+                <View style={styles.savedModalTitleContainer}>
+                  <Ionicons name="bookmark" size={24} color="#166534" />
+                  <Text style={styles.savedModalTitle}>
+                    {selectedCollection
+                      ? bookmarkCollections.find(
+                          (c) => c.id === selectedCollection,
+                        )?.name || "Bookmarks"
+                      : "Bookmark Collections"}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (selectedCollection) {
+                      setSelectedCollection(null)
+                    } else {
+                      setShowBookmarksModal(false)
+                    }
+                  }}
+                  style={styles.savedModalCloseButton}
+                >
+                  <Ionicons
+                    name={selectedCollection ? "arrow-back" : "close"}
+                    size={24}
+                    color="#166534"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {!selectedCollection ? (
+                // Show collections list
+                bookmarkCollections.length === 0 ? (
+                  <View style={styles.savedEmptyState}>
+                    <Ionicons
+                      name="bookmark-outline"
+                      size={48}
+                      color="#9ca3af"
+                    />
+                    <Text style={styles.savedEmptyTitle}>
+                      No Collections Yet
+                    </Text>
+                    <Text style={styles.savedEmptyText}>
+                      Bookmark recipes to automatically create your first
+                      collection.
+                    </Text>
+                  </View>
+                ) : (
+                  <ScrollView style={styles.collectionsContainer}>
+                    {bookmarkCollections.map((collection) => (
+                      <TouchableOpacity
+                        key={collection.id}
+                        style={styles.collectionCard}
+                        onPress={() => {
+                          setSelectedCollection(collection.id)
+                          loadBookmarkedRecipes(collection.id)
+                        }}
+                      >
+                        <View style={styles.collectionIconContainer}>
+                          <Ionicons
+                            name="bookmark"
+                            size={32}
+                            color={collection.color}
+                          />
+                        </View>
+                        <View style={styles.collectionInfo}>
+                          <Text style={styles.collectionName}>
+                            {collection.name}
+                          </Text>
+                          {collection.description && (
+                            <Text style={styles.collectionDescription}>
+                              {collection.description}
+                            </Text>
+                          )}
+                          <Text style={styles.collectionCount}>
+                            {collection.bookmarkCount || 0}{" "}
+                            {collection.bookmarkCount === 1
+                              ? "recipe"
+                              : "recipes"}
+                          </Text>
+                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={20}
+                          color="#9ca3af"
+                        />
+                      </TouchableOpacity>
+                    ))}
+                  </ScrollView>
+                )
+              ) : // Show recipes in selected collection
+              bookmarkedRecipes.length === 0 ? (
+                <View style={styles.savedEmptyState}>
+                  <Ionicons name="bookmark-outline" size={48} color="#9ca3af" />
+                  <Text style={styles.savedEmptyTitle}>No Recipes Yet</Text>
+                  <Text style={styles.savedEmptyText}>
+                    Bookmark recipes to add them to this collection.
+                  </Text>
+                </View>
+              ) : (
+                <FlatList
+                  data={bookmarkedRecipes}
+                  renderItem={renderRecipeCard}
+                  keyExtractor={(item) => item.id}
+                  contentContainerStyle={styles.savedModalList}
+                  showsVerticalScrollIndicator={false}
+                  numColumns={isWeb ? 2 : 1}
+                  key={isWeb ? "bookmark-web" : "bookmark-mobile"}
                   columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
                 />
               )}
@@ -1221,6 +1675,84 @@ const styles = StyleSheet.create({
   tagFilterChipTextSelected: {
     color: "#166534",
     fontWeight: "600",
+  },
+  tagGroupContainer: {
+    marginTop: 12,
+  },
+  tagGroupTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#4b5563",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  headerBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    backgroundColor: "#ef4444",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
+  headerBadgeText: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "white",
+  },
+  savedModalTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  collectionsContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  collectionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "white",
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  collectionIconContainer: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#f0fdf4",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 16,
+  },
+  collectionInfo: {
+    flex: 1,
+  },
+  collectionName: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#166534",
+    marginBottom: 4,
+  },
+  collectionDescription: {
+    fontSize: 13,
+    color: "#6b7280",
+    marginBottom: 4,
+  },
+  collectionCount: {
+    fontSize: 12,
+    color: "#9ca3af",
+    fontWeight: "500",
   },
   tagScrollViewWeb: {
     maxWidth: "100%",
