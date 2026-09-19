@@ -1,10 +1,18 @@
-import { useState } from "react"
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, useWindowDimensions, Alert } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useRouter } from "expo-router"
+import { useState } from "react"
+import {
+    Alert,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
 import Button from "@/components/Button"
@@ -26,14 +34,14 @@ export default function ForgotPasswordScreen() {
 
     setIsLoading(true)
     const { error } = await resetPassword(email)
-    
+
     if (error) {
       Alert.alert("Error", error.message)
     } else {
       Alert.alert(
         "Reset Email Sent",
         "Check your email for password reset instructions.",
-        [{ text: "OK", onPress: () => router.back() }]
+        [{ text: "OK", onPress: () => router.back() }],
       )
     }
     setIsLoading(false)
@@ -43,7 +51,10 @@ export default function ForgotPasswordScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Reset Password</Text>
@@ -51,42 +62,53 @@ export default function ForgotPasswordScreen() {
         </View>
 
         <View style={styles.content}>
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             <Card style={styles.resetCard}>
-            <Text style={styles.title}>Forgot Password?</Text>
-            <Text style={styles.subtitle}>
-              Enter your email address and we'll send you instructions to reset your password.
-            </Text>
+              <Text style={styles.title}>Forgot Password?</Text>
+              <Text style={styles.subtitle}>
+                Enter your email address and we&rsquo;ll send you instructions
+                to reset your password.
+              </Text>
 
-            <View style={styles.inputContainer}>
-              <Text style={styles.inputLabel}>Email</Text>
-              <View style={styles.inputWrapper}>
-                <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.textInput}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                />
+              <View style={styles.inputContainer}>
+                <Text style={styles.inputLabel}>Email</Text>
+                <View style={styles.inputWrapper}>
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color="#64748b"
+                    style={styles.inputIcon}
+                  />
+                  <TextInput
+                    style={styles.textInput}
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
+                    placeholderTextColor="#9ca3af"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
               </View>
-            </View>
 
-            <Button
-              text={isLoading ? "Sending..." : "Send Reset Email"}
-              color="white"
-              backgroundColor="#22c55e"
-              onPress={handleResetPassword}
-              disabled={isLoading}
-              style={styles.resetButton}
-            />
+              <Button
+                text={isLoading ? "Sending..." : "Send Reset Email"}
+                color="white"
+                backgroundColor="#22c55e"
+                onPress={handleResetPassword}
+                disabled={isLoading}
+                style={styles.resetButton}
+              />
 
-            <TouchableOpacity style={styles.backToLogin} onPress={() => router.back()}>
-              <Text style={styles.backToLoginText}>Back to Login</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.backToLogin}
+                onPress={() => router.back()}
+              >
+                <Text style={styles.backToLoginText}>Back to Login</Text>
+              </TouchableOpacity>
             </Card>
           </View>
         </View>

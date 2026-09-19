@@ -1,47 +1,61 @@
-import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import React from "react"
+import { StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native"
 
-type BadgeVariant = 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info';
-type BadgeSize = 'small' | 'medium' | 'large';
+type BadgeVariant =
+  | "primary"
+  | "secondary"
+  | "success"
+  | "warning"
+  | "error"
+  | "info"
+type BadgeSize = "small" | "medium" | "large"
 
 interface BadgeProps {
-  label?: string;
-  text?: string; // Alias for label
-  variant?: BadgeVariant;
-  style?: ViewStyle;
-  textStyle?: TextStyle;
-  size?: BadgeSize | 'sm' | 'md' | 'lg';
-  color?: string;
-  backgroundColor?: string;
-  small?: boolean;
+  label?: string
+  text?: string // Alias for label
+  variant?: BadgeVariant
+  style?: ViewStyle
+  textStyle?: TextStyle
+  size?: BadgeSize | "sm" | "md" | "lg"
+  color?: string
+  backgroundColor?: string
+  small?: boolean
 }
 
 const Badge: React.FC<BadgeProps> = ({
   label,
   text,
-  variant = 'primary',
+  variant = "primary",
   style,
   textStyle,
-  size = 'medium',
+  size = "medium",
   color,
   backgroundColor,
   small,
   ...rest
 }) => {
   // Handle legacy size prop (small: boolean)
-  const normalizedSize: BadgeSize = small 
-    ? 'small' 
-    : (size === 'sm' || size === 'md' || size === 'lg'
-        ? { sm: 'small', md: 'medium', lg: 'large' }[size] as BadgeSize
-        : size as BadgeSize);
+  const normalizedSize: BadgeSize = small
+    ? "small"
+    : size === "sm" || size === "md" || size === "lg"
+      ? ({ sm: "small", md: "medium", lg: "large" }[size] as BadgeSize)
+      : (size as BadgeSize)
 
-  const displayText = text || label || '';
+  const displayText = text || label || ""
 
   // Type-safe way to access variant styles
-  const variantBgStyle = styles[`${variant}Badge` as keyof typeof styles] as ViewStyle;
-  const variantTextStyle = styles[`${variant}Text` as keyof typeof styles] as TextStyle;
-  const sizeStyle = styles[`${normalizedSize}Badge` as keyof typeof styles] as ViewStyle;
-  const textSizeStyle = styles[`${normalizedSize}Text` as keyof typeof styles] as TextStyle;
+  const variantBgStyle = styles[
+    `${variant}Badge` as keyof typeof styles
+  ] as ViewStyle
+  const variantTextStyle = styles[
+    `${variant}Text` as keyof typeof styles
+  ] as TextStyle
+  const sizeStyle = styles[
+    `${normalizedSize}Badge` as keyof typeof styles
+  ] as ViewStyle
+  const textSizeStyle = styles[
+    `${normalizedSize}Text` as keyof typeof styles
+  ] as TextStyle
 
   const badgeStyle = [
     styles.badge,
@@ -49,23 +63,21 @@ const Badge: React.FC<BadgeProps> = ({
     sizeStyle,
     backgroundColor && { backgroundColor },
     style,
-  ];
+  ]
 
   const badgeTextStyle = [
     styles.text,
     textSizeStyle,
     color ? { color } : variantTextStyle,
     textStyle,
-  ] as TextStyle[];
+  ] as TextStyle[]
 
   return (
     <View style={badgeStyle} {...rest}>
-      <Text style={badgeTextStyle}>
-        {displayText}
-      </Text>
+      <Text style={badgeTextStyle}>{displayText}</Text>
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   // Base styles
@@ -73,14 +85,14 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 8,
     paddingVertical: 4,
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    alignItems: 'center',
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    alignItems: "center",
   },
   text: {
-    fontWeight: '600',
+    fontWeight: "600",
   },
-  
+
   // Size variants
   smallBadge: {
     paddingHorizontal: 6,
@@ -103,44 +115,44 @@ const styles = StyleSheet.create({
   largeText: {
     fontSize: 16,
   },
-  
+
   // Color variants
   primaryBadge: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: "#e3f2fd",
   },
   primaryText: {
-    color: '#1565c0',
+    color: "#1565c0",
   },
   secondaryBadge: {
-    backgroundColor: '#f3e5f5',
+    backgroundColor: "#f3e5f5",
   },
   secondaryText: {
-    color: '#7b1fa2',
+    color: "#7b1fa2",
   },
   successBadge: {
-    backgroundColor: '#e8f5e9',
+    backgroundColor: "#e8f5e9",
   },
   successText: {
-    color: '#2e7d32',
+    color: "#2e7d32",
   },
   warningBadge: {
-    backgroundColor: '#fff8e1',
+    backgroundColor: "#fff8e1",
   },
   warningText: {
-    color: '#f57f17',
+    color: "#f57f17",
   },
   errorBadge: {
-    backgroundColor: '#ffebee',
+    backgroundColor: "#ffebee",
   },
   errorText: {
-    color: '#c62828',
+    color: "#c62828",
   },
   infoBadge: {
-    backgroundColor: '#e1f5fe',
+    backgroundColor: "#e1f5fe",
   },
   infoText: {
-    color: '#0277bd',
+    color: "#0277bd",
   },
-});
+})
 
-export default Badge;
+export default Badge

@@ -1,6 +1,5 @@
-import { View, Text, StyleSheet } from 'react-native'
-import { Ionicons } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
+import { Ionicons } from "@expo/vector-icons"
+import { StyleSheet, Text, View } from "react-native"
 
 interface CalorieCounterProps {
   currentCalories: number
@@ -8,15 +7,20 @@ interface CalorieCounterProps {
   goalMet: boolean
 }
 
-export function CalorieCounter({ currentCalories, goalCalories, goalMet }: CalorieCounterProps) {
-  const progress = goalCalories > 0 ? Math.min(currentCalories / goalCalories, 1) : 0
+export function CalorieCounter({
+  currentCalories,
+  goalCalories,
+  goalMet,
+}: CalorieCounterProps) {
+  const progress =
+    goalCalories > 0 ? Math.min(currentCalories / goalCalories, 1) : 0
   const percentage = Math.round(progress * 100)
   const remaining = Math.max(goalCalories - currentCalories, 0)
 
   const getProgressColor = () => {
-    if (goalMet && currentCalories > 0) return '#22c55e'
-    if (currentCalories > goalCalories) return '#ef4444'
-    return '#f59e0b'
+    if (goalMet && currentCalories > 0) return "#22c55e"
+    if (currentCalories > goalCalories) return "#ef4444"
+    return "#f59e0b"
   }
 
   return (
@@ -26,7 +30,7 @@ export function CalorieCounter({ currentCalories, goalCalories, goalMet }: Calor
           <Ionicons name="flame" size={24} color="#f59e0b" />
         </View>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Today's Calories</Text>
+          <Text style={styles.title}>Today&rsquo;s Calories</Text>
           <Text style={styles.subtitle}>
             {currentCalories} / {goalCalories} cal
           </Text>
@@ -63,10 +67,10 @@ export function CalorieCounter({ currentCalories, goalCalories, goalMet }: Calor
           <Text
             style={[
               styles.statValue,
-              { color: goalMet && currentCalories > 0 ? '#22c55e' : '#64748b' },
+              { color: goalMet && currentCalories > 0 ? "#22c55e" : "#64748b" },
             ]}
           >
-            {goalMet && currentCalories > 0 ? '+50' : '0'}
+            {goalMet && currentCalories > 0 ? "+50" : "0"}
           </Text>
           <Text style={styles.statLabel}>XP Today</Text>
         </View>
@@ -77,27 +81,27 @@ export function CalorieCounter({ currentCalories, goalCalories, goalMet }: Calor
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 16,
     padding: 16,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   iconContainer: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#fef3c7',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#fef3c7",
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   headerText: {
@@ -105,62 +109,62 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1e293b',
+    fontWeight: "700",
+    color: "#1e293b",
     marginBottom: 2,
   },
   subtitle: {
     fontSize: 14,
-    color: '#64748b',
+    color: "#64748b",
   },
   badgeContainer: {
     marginLeft: 8,
   },
   progressContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   progressBackground: {
     flex: 1,
     height: 8,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: "#f1f5f9",
     borderRadius: 4,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginRight: 12,
   },
   progressFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: 4,
   },
   progressText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#64748b',
+    fontWeight: "600",
+    color: "#64748b",
     minWidth: 45,
-    textAlign: 'right',
+    textAlign: "right",
   },
   statsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   statItem: {
     flex: 1,
-    alignItems: 'center',
+    alignItems: "center",
   },
   divider: {
     width: 1,
     height: 32,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: "#e2e8f0",
   },
   statValue: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#64748b',
+    fontWeight: "800",
+    color: "#64748b",
     marginBottom: 2,
   },
   statLabel: {
     fontSize: 12,
-    color: '#64748b',
+    color: "#64748b",
   },
 })

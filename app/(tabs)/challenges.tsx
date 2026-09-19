@@ -2,18 +2,33 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useFocusEffect, useRouter } from "expo-router"
 import { useCallback, useEffect, useState } from "react"
-import { ActivityIndicator, Modal, RefreshControl, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import {
+    ActivityIndicator,
+    Modal,
+    RefreshControl,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
 import Badge from "@/components/Badge"
 import Button from "@/components/Button"
 import Card from "@/components/Card"
-import ProgressBar from "@/components/ProgressBar"
+import CircularProgress from "@/components/CircularProgress"
+import DifficultyIndicator from "@/components/DifficultyIndicator"
+import FeaturedQuestCard from "@/components/FeaturedQuestCard"
 
 // Hooks and Services
 import { useAuth } from "@/hooks/useAuth"
-import { challengeService, ChallengeWithDetails } from "@/services/challengeService"
+import {
+    challengeService,
+    ChallengeWithDetails,
+} from "@/services/challengeService"
 
 export default function ChallengesScreen() {
   const router = useRouter()
@@ -21,9 +36,15 @@ export default function ChallengesScreen() {
   const { width } = useWindowDimensions()
   const isWeb = width > 768
   const [activeTab, setActiveTab] = useState("active")
-  const [activeChallenges, setActiveChallenges] = useState<ChallengeWithDetails[]>([])
-  const [upcomingChallenges, setUpcomingChallenges] = useState<ChallengeWithDetails[]>([])
-  const [completedChallenges, setCompletedChallenges] = useState<ChallengeWithDetails[]>([])
+  const [activeChallenges, setActiveChallenges] = useState<
+    ChallengeWithDetails[]
+  >([])
+  const [upcomingChallenges, setUpcomingChallenges] = useState<
+    ChallengeWithDetails[]
+  >([])
+  const [completedChallenges, setCompletedChallenges] = useState<
+    ChallengeWithDetails[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -33,7 +54,7 @@ export default function ChallengesScreen() {
   const fetchChallenges = useCallback(async () => {
     try {
       setError(null)
-      
+
       if (!user) {
         setLoading(false)
         return
@@ -41,24 +62,26 @@ export default function ChallengesScreen() {
 
       // Fetch all active challenges with user progress
       const allChallenges = await challengeService.getActiveChallenges(user.id)
-      
-      // Separate into active (started by user) and upcoming (not started)
+
+      // Separate into active (activated by user) and upcoming (not activated)
       const active: ChallengeWithDetails[] = []
       const upcoming: ChallengeWithDetails[] = []
-      
+
       allChallenges.forEach((challenge) => {
-        if (challenge.userProgress && !challenge.userProgress.is_completed) {
+        if (challenge.isActivated && !challenge.userProgress?.is_completed) {
           active.push(challenge)
-        } else if (!challenge.userProgress) {
+        } else if (!challenge.isActivated && !challenge.userProgress) {
           upcoming.push(challenge)
         }
       })
-      
+
       setActiveChallenges(active)
       setUpcomingChallenges(upcoming)
-      
+
       // Fetch completed challenges
-      const completed = await challengeService.getUserCompletedChallenges(user.id)
+      const completed = await challengeService.getUserCompletedChallenges(
+        user.id,
+      )
       setCompletedChallenges(completed)
     } catch (err) {
       console.error("Error fetching challenges:", err)
@@ -81,7 +104,7 @@ export default function ChallengesScreen() {
       if (user) {
         fetchChallenges()
       }
-    }, [user, fetchChallenges])
+    }, [user, fetchChallenges]),
   )
 
   const onRefresh = useCallback(() => {
@@ -95,7 +118,7 @@ export default function ChallengesScreen() {
 
   const startChallenge = async (challengeId: string) => {
     if (!user) return
-    
+
     const success = await challengeService.startChallenge(user.id, challengeId)
     if (success) {
       // Refresh challenges to show updated state
@@ -106,7 +129,10 @@ export default function ChallengesScreen() {
   // Calculate total stats
   const totalCompleted = completedChallenges.length
   const totalActive = activeChallenges.length
-  const totalPoints = completedChallenges.reduce((sum, c) => sum + c.reward_points, 0)
+  const totalPoints = completedChallenges.reduce(
+    (sum, c) => sum + c.reward_points,
+    0,
+  )
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
@@ -115,14 +141,23 @@ export default function ChallengesScreen() {
         <View style={[styles.header, isWeb && styles.headerWeb]}>
           <Text style={styles.headerTitle}>Challenges</Text>
           <View style={styles.headerRight}>
-            <TouchableOpacity style={styles.headerButton} onPress={() => setShowInfoModal(true)}>
-              <Ionicons name="information-circle-outline" size={24} color="#166534" />
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={() => setShowInfoModal(true)}
+            >
+              <Ionicons
+                name="information-circle-outline"
+                size={24}
+                color="#166534"
+              />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Challenge Stats */}
-        <View style={[styles.statsContainer, isWeb && styles.statsContainerWeb]}>
+        <View
+          style={[styles.statsContainer, isWeb && styles.statsContainerWeb]}
+        >
           <Card style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
@@ -146,233 +181,581 @@ export default function ChallengesScreen() {
         {/* Tabs */}
         <View style={[styles.tabsContainer, isWeb && styles.tabsContainerWeb]}>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === "active" ? styles.activeTabButton : {}]}
+            style={[
+              styles.tabButton,
+              activeTab === "active" ? styles.activeTabButton : {},
+            ]}
             onPress={() => setActiveTab("active")}
           >
-            <Text style={[styles.tabText, activeTab === "active" ? styles.activeTabText : {}]}>Active</Text>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "active" ? styles.activeTabText : {},
+              ]}
+            >
+              Active
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === "upcoming" ? styles.activeTabButton : {}]}
+            style={[
+              styles.tabButton,
+              activeTab === "upcoming" ? styles.activeTabButton : {},
+            ]}
             onPress={() => setActiveTab("upcoming")}
           >
-            <Text style={[styles.tabText, activeTab === "upcoming" ? styles.activeTabText : {}]}>Upcoming</Text>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "upcoming" ? styles.activeTabText : {},
+              ]}
+            >
+              Upcoming
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.tabButton, activeTab === "completed" ? styles.activeTabButton : {}]}
+            style={[
+              styles.tabButton,
+              activeTab === "completed" ? styles.activeTabButton : {},
+            ]}
             onPress={() => setActiveTab("completed")}
           >
-            <Text style={[styles.tabText, activeTab === "completed" ? styles.activeTabText : {}]}>Completed</Text>
+            <Text
+              style={[
+                styles.tabText,
+                activeTab === "completed" ? styles.activeTabText : {},
+              ]}
+            >
+              Completed
+            </Text>
           </TouchableOpacity>
         </View>
 
-        <ScrollView 
-          showsVerticalScrollIndicator={false} 
+        <ScrollView
+          showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={["#166534"]} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              colors={["#166534"]}
+            />
           }
         >
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             {/* Loading State */}
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#166534" />
-              <Text style={styles.loadingText}>Loading challenges...</Text>
-            </View>
-          )}
+            {loading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color="#166534" />
+                <Text style={styles.loadingText}>Loading challenges...</Text>
+              </View>
+            )}
 
-          {/* Error State */}
-          {error && !loading && (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle-outline" size={48} color="#dc2626" />
-              <Text style={styles.errorText}>{error}</Text>
-              <Button 
-                text="Retry" 
-                color="white" 
-                backgroundColor="#166534" 
-                onPress={fetchChallenges}
-              />
-            </View>
-          )}
+            {/* Error State */}
+            {error && !loading && (
+              <View style={styles.errorContainer}>
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={48}
+                  color="#dc2626"
+                />
+                <Text style={styles.errorText}>{error}</Text>
+                <Button
+                  text="Retry"
+                  color="white"
+                  backgroundColor="#166534"
+                  onPress={fetchChallenges}
+                />
+              </View>
+            )}
 
-          {/* Active Challenges */}
-          {!loading && !error && activeTab === "active" && (
-            <View style={[styles.challengesContainer, isWeb && styles.challengesContainerWeb]}>
-              {activeChallenges.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="trophy-outline" size={64} color="#cbd5e1" />
-                  <Text style={styles.emptyStateTitle}>No Active Challenges</Text>
-                  <Text style={styles.emptyStateText}>Check out upcoming challenges to get started!</Text>
-                </View>
-              ) : (
-                activeChallenges.map((challenge: ChallengeWithDetails) => {
-                  const completedTasks = challenge.userProgress?.completed_tasks || 0
-                  const totalTasks = challenge.total_tasks
-                  const daysLeft = challenge.daysLeft || 0
-                  const isExpired = daysLeft <= 0
-                  
-                  return (
-                    <Card key={challenge.id} style={{...styles.challengeCard, ...(isExpired ? styles.expiredCard : {})}}>
-                      <View style={styles.challengeHeader}>
-                        <View style={styles.challengeTitleContainer}>
-                          <View style={[styles.challengeIconContainer, { backgroundColor: isExpired ? '#e5e7eb' : challenge.bg_color }]}>
-                            <Ionicons name={challenge.icon as any} size={20} color={isExpired ? '#9ca3af' : challenge.color} />
+            {/* Active Challenges */}
+            {!loading && !error && activeTab === "active" && (
+              <View
+                style={[
+                  styles.challengesContainer,
+                  isWeb && styles.challengesContainerWeb,
+                ]}
+              >
+                {activeChallenges.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="trophy-outline" size={64} color="#cbd5e1" />
+                    <Text style={styles.emptyStateTitle}>
+                      No Active Challenges
+                    </Text>
+                    <Text style={styles.emptyStateText}>
+                      Check out upcoming challenges to get started!
+                    </Text>
+                  </View>
+                ) : (
+                  <>
+                    {/* Featured Quest (first active quest) */}
+                    {activeChallenges.length > 0 && (
+                      <FeaturedQuestCard
+                        title={activeChallenges[0].title}
+                        description={activeChallenges[0].description}
+                        icon={activeChallenges[0].icon}
+                        color={activeChallenges[0].color}
+                        bgColor={activeChallenges[0].bg_color}
+                        rewardPoints={activeChallenges[0].reward_points}
+                        totalTasks={activeChallenges[0].total_tasks}
+                        completedTasks={
+                          activeChallenges[0].userProgress?.completed_tasks || 0
+                        }
+                        daysLeft={activeChallenges[0].questDaysLeft}
+                        difficulty={activeChallenges[0].difficulty_level as any}
+                        onPress={() =>
+                          navigateToChallenge(activeChallenges[0].id)
+                        }
+                      />
+                    )}
+
+                    {/* Other Active Quests */}
+                    {activeChallenges
+                      .slice(1)
+                      .map((challenge: ChallengeWithDetails) => {
+                        const completedTasks =
+                          challenge.userProgress?.completed_tasks || 0
+                        const totalTasks = challenge.total_tasks
+                        const progress =
+                          totalTasks > 0 ? completedTasks / totalTasks : 0
+                        const daysLeft =
+                          challenge.questDaysLeft !== undefined
+                            ? challenge.questDaysLeft
+                            : 0
+                        const isExpired = daysLeft <= 0
+
+                        return (
+                          <Card
+                            key={challenge.id}
+                            style={{
+                              ...styles.challengeCard,
+                              ...(isExpired ? styles.expiredCard : {}),
+                            }}
+                          >
+                            <TouchableOpacity
+                              onPress={() => navigateToChallenge(challenge.id)}
+                              activeOpacity={0.7}
+                            >
+                              <View style={styles.challengeHeader}>
+                                <View style={styles.challengeTitleContainer}>
+                                  <View
+                                    style={[
+                                      styles.challengeIconContainer,
+                                      {
+                                        backgroundColor: isExpired
+                                          ? "#e5e7eb"
+                                          : challenge.bg_color,
+                                      },
+                                    ]}
+                                  >
+                                    <Ionicons
+                                      name={challenge.icon as any}
+                                      size={20}
+                                      color={
+                                        isExpired ? "#9ca3af" : challenge.color
+                                      }
+                                    />
+                                  </View>
+                                  <View style={styles.challengeTitleSection}>
+                                    <Text
+                                      style={[
+                                        styles.challengeTitle,
+                                        {
+                                          color: isExpired
+                                            ? "#9ca3af"
+                                            : challenge.color,
+                                          // spacing is owned by the wrapping section
+                                          marginLeft: 0,
+                                        },
+                                      ]}
+                                    >
+                                      {challenge.title}
+                                    </Text>
+                                    {challenge.difficulty_level &&
+                                      !isExpired && (
+                                        <DifficultyIndicator
+                                          difficulty={
+                                            challenge.difficulty_level as any
+                                          }
+                                          size="small"
+                                        />
+                                      )}
+                                  </View>
+                                </View>
+                                {isExpired ? (
+                                  <Badge
+                                    text="Expired"
+                                    color="white"
+                                    backgroundColor="#9ca3af"
+                                  />
+                                ) : (
+                                  <Badge
+                                    text={`+${challenge.reward_points}`}
+                                    color="white"
+                                    backgroundColor={challenge.color}
+                                  />
+                                )}
+                              </View>
+                              <Text
+                                style={[
+                                  styles.challengeDescription,
+                                  isExpired && styles.expiredText,
+                                ]}
+                                numberOfLines={2}
+                              >
+                                {challenge.description}
+                              </Text>
+                              <View style={styles.challengeProgressRow}>
+                                <CircularProgress
+                                  progress={progress}
+                                  size={60}
+                                  strokeWidth={6}
+                                  color={
+                                    isExpired ? "#9ca3af" : challenge.color
+                                  }
+                                  backgroundColor={
+                                    isExpired
+                                      ? "#f3f4f6"
+                                      : `${challenge.color}20`
+                                  }
+                                >
+                                  <Text
+                                    style={[
+                                      styles.circularProgressText,
+                                      {
+                                        color: isExpired
+                                          ? "#9ca3af"
+                                          : challenge.color,
+                                      },
+                                    ]}
+                                  >
+                                    {completedTasks}/{totalTasks}
+                                  </Text>
+                                </CircularProgress>
+                                <View style={styles.challengeProgressInfo}>
+                                  <Text
+                                    style={[
+                                      styles.challengeProgressLabel,
+                                      isExpired && styles.expiredText,
+                                    ]}
+                                  >
+                                    Tasks Completed
+                                  </Text>
+                                  <View style={styles.challengeDaysLeft}>
+                                    <Ionicons
+                                      name="time-outline"
+                                      size={14}
+                                      color={isExpired ? "#cbd5e1" : "#64748b"}
+                                    />
+                                    <Text
+                                      style={[
+                                        styles.challengeDaysLeftText,
+                                        isExpired && styles.expiredText,
+                                      ]}
+                                    >
+                                      {isExpired
+                                        ? "Expired"
+                                        : `${daysLeft} days left`}
+                                    </Text>
+                                  </View>
+                                </View>
+                              </View>
+                            </TouchableOpacity>
+                          </Card>
+                        )
+                      })}
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* Upcoming Challenges */}
+            {!loading && !error && activeTab === "upcoming" && (
+              <View
+                style={[
+                  styles.challengesContainer,
+                  isWeb && styles.challengesContainerWeb,
+                ]}
+              >
+                {upcomingChallenges.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={64}
+                      color="#cbd5e1"
+                    />
+                    <Text style={styles.emptyStateTitle}>
+                      No Upcoming Challenges
+                    </Text>
+                    <Text style={styles.emptyStateText}>
+                      All challenges are active or completed!
+                    </Text>
+                  </View>
+                ) : (
+                  upcomingChallenges.map((challenge: ChallengeWithDetails) => {
+                    const durationDays = (challenge as any).duration_days || 7
+                    const isLocked = challenge.isLocked || false
+
+                    return (
+                      <Card
+                        key={challenge.id}
+                        style={[
+                          styles.challengeCard,
+                          isLocked && styles.lockedCard,
+                        ]}
+                      >
+                        <View style={styles.challengeHeader}>
+                          <View style={styles.challengeTitleContainer}>
+                            <View
+                              style={[
+                                styles.challengeIconContainer,
+                                {
+                                  backgroundColor: isLocked
+                                    ? "#f1f5f9"
+                                    : challenge.bg_color,
+                                },
+                              ]}
+                            >
+                              <Ionicons
+                                name={
+                                  isLocked
+                                    ? "lock-closed"
+                                    : (challenge.icon as any)
+                                }
+                                size={20}
+                                color={isLocked ? "#94a3b8" : challenge.color}
+                              />
+                            </View>
+                            <Text
+                              style={[
+                                styles.challengeTitle,
+                                {
+                                  color: isLocked ? "#94a3b8" : challenge.color,
+                                },
+                              ]}
+                            >
+                              {challenge.title}
+                            </Text>
                           </View>
-                          <Text style={[styles.challengeTitle, { color: isExpired ? '#9ca3af' : challenge.color }]}>{challenge.title}</Text>
+                          {isLocked ? (
+                            <Badge
+                              text="Locked"
+                              color="#64748b"
+                              backgroundColor="#f1f5f9"
+                            />
+                          ) : (
+                            <Badge
+                              text={`+${challenge.reward_points}`}
+                              color="white"
+                              backgroundColor={challenge.color}
+                            />
+                          )}
                         </View>
-                        {isExpired ? (
-                          <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
-                        ) : (
-                          <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
+
+                        {/* Chain Info */}
+                        {challenge.chainInfo && (
+                          <View style={styles.chainInfo}>
+                            <Ionicons
+                              name="link-outline"
+                              size={14}
+                              color="#64748b"
+                            />
+                            <Text style={styles.chainInfoText}>
+                              Quest {challenge.chainInfo.chainOrder} of{" "}
+                              {challenge.chainInfo.totalInChain} in &ldquo;
+                              {challenge.chainInfo.chainName}&rdquo;
+                            </Text>
+                          </View>
                         )}
-                      </View>
-                      <Text style={[styles.challengeDescription, isExpired && styles.expiredText]}>{challenge.description}</Text>
-                      <View style={styles.challengeProgressContainer}>
-                        <ProgressBar
-                          progress={completedTasks / totalTasks}
-                          colors={isExpired ? ['#9ca3af', '#9ca3af'] : [challenge.color, challenge.color]}
-                          height={8}
-                        />
-                        <Text style={[styles.challengeProgressText, { color: isExpired ? '#9ca3af' : challenge.color }]}>
-                          Progress: {completedTasks}/{totalTasks}
+
+                        {/* Locked Message */}
+                        {isLocked && challenge.chainInfo?.prerequisiteTitle && (
+                          <View style={styles.lockedMessage}>
+                            <Ionicons
+                              name="information-circle-outline"
+                              size={16}
+                              color="#f59e0b"
+                            />
+                            <Text style={styles.lockedMessageText}>
+                              Complete &ldquo;
+                              {challenge.chainInfo.prerequisiteTitle}&rdquo;
+                              first to unlock this quest
+                            </Text>
+                          </View>
+                        )}
+
+                        <Text
+                          style={[
+                            styles.challengeDescription,
+                            isLocked && styles.lockedText,
+                          ]}
+                        >
+                          {challenge.description}
                         </Text>
-                      </View>
-                      <View style={styles.challengeFooter}>
-                        <View style={styles.challengeDaysLeft}>
-                          <Ionicons name="time-outline" size={16} color={isExpired ? '#cbd5e1' : '#64748b'} />
-                          <Text style={[styles.challengeDaysLeftText, isExpired && styles.expiredText]}>
-                            {isExpired ? 'Expired' : `${daysLeft} days left`}
-                          </Text>
+                        <View style={styles.upcomingChallengeDetails}>
+                          <View style={styles.upcomingChallengeDetail}>
+                            <Ionicons
+                              name="time-outline"
+                              size={16}
+                              color={isLocked ? "#cbd5e1" : "#64748b"}
+                            />
+                            <Text
+                              style={[
+                                styles.upcomingChallengeDetailText,
+                                isLocked && styles.lockedText,
+                              ]}
+                            >
+                              {durationDays} day quest
+                            </Text>
+                          </View>
+                          <View style={styles.upcomingChallengeDetail}>
+                            <Ionicons
+                              name="list-outline"
+                              size={16}
+                              color={isLocked ? "#cbd5e1" : "#64748b"}
+                            />
+                            <Text
+                              style={[
+                                styles.upcomingChallengeDetailText,
+                                isLocked && styles.lockedText,
+                              ]}
+                            >
+                              {challenge.total_tasks} tasks
+                            </Text>
+                          </View>
+                          {challenge.difficulty_level && (
+                            <View style={styles.upcomingChallengeDetail}>
+                              <Ionicons
+                                name="flash-outline"
+                                size={16}
+                                color={isLocked ? "#cbd5e1" : "#64748b"}
+                              />
+                              <Text
+                                style={[
+                                  styles.upcomingChallengeDetailText,
+                                  isLocked && styles.lockedText,
+                                ]}
+                              >
+                                {challenge.difficulty_level}
+                              </Text>
+                            </View>
+                          )}
                         </View>
                         <Button
-                          text="View Details"
-                          color={isExpired ? '#9ca3af' : challenge.color}
-                          backgroundColor="transparent"
-                          outline={isExpired ? '#cbd5e1' : challenge.color}
-                          onPress={() => navigateToChallenge(challenge.id)}
+                          text={isLocked ? "Locked" : "Activate Quest"}
+                          color={isLocked ? "#94a3b8" : "white"}
+                          backgroundColor={
+                            isLocked ? "#f1f5f9" : challenge.color
+                          }
+                          onPress={() =>
+                            !isLocked && startChallenge(challenge.id)
+                          }
+                          style={styles.upcomingChallengeButton}
+                          disabled={isLocked}
                         />
-                      </View>
-                    </Card>
-                  )
-                })
-              )}
-            </View>
-          )}
+                      </Card>
+                    )
+                  })
+                )}
+              </View>
+            )}
 
-          {/* Upcoming Challenges */}
-          {!loading && !error && activeTab === "upcoming" && (
-            <View style={[styles.challengesContainer, isWeb && styles.challengesContainerWeb]}>
-              {upcomingChallenges.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="calendar-outline" size={64} color="#cbd5e1" />
-                  <Text style={styles.emptyStateTitle}>No Upcoming Challenges</Text>
-                  <Text style={styles.emptyStateText}>All challenges are active or completed!</Text>
-                </View>
-              ) : (
-                upcomingChallenges.map((challenge: ChallengeWithDetails) => {
-                  const daysLeft = challenge.daysLeft || 0
-                  const isExpired = daysLeft <= 0
-                  const startDate = new Date(challenge.start_date).toLocaleDateString()
-                  const endDate = new Date(challenge.end_date).toLocaleDateString()
-                  
-                  return (
-                    <Card key={challenge.id} style={{...styles.challengeCard, ...(isExpired ? styles.expiredCard : {})}}>
-                      <View style={styles.challengeHeader}>
-                        <View style={styles.challengeTitleContainer}>
-                          <View style={[styles.challengeIconContainer, { backgroundColor: isExpired ? '#e5e7eb' : challenge.bg_color }]}>
-                            <Ionicons name={challenge.icon as any} size={20} color={isExpired ? '#9ca3af' : challenge.color} />
+            {/* Completed Challenges */}
+            {!loading && !error && activeTab === "completed" && (
+              <View
+                style={[
+                  styles.challengesContainer,
+                  isWeb && styles.challengesContainerWeb,
+                ]}
+              >
+                {completedChallenges.length === 0 ? (
+                  <View style={styles.emptyState}>
+                    <Ionicons name="medal-outline" size={64} color="#cbd5e1" />
+                    <Text style={styles.emptyStateTitle}>
+                      No Completed Challenges
+                    </Text>
+                    <Text style={styles.emptyStateText}>
+                      Complete challenges to see them here!
+                    </Text>
+                  </View>
+                ) : (
+                  completedChallenges.map((challenge: ChallengeWithDetails) => {
+                    const completedDate = challenge.userProgress?.completed_at
+                      ? new Date(
+                          challenge.userProgress.completed_at,
+                        ).toLocaleDateString()
+                      : "Recently"
+
+                    return (
+                      <Card key={challenge.id} style={styles.challengeCard}>
+                        <View style={styles.challengeHeader}>
+                          <View style={styles.challengeTitleContainer}>
+                            <View
+                              style={[
+                                styles.challengeIconContainer,
+                                { backgroundColor: challenge.bg_color },
+                              ]}
+                            >
+                              <Ionicons
+                                name={challenge.icon as any}
+                                size={20}
+                                color={challenge.color}
+                              />
+                            </View>
+                            <Text
+                              style={[
+                                styles.challengeTitle,
+                                { color: challenge.color },
+                              ]}
+                            >
+                              {challenge.title}
+                            </Text>
                           </View>
-                          <Text style={[styles.challengeTitle, { color: isExpired ? '#9ca3af' : challenge.color }]}>{challenge.title}</Text>
+                          <Badge
+                            text={`+${challenge.reward_points}`}
+                            color="white"
+                            backgroundColor={challenge.color}
+                          />
                         </View>
-                        {isExpired ? (
-                          <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
-                        ) : (
-                          <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
-                        )}
-                      </View>
-                      <Text style={[styles.challengeDescription, isExpired && styles.expiredText]}>{challenge.description}</Text>
-                      <View style={styles.upcomingChallengeDetails}>
-                        <View style={styles.upcomingChallengeDetail}>
-                          <Ionicons name="calendar-outline" size={16} color={isExpired ? '#cbd5e1' : '#64748b'} />
-                          <Text style={[styles.upcomingChallengeDetailText, isExpired && styles.expiredText]}>
-                            {startDate} - {endDate}
-                          </Text>
-                        </View>
-                        <View style={styles.upcomingChallengeDetail}>
-                          <Ionicons name="time-outline" size={16} color={isExpired ? '#cbd5e1' : '#64748b'} />
-                          <Text style={[styles.upcomingChallengeDetailText, isExpired && styles.expiredText]}>
-                            {isExpired ? 'Expired' : `${daysLeft} days`}
-                          </Text>
-                        </View>
-                      </View>
-                      <Button
-                        text={isExpired ? "Expired" : "Start Challenge"}
-                        color={isExpired ? '#9ca3af' : 'white'}
-                        backgroundColor={isExpired ? '#e5e7eb' : challenge.color}
-                        onPress={() => !isExpired && startChallenge(challenge.id)}
-                        disabled={isExpired}
-                        style={styles.upcomingChallengeButton}
-                      />
-                    </Card>
-                  )
-                })
-              )}
-            </View>
-          )}
-
-          {/* Completed Challenges */}
-          {!loading && !error && activeTab === "completed" && (
-            <View style={[styles.challengesContainer, isWeb && styles.challengesContainerWeb]}>
-              {completedChallenges.length === 0 ? (
-                <View style={styles.emptyState}>
-                  <Ionicons name="medal-outline" size={64} color="#cbd5e1" />
-                  <Text style={styles.emptyStateTitle}>No Completed Challenges</Text>
-                  <Text style={styles.emptyStateText}>Complete challenges to see them here!</Text>
-                </View>
-              ) : (
-                completedChallenges.map((challenge: ChallengeWithDetails) => {
-                  const completedDate = challenge.userProgress?.completed_at 
-                    ? new Date(challenge.userProgress.completed_at).toLocaleDateString()
-                    : "Recently"
-                  
-                  return (
-                    <Card key={challenge.id} style={styles.challengeCard}>
-                      <View style={styles.challengeHeader}>
-                        <View style={styles.challengeTitleContainer}>
-                          <View style={[styles.challengeIconContainer, { backgroundColor: challenge.bg_color }]}>
-                            <Ionicons name={challenge.icon as any} size={20} color={challenge.color} />
+                        <Text style={styles.challengeDescription}>
+                          {challenge.description}
+                        </Text>
+                        <View style={styles.completedChallengeDetails}>
+                          <View style={styles.completedChallengeDetail}>
+                            <Ionicons
+                              name="checkmark-circle"
+                              size={16}
+                              color="#22c55e"
+                            />
+                            <Text style={styles.completedChallengeDetailText}>
+                              Completed {completedDate}
+                            </Text>
                           </View>
-                          <Text style={[styles.challengeTitle, { color: challenge.color }]}>{challenge.title}</Text>
+                          <View style={styles.completedChallengeReward}>
+                            <Ionicons name="trophy" size={16} color="#f59e0b" />
+                            <Text style={styles.completedChallengeRewardText}>
+                              {challenge.reward_points} points earned
+                            </Text>
+                          </View>
                         </View>
-                        <Badge text={`+${challenge.reward_points}`} color="white" backgroundColor={challenge.color} />
-                      </View>
-                      <Text style={styles.challengeDescription}>{challenge.description}</Text>
-                      <View style={styles.completedChallengeDetails}>
-                        <View style={styles.completedChallengeDetail}>
-                          <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-                          <Text style={styles.completedChallengeDetailText}>Completed {completedDate}</Text>
-                        </View>
-                        <View style={styles.completedChallengeReward}>
-                          <Ionicons name="trophy" size={16} color="#f59e0b" />
-                          <Text style={styles.completedChallengeRewardText}>
-                            {challenge.reward_points} points earned
+                        <View style={styles.completedChallengeBadge}>
+                          <Ionicons name="trophy" size={48} color="#f59e0b" />
+                          <Text style={styles.completedChallengeBadgeText}>
+                            Challenge Completed!
                           </Text>
                         </View>
-                      </View>
-                      <View style={styles.completedChallengeBadge}>
-                        <Ionicons name="trophy" size={48} color="#f59e0b" />
-                        <Text style={styles.completedChallengeBadgeText}>Challenge Completed!</Text>
-                      </View>
-                    </Card>
-                  )
-                })
-              )}
-            </View>
-          )}
+                      </Card>
+                    )
+                  })
+                )}
+              </View>
+            )}
 
-          {/* Bottom padding to account for tab bar */}
-          <View style={styles.bottomPadding} />
-        </View>
+            {/* Bottom padding to account for tab bar */}
+            <View style={styles.bottomPadding} />
+          </View>
         </ScrollView>
 
         <Modal
@@ -384,27 +767,45 @@ export default function ChallengesScreen() {
           <View style={styles.infoModalOverlay}>
             <View style={styles.infoModalContent}>
               <View style={styles.infoModalHeader}>
-                <Text style={styles.infoModalTitle}>How Challenges Work</Text>
-                <TouchableOpacity style={styles.headerButton} onPress={() => setShowInfoModal(false)}>
+                <Text style={styles.infoModalTitle}>How Quests Work</Text>
+                <TouchableOpacity
+                  style={styles.headerButton}
+                  onPress={() => setShowInfoModal(false)}
+                >
                   <Ionicons name="close" size={24} color="#166534" />
                 </TouchableOpacity>
               </View>
-              <ScrollView style={styles.infoModalBody} showsVerticalScrollIndicator={false}>
+              <ScrollView
+                style={styles.infoModalBody}
+                showsVerticalScrollIndicator={false}
+              >
                 <View style={styles.infoPoint}>
                   <Ionicons name="flash-outline" size={20} color="#16a34a" />
-                  <Text style={styles.infoPointText}>Tap “Start Challenge” to join. We’ll track your progress automatically.</Text>
+                  <Text style={styles.infoPointText}>
+                    Tap “Start Challenge” to join. We’ll track your progress
+                    automatically.
+                  </Text>
                 </View>
                 <View style={styles.infoPoint}>
                   <Ionicons name="list-outline" size={20} color="#16a34a" />
-                  <Text style={styles.infoPointText}>Complete the listed tasks (daily goals, ingredients, workouts, etc.) before the timer ends.</Text>
+                  <Text style={styles.infoPointText}>
+                    Complete the listed tasks (daily goals, ingredients,
+                    workouts, etc.) before the timer ends.
+                  </Text>
                 </View>
                 <View style={styles.infoPoint}>
                   <Ionicons name="time-outline" size={20} color="#16a34a" />
-                  <Text style={styles.infoPointText}>Each challenge has a countdown. Finish every task before it expires to win.</Text>
+                  <Text style={styles.infoPointText}>
+                    Each challenge has a countdown. Finish every task before it
+                    expires to win.
+                  </Text>
                 </View>
                 <View style={styles.infoPoint}>
                   <Ionicons name="trophy-outline" size={20} color="#16a34a" />
-                  <Text style={styles.infoPointText}>Complete all tasks to claim the reward points and unlock more recipes and badges.</Text>
+                  <Text style={styles.infoPointText}>
+                    Complete all tasks to claim the reward points and unlock
+                    more recipes and badges.
+                  </Text>
                 </View>
               </ScrollView>
               <Button
@@ -615,6 +1016,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+  challengeTitleSection: {
+    flex: 1,
+    marginLeft: 8,
+    gap: 4,
+    alignItems: "flex-start",
+  },
   challengeIconContainer: {
     borderRadius: 16,
     width: 32,
@@ -639,6 +1046,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     marginTop: 6,
+  },
+  challengeProgressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginVertical: 10,
+  },
+  circularProgressText: {
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  challengeProgressInfo: {
+    flex: 1,
+    gap: 4,
+  },
+  challengeProgressLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#4b5563",
   },
   challengeFooter: {
     flexDirection: "row",
@@ -713,10 +1139,46 @@ const styles = StyleSheet.create({
   },
   expiredCard: {
     opacity: 0.6,
-    backgroundColor: '#f9fafb',
+    backgroundColor: "#f9fafb",
   },
   expiredText: {
-    color: '#9ca3af',
+    color: "#9ca3af",
+  },
+  lockedCard: {
+    opacity: 0.75,
+    backgroundColor: "#f8fafc",
+    borderWidth: 1,
+    borderColor: "#e2e8f0",
+  },
+  lockedText: {
+    color: "#94a3b8",
+  },
+  chainInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+  },
+  chainInfoText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748b",
+  },
+  lockedMessage: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#fffbeb",
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+  },
+  lockedMessageText: {
+    flex: 1,
+    fontSize: 12,
+    color: "#b45309",
   },
   loadingContainer: {
     flex: 1,
@@ -762,3 +1224,72 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 })
+
+// Additional styles for quest chains
+const chainStyles = StyleSheet.create({
+  lockedCard: {
+    opacity: 0.8,
+    backgroundColor: "#fafafa",
+  },
+  lockedText: {
+    color: "#94a3b8",
+  },
+  chainInfo: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f8fafc",
+    padding: 8,
+    borderRadius: 8,
+    marginBottom: 8,
+    gap: 6,
+  },
+  chainInfoText: {
+    fontSize: 12,
+    color: "#64748b",
+    fontWeight: "600",
+  },
+  lockedMessage: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#fef3c7",
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  lockedMessageText: {
+    flex: 1,
+    fontSize: 13,
+    color: "#92400e",
+    lineHeight: 18,
+  },
+  challengeTitleSection: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginLeft: 8,
+  },
+  challengeProgressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+    marginTop: 12,
+  },
+  challengeProgressInfo: {
+    flex: 1,
+  },
+  challengeProgressLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#1e293b",
+    marginBottom: 6,
+  },
+  circularProgressText: {
+    fontSize: 13,
+    fontWeight: "700",
+  },
+})
+
+// Merge chain styles into main styles
+Object.assign(styles, chainStyles)

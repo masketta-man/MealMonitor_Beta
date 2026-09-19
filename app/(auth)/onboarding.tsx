@@ -1,57 +1,108 @@
 "use client"
 
 import { useAuth } from "@/hooks/useAuth"
-import { userService } from "@/services/userService"
+import {
+    ingredientService,
+    type StarterIngredientGroup,
+} from "@/services/ingredientService"
 import { settingsService } from "@/services/settingsService"
+import { userService } from "@/services/userService"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
-import { useState } from "react"
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import {
+    ActivityIndicator,
+    Alert,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { supabase } from "@/lib/supabase"
 
 // Components
 import Button from "@/components/Button"
 import Card from "@/components/Card"
 
-const HEALTH_GOALS = [
-  "Lose weight",
-  "Gain muscle",
-  "Maintain weight",
-  "Improve energy",
-  "Better nutrition",
-  "Manage health condition",
+// Each option carries a short description so the choice is self-explanatory
+// without the user having to guess what a bare label means. The `label` is what
+// gets stored, so these strings must stay in sync with any downstream logic that
+// keys off them (e.g. calculateCalorieGoal).
+interface Option {
+  label: string
+  description: string
+}
+
+// Selecting this clears the other health goals (and vice versa): it's the "none
+// of these" answer, so it can't coexist with a specific goal.
+const NO_SPECIFIC_GOAL = "Just exploring for now"
+
+const HEALTH_GOALS: Option[] = [
+  {
+    label: "Lose weight",
+    description: "Lighter meals with a lower calorie target",
+  },
+  {
+    label: "Gain muscle",
+    description: "Higher-protein meals and a bigger calorie target",
+  },
+  {
+    label: "Maintain weight",
+    description: "Balanced meals to stay where you are",
+  },
+  {
+    label: "Improve energy",
+    description: "Steady, nourishing meals through the day",
+  },
+  { label: "Eat healthier", description: "More whole foods, less processed" },
+  {
+    label: "Manage a health condition",
+    description: "Cook around dietary needs like diabetes or blood pressure",
+  },
+  {
+    label: NO_SPECIFIC_GOAL,
+    description: "No particular goal, I just want to browse and cook",
+  },
 ]
 
-const DIETARY_PREFERENCES = [
-  "Omnivore",
-  "Vegetarian",
-  "Vegan",
-  "Pescatarian",
-  "Keto",
-  "Paleo",
-  "Mediterranean",
-  "Low-carb",
+const DIETARY_PREFERENCES: Option[] = [
+  { label: "No restrictions", description: "I eat a bit of everything" },
+  { label: "Vegetarian", description: "No meat or fish" },
+  { label: "Vegan", description: "No animal products at all" },
+  { label: "Pescatarian", description: "Fish and seafood, but no other meat" },
+  { label: "Keto", description: "Very low carb, high fat" },
+  { label: "Paleo", description: "Whole foods, no grains or dairy" },
+  {
+    label: "Mediterranean",
+    description: "Veggies, fish, olive oil, whole grains",
+  },
+  { label: "Low-carb", description: "Fewer carbs, without going full keto" },
 ]
 
-const COOKING_FREQUENCY = [
-  "Daily",
-  "4-5 times a week",
-  "2-3 times a week",
-  "Once a week",
-  "Rarely",
+const COOKING_FREQUENCY: Option[] = [
+  {
+    label: "Almost every day",
+    description: "Cooking is part of my daily routine",
+  },
+  {
+    label: "A few times a week",
+    description: "3 to 5 home-cooked meals a week",
+  },
+  { label: "About once a week", description: "Usually a weekend cook" },
+  { label: "Rarely", description: "I'm just getting started with cooking" },
+  { label: "It varies", description: "No set routine, it depends on the week" },
 ]
 
-const FOOD_RESTRICTIONS = [
-  "None",
-  "Gluten",
-  "Dairy",
-  "Nuts",
-  "Soy",
-  "Eggs",
-  "Shellfish",
-  "Other allergies",
+const FOOD_RESTRICTIONS: Option[] = [
+  { label: "None", description: "Nothing to avoid" },
+  { label: "Gluten", description: "Wheat, barley, rye" },
+  { label: "Dairy", description: "Milk, cheese, butter, cream" },
+  { label: "Nuts", description: "Peanuts and tree nuts" },
+  { label: "Soy", description: "Soybeans, tofu, soy sauce" },
+  { label: "Eggs", description: "Whole eggs and egg-based ingredients" },
+  { label: "Shellfish", description: "Shrimp, crab, clams, and similar" },
 ]
 
 export default function OnboardingScreen() {
@@ -68,57 +119,121 @@ export default function OnboardingScreen() {
 
   const steps = [
     {
-      title: "What are your health goals?",
-      subtitle: "Select all that apply to personalize your experience",
+      title: "What do you want to get out of cooking?",
+      subtitle:
+        "Pick any that apply. We'll aim your recipe suggestions and calorie goal at these.",
       options: HEALTH_GOALS,
       key: "healthGoals" as keyof typeof preferences,
       multiple: true,
     },
     {
-      title: "What's your dietary preference?",
-      subtitle: "This helps us recommend suitable recipes",
+      title: "How do you eat?",
+      subtitle:
+        "Choose the styles that fit you. Recipes that clash with these get filtered out. Pick more than one if they overlap.",
       options: DIETARY_PREFERENCES,
       key: "dietaryPreferences" as keyof typeof preferences,
       multiple: true,
     },
     {
       title: "How often do you cook?",
-      subtitle: "This helps us tailor challenges to your lifestyle",
+      subtitle:
+        "Be honest, there's no wrong answer. We'll set challenge lengths and reminders to match.",
       options: COOKING_FREQUENCY,
       key: "cookingFrequency" as keyof typeof preferences,
       multiple: false,
     },
     {
-      title: "Any food restrictions?",
-      subtitle: "We'll make sure to avoid these in recommendations",
+      title: "Anything you need to avoid?",
+      subtitle:
+        "Pick any allergies or intolerances and we'll keep those ingredients out of your recommendations.",
       options: FOOD_RESTRICTIONS,
       key: "foodRestrictions" as keyof typeof preferences,
       multiple: true,
     },
   ]
 
+  // The pantry step sits after the preference questions. It can't live in `steps`
+  // because its options come from the database and are identified by id rather
+  // than by their label.
+  const PANTRY_STEP_INDEX = steps.length
+  const totalSteps = steps.length + 1
+  const isPantryStep = currentStep === PANTRY_STEP_INDEX
+  const isLastStep = currentStep === totalSteps - 1
+
+  const [pantryGroups, setPantryGroups] = useState<StarterIngredientGroup[]>([])
+  const [isLoadingPantry, setIsLoadingPantry] = useState(false)
+  const [selectedIngredientIds, setSelectedIngredientIds] = useState<string[]>(
+    [],
+  )
+  // Guards against duplicate fetches without putting the loading flag in the
+  // effect's dependencies, which would make the effect re-run on its own state
+  // change, cancel its own in-flight request, and hang on the spinner forever.
+  const pantryRequestedRef = useRef(false)
+
+  const loadPantryOptions = useCallback(async () => {
+    pantryRequestedRef.current = true
+    setIsLoadingPantry(true)
+
+    try {
+      const groups = await ingredientService.getStarterIngredients()
+      setPantryGroups(groups)
+
+      // Allow another attempt if we came back with nothing.
+      if (groups.length === 0) pantryRequestedRef.current = false
+    } finally {
+      setIsLoadingPantry(false)
+    }
+  }, [])
+
+  // Fetch the starter list once, when the user first reaches the pantry step.
+  useEffect(() => {
+    if (!isPantryStep || pantryRequestedRef.current) return
+
+    loadPantryOptions()
+  }, [isPantryStep, loadPantryOptions])
+
+  const toggleIngredient = (ingredientId: string) => {
+    setSelectedIngredientIds((previous) =>
+      previous.includes(ingredientId)
+        ? previous.filter((id) => id !== ingredientId)
+        : [...previous, ingredientId],
+    )
+  }
+
   const currentStepData = steps[currentStep]
 
   const toggleOption = (option: string) => {
     const key = currentStepData.key
-    
+
     if (currentStepData.multiple) {
       const currentArray = preferences[key] as string[]
       if (currentArray.includes(option)) {
-        setPreferences(prev => ({
+        setPreferences((prev) => ({
           ...prev,
-          [key]: currentArray.filter(item => item !== option)
+          [key]: currentArray.filter((item) => item !== option),
+        }))
+      } else if (key === "healthGoals" && option === NO_SPECIFIC_GOAL) {
+        // The catch-all is exclusive: picking it discards any specific goals.
+        setPreferences((prev) => ({ ...prev, [key]: [option] }))
+      } else if (key === "healthGoals") {
+        // Picking a specific goal drops the catch-all if it was selected.
+        setPreferences((prev) => ({
+          ...prev,
+          [key]: [
+            ...currentArray.filter((item) => item !== NO_SPECIFIC_GOAL),
+            option,
+          ],
         }))
       } else {
-        setPreferences(prev => ({
+        setPreferences((prev) => ({
           ...prev,
-          [key]: [...currentArray, option]
+          [key]: [...currentArray, option],
         }))
       }
     } else {
-      setPreferences(prev => ({
+      setPreferences((prev) => ({
         ...prev,
-        [key]: option
+        [key]: option,
       }))
     }
   }
@@ -144,7 +259,7 @@ export default function OnboardingScreen() {
   }
 
   const handleNext = () => {
-    if (currentStep < steps.length - 1) {
+    if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1)
     } else {
       handleComplete()
@@ -164,17 +279,17 @@ export default function OnboardingScreen() {
       [
         {
           text: "Cancel",
-          style: "cancel"
+          style: "cancel",
         },
         {
           text: "Log Out",
           style: "destructive",
           onPress: async () => {
             await signOut()
-            router.replace('/(auth)/login')
-          }
-        }
-      ]
+            router.replace("/(auth)/login")
+          },
+        },
+      ],
     )
   }
 
@@ -185,19 +300,20 @@ export default function OnboardingScreen() {
     }
 
     // Map each goal to a calorie value
+    // Keys must match the HEALTH_GOALS option labels exactly.
     const goalCalorieMap: Record<string, number> = {
       "Lose weight": 1800,
       "Gain muscle": 2500,
       "Maintain weight": 2000,
       "Improve energy": 2000,
-      "Better nutrition": 2000,
-      "Manage health condition": 2000,
+      "Eat healthier": 2000,
+      "Manage a health condition": 2000,
     }
 
     // If user selected multiple goals, calculate average
     const selectedGoalCalories = healthGoals
-      .map(goal => goalCalorieMap[goal])
-      .filter(cal => cal !== undefined)
+      .map((goal) => goalCalorieMap[goal])
+      .filter((cal) => cal !== undefined)
 
     if (selectedGoalCalories.length === 0) {
       return 2000 // Default if no matching goals
@@ -210,7 +326,9 @@ export default function OnboardingScreen() {
 
     // If conflicting goals, prioritize maintain weight as a middle ground
     if (hasLoseWeight && hasGainMuscle) {
-      console.log('🔑 Onboarding: Conflicting goals detected, using balanced approach')
+      console.log(
+        "🔑 Onboarding: Conflicting goals detected, using balanced approach",
+      )
       return 2000 // Balanced middle ground
     }
 
@@ -221,11 +339,92 @@ export default function OnboardingScreen() {
 
     // Calculate average of selected goals
     const averageCalories = Math.round(
-      selectedGoalCalories.reduce((sum, cal) => sum + cal, 0) / selectedGoalCalories.length
+      selectedGoalCalories.reduce((sum, cal) => sum + cal, 0) /
+        selectedGoalCalories.length,
     )
 
-    console.log('🔑 Onboarding: Calculated calorie goal from', healthGoals.length, 'goals:', averageCalories)
+    console.log(
+      "🔑 Onboarding: Calculated calorie goal from",
+      healthGoals.length,
+      "goals:",
+      averageCalories,
+    )
     return averageCalories
+  }
+
+  // The preference columns written to `users`, shared by the create/update paths.
+  const profilePreferenceFields = () => ({
+    health_goals: preferences.healthGoals,
+    dietary_preferences: preferences.dietaryPreferences,
+    cooking_frequency: preferences.cookingFrequency,
+    food_restrictions: preferences.foodRestrictions,
+    onboarding_completed: true,
+  })
+
+  /**
+   * Mirror the collected preferences into `user_settings`.
+   *
+   * This matters more than it looks: the recommendation engine filters on
+   * `user_settings.dietary_restrictions` (recommendationService.calculateUserPreferenceScore
+   * and recipeService.getRecommendations), NOT on `users.food_restrictions`. Without
+   * this write, the restrictions a user picks here have no effect on what we
+   * recommend until they separately open Settings and save.
+   */
+  const persistSettings = async (userId: string) => {
+    const initialCalorieGoal = calculateCalorieGoal(preferences.healthGoals)
+
+    // "None" is a UI affordance meaning "no restrictions". Persisting it verbatim
+    // would have the engine try to match a literal "none" tag against recipes.
+    const dietaryRestrictions = preferences.foodRestrictions.filter(
+      (restriction) => restriction !== "None",
+    )
+
+    console.log("🔑 Onboarding: Saving settings", {
+      initialCalorieGoal,
+      dietaryRestrictions,
+    })
+
+    const settings = await settingsService.upsertUserSettings(userId, {
+      daily_calorie_target: initialCalorieGoal,
+      dietary_restrictions: dietaryRestrictions,
+    })
+
+    if (!settings) {
+      // Non-fatal: the profile is already saved and onboarding_completed is set, so
+      // don't trap the user here. They can correct these in Settings.
+      console.warn(
+        "🔑 Onboarding: Settings could not be saved; continuing anyway",
+      )
+    }
+
+    return settings
+  }
+
+  /**
+   * Seed the pantry with whatever staples the user ticked.
+   *
+   * Recommendations are scored partly on how much of a recipe the user already
+   * has, so an empty pantry means every recipe shows a 0% ingredient match and
+   * nothing is ever flagged "Ready to Cook". Seeding even a handful of staples
+   * makes the first home screen meaningful. Non-fatal: the pantry is editable
+   * from the Ingredients tab afterwards.
+   */
+  const persistPantry = async (userId: string) => {
+    if (selectedIngredientIds.length === 0) return
+
+    const added = await ingredientService.addUserIngredients(
+      userId,
+      selectedIngredientIds,
+    )
+
+    if (added === 0) {
+      console.warn(
+        "🔑 Onboarding: Pantry could not be seeded; continuing anyway",
+      )
+      return
+    }
+
+    console.log("🔑 Onboarding: Seeded pantry with", added, "ingredients")
   }
 
   const handleComplete = async () => {
@@ -234,7 +433,7 @@ export default function OnboardingScreen() {
       return
     }
 
-    console.log('🔑 Onboarding: Completing onboarding process...')
+    console.log("🔑 Onboarding: Completing onboarding process...")
     setIsLoading(true)
 
     try {
@@ -243,76 +442,69 @@ export default function OnboardingScreen() {
 
       let profile
       if (existingProfile) {
-        // Update existing profile
-        console.log('🔑 Onboarding: Updating existing profile')
-        profile = await userService.updateProfile(user.id, {
-          health_goals: preferences.healthGoals,
-          dietary_preferences: preferences.dietaryPreferences,
-          cooking_frequency: preferences.cookingFrequency,
-          food_restrictions: preferences.foodRestrictions,
-          onboarding_completed: true,
-        })
+        console.log("🔑 Onboarding: Updating existing profile")
+        profile = await userService.updateProfile(
+          user.id,
+          profilePreferenceFields(),
+        )
       } else {
-        // Create new profile
-        console.log('🔑 Onboarding: Creating new profile')
+        console.log("🔑 Onboarding: Creating new profile")
         profile = await userService.createProfile({
           id: user.id,
           email: user.email!,
           full_name: user.user_metadata?.full_name || "",
           username: user.user_metadata?.username || null,
-          health_goals: preferences.healthGoals,
-          dietary_preferences: preferences.dietaryPreferences,
-          cooking_frequency: preferences.cookingFrequency,
-          food_restrictions: preferences.foodRestrictions,
-          onboarding_completed: true,
+          ...profilePreferenceFields(),
         })
       }
 
+      // A failed insert may simply mean the row already existed (the profile could
+      // have been created by another path between the read and the write), so fall
+      // back to an update before giving up.
+      if (!profile) {
+        console.log(
+          "🔑 Onboarding: Save returned no profile, retrying as update",
+        )
+        profile = await userService.updateProfile(
+          user.id,
+          profilePreferenceFields(),
+        )
+      }
+
       if (profile) {
-        console.log('🔑 Onboarding: Profile saved successfully')
-        
-        // Calculate initial calorie goal based on health goals
-        const initialCalorieGoal = calculateCalorieGoal(preferences.healthGoals)
-        console.log('🔑 Onboarding: Setting initial calorie goal to', initialCalorieGoal)
-        
-        // Create user settings with the calculated calorie goal
-        await settingsService.createUserSettings(user.id, {
-          daily_calorie_target: initialCalorieGoal,
-        })
-        
-        // Force navigation to tabs with tutorial flag
-        router.replace('/(tabs)?startTutorial=true')
+        console.log("🔑 Onboarding: Profile saved successfully")
+        await Promise.all([persistSettings(user.id), persistPantry(user.id)])
+        router.replace("/(tabs)?startTutorial=true")
       } else {
-        console.log('🔑 Onboarding: Failed to save profile')
-        Alert.alert("Error", "Failed to save your preferences. Please try again.")
+        console.log("🔑 Onboarding: Failed to save profile")
+        Alert.alert(
+          "Error",
+          "Failed to save your preferences. Please try again.",
+        )
         setIsLoading(false)
       }
     } catch (error: any) {
       console.error("Error completing onboarding:", error)
-      // Check if it's a duplicate key error
-      if (error?.message?.includes('duplicate') || error?.code === '23505') {
-        console.log('🔑 Onboarding: Profile already exists, updating instead')
+
+      // 23505 is Postgres unique_violation: the profile row already exists.
+      if (error?.message?.includes("duplicate") || error?.code === "23505") {
+        console.log("🔑 Onboarding: Profile already exists, updating instead")
         try {
-          const profile = await userService.updateProfile(user.id, {
-            health_goals: preferences.healthGoals,
-            dietary_preferences: preferences.dietaryPreferences,
-            cooking_frequency: preferences.cookingFrequency,
-            food_restrictions: preferences.foodRestrictions,
-            onboarding_completed: true,
-          })
+          const profile = await userService.updateProfile(
+            user.id,
+            profilePreferenceFields(),
+          )
 
           if (profile) {
-            // Calculate and set initial calorie goal
-            const initialCalorieGoal = calculateCalorieGoal(preferences.healthGoals)
-            await settingsService.createUserSettings(user.id, {
-              daily_calorie_target: initialCalorieGoal,
-            })
-            
-            router.replace('/(tabs)?startTutorial=true')
+            await Promise.all([
+              persistSettings(user.id),
+              persistPantry(user.id),
+            ])
+            router.replace("/(tabs)?startTutorial=true")
             return
           }
         } catch (updateError) {
-          console.error('Failed to update profile:', updateError)
+          console.error("Failed to update profile:", updateError)
         }
       }
 
@@ -337,13 +529,13 @@ export default function OnboardingScreen() {
           )}
           <View style={styles.progressContainer}>
             <Text style={styles.stepText}>
-              Step {currentStep + 1} of {steps.length}
+              Step {currentStep + 1} of {totalSteps}
             </Text>
             <View style={styles.progressBar}>
               <View
                 style={[
                   styles.progressFill,
-                  { width: `${((currentStep + 1) / steps.length) * 100}%` }
+                  { width: `${((currentStep + 1) / totalSteps) * 100}%` },
                 ]}
               />
             </View>
@@ -352,37 +544,136 @@ export default function OnboardingScreen() {
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          <Card style={styles.questionCard}>
-            <Text style={styles.title}>{currentStepData.title}</Text>
-            <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
+          {isPantryStep ? (
+            <Card style={styles.questionCard}>
+              <Text style={styles.title}>What&rsquo;s in your kitchen?</Text>
+              <Text style={styles.subtitle}>
+                Tick the staples you usually have. We use these to show you
+                recipes you can cook right now, and you can edit the list
+                anytime.
+              </Text>
 
-            <View style={styles.optionsContainer}>
-              {currentStepData.options.map((option) => (
-                <TouchableOpacity
-                  key={option}
-                  style={[
-                    styles.optionButton,
-                    isOptionSelected(option) && styles.optionButtonSelected
-                  ]}
-                  onPress={() => toggleOption(option)}
-                >
-                  <View style={styles.optionContent}>
-                    <Text
+              {isLoadingPantry ? (
+                <View style={styles.pantryLoading}>
+                  <ActivityIndicator size="small" color="#22c55e" />
+                  <Text style={styles.pantryLoadingText}>
+                    Loading common ingredients...
+                  </Text>
+                </View>
+              ) : pantryGroups.length === 0 ? (
+                <View style={styles.pantryEmpty}>
+                  <Text style={styles.pantryLoadingText}>
+                    We couldn&rsquo;t load ingredients right now. You can skip
+                    this and add them from the Ingredients tab later.
+                  </Text>
+                  <Button
+                    text="Try Again"
+                    color="#22c55e"
+                    backgroundColor="transparent"
+                    outline="#22c55e"
+                    onPress={loadPantryOptions}
+                    style={styles.pantryRetryButton}
+                  />
+                </View>
+              ) : (
+                <>
+                  {pantryGroups.map((group) => (
+                    <View key={group.category} style={styles.pantryGroup}>
+                      <Text style={styles.pantryGroupTitle}>
+                        {group.category}
+                      </Text>
+                      <View style={styles.pantryGrid}>
+                        {group.ingredients.map((ingredient) => {
+                          const selected = selectedIngredientIds.includes(
+                            ingredient.id,
+                          )
+
+                          return (
+                            <TouchableOpacity
+                              key={ingredient.id}
+                              style={[
+                                styles.pantryChip,
+                                selected && styles.pantryChipSelected,
+                              ]}
+                              onPress={() => toggleIngredient(ingredient.id)}
+                            >
+                              <Ionicons
+                                name={
+                                  selected
+                                    ? "checkmark-circle"
+                                    : "add-circle-outline"
+                                }
+                                size={16}
+                                color={selected ? "#166534" : "#94a3b8"}
+                              />
+                              <Text
+                                style={[
+                                  styles.pantryChipText,
+                                  selected && styles.pantryChipTextSelected,
+                                ]}
+                              >
+                                {ingredient.name}
+                              </Text>
+                            </TouchableOpacity>
+                          )
+                        })}
+                      </View>
+                    </View>
+                  ))}
+                  <Text style={styles.pantryCount}>
+                    {selectedIngredientIds.length === 0
+                      ? "Nothing selected yet"
+                      : `${selectedIngredientIds.length} selected`}
+                  </Text>
+                </>
+              )}
+            </Card>
+          ) : (
+            <Card style={styles.questionCard}>
+              <Text style={styles.title}>{currentStepData.title}</Text>
+              <Text style={styles.subtitle}>{currentStepData.subtitle}</Text>
+
+              <View style={styles.optionsContainer}>
+                {currentStepData.options.map((option) => {
+                  const selected = isOptionSelected(option.label)
+
+                  return (
+                    <TouchableOpacity
+                      key={option.label}
                       style={[
-                        styles.optionText,
-                        isOptionSelected(option) && styles.optionTextSelected
+                        styles.optionButton,
+                        selected && styles.optionButtonSelected,
                       ]}
+                      onPress={() => toggleOption(option.label)}
                     >
-                      {option}
-                    </Text>
-                    {isOptionSelected(option) && (
-                      <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                    )}
-                  </View>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Card>
+                      <View style={styles.optionContent}>
+                        <View style={styles.optionTextGroup}>
+                          <Text
+                            style={[
+                              styles.optionText,
+                              selected && styles.optionTextSelected,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                          <Text style={styles.optionDescription}>
+                            {option.description}
+                          </Text>
+                        </View>
+                        {selected && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color="#22c55e"
+                          />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </Card>
+          )}
         </ScrollView>
 
         {/* Footer */}
@@ -391,9 +682,9 @@ export default function OnboardingScreen() {
             text={
               isLoading
                 ? "Setting up..."
-                : currentStep === steps.length - 1
-                ? "Complete Setup"
-                : "Next"
+                : isLastStep
+                  ? "Complete Setup"
+                  : "Next"
             }
             color="white"
             backgroundColor="#22c55e"
@@ -401,15 +692,19 @@ export default function OnboardingScreen() {
             disabled={isLoading}
             style={styles.nextButton}
           />
-          
+
           {/* Skip button for all steps except the last one */}
-          {currentStep < steps.length - 1 && (
-            <TouchableOpacity 
-              style={styles.skipButton} 
+          {!isLastStep && (
+            <TouchableOpacity
+              style={styles.skipButton}
               onPress={handleNext}
               disabled={isLoading}
             >
-              <Text style={styles.skipButtonText}>Skip for now</Text>
+              {/* On question steps this is a real answer ("none apply"), not
+                  dodging. The pantry step keeps plain "Skip for now". */}
+              <Text style={styles.skipButtonText}>
+                {isPantryStep ? "Skip for now" : "None of these apply"}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -509,27 +804,107 @@ const styles = StyleSheet.create({
     backgroundColor: "#dcfce7",
     borderColor: "#22c55e",
   },
+  // The pantry step offers many more options than the preference steps, so it uses
+  // category-grouped wrapping chip grids rather than full-width rows.
+  pantryGroup: {
+    marginBottom: 20,
+  },
+  pantryGroupTitle: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#166534",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  pantryGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  pantryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#f9fafb",
+    borderWidth: 2,
+    borderColor: "#e5e7eb",
+    borderRadius: 24,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 44,
+  },
+  pantryChipSelected: {
+    backgroundColor: "#dcfce7",
+    borderColor: "#22c55e",
+  },
+  pantryChipText: {
+    fontSize: 14,
+    color: "#374151",
+    fontWeight: "600",
+  },
+  pantryChipTextSelected: {
+    color: "#166534",
+  },
+  pantryCount: {
+    marginTop: 16,
+    fontSize: 13,
+    color: "#64748b",
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  pantryLoading: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 20,
+  },
+  pantryLoadingText: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+  },
+  pantryEmpty: {
+    paddingVertical: 12,
+    gap: 16,
+  },
+  pantryRetryButton: {
+    alignSelf: "center",
+    minWidth: 160,
+  },
   optionContent: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
+  optionTextGroup: {
+    flex: 1,
+    marginRight: 12,
+  },
   optionText: {
     fontSize: 15,
     color: "#374151",
     fontWeight: "600",
-    flex: 1,
-    marginRight: 12,
     lineHeight: 20,
   },
   optionTextSelected: {
     color: "#166534",
     fontWeight: "700",
   },
+  optionDescription: {
+    fontSize: 13,
+    color: "#64748b",
+    lineHeight: 18,
+    marginTop: 2,
+  },
   footer: {
     paddingHorizontal: 16,
     paddingVertical: 20,
-    paddingBottom: 100,
+    // The 100px bottom padding that used to live here existed only to clear a tab
+    // bar that should never have rendered over onboarding. The root layout now
+    // hides the tab bar and FAB inside the (auth) group.
+    paddingBottom: 24,
   },
   nextButton: {
     marginBottom: 12,

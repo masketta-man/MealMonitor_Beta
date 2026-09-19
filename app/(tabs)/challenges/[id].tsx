@@ -2,7 +2,16 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { useCallback, useEffect, useState } from "react"
-import { ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native"
+import {
+    ActivityIndicator,
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -10,16 +19,20 @@ import Badge from "@/components/Badge"
 import Button from "@/components/Button"
 import Card from "@/components/Card"
 import ProgressBar from "@/components/ProgressBar"
+import QuestCompletionCelebration from "@/components/QuestCompletionCelebration"
 
 // Hooks and Services
 import { useAuth } from "@/hooks/useAuth"
-import { challengeService, ChallengeWithDetails } from "@/services/challengeService"
+import {
+    challengeService,
+    ChallengeWithDetails,
+    isAutoAdvanceTask,
+} from "@/services/challengeService"
 
 // Task completion status interface
 interface TaskStatus {
   [taskId: string]: boolean
 }
-
 
 export default function ChallengeDetailScreen() {
   const router = useRouter()
@@ -29,6 +42,7 @@ export default function ChallengeDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [completingTask, setCompletingTask] = useState(false)
+  const [showCelebration, setShowCelebration] = useState(false)
 
   const fetchChallenge = useCallback(async () => {
     if (!id || !user) {
@@ -38,14 +52,20 @@ export default function ChallengeDetailScreen() {
 
     try {
       setError(null)
-      const challengeData = await challengeService.getChallenge(id as string, user.id)
-      
+      const challengeData = await challengeService.getChallenge(
+        id as string,
+        user.id,
+      )
+
       if (challengeData) {
         // Ensure user has started this challenge
         if (!challengeData.userProgress) {
           await challengeService.startChallenge(user.id, id as string)
           // Refetch to get updated progress
-          const updatedChallenge = await challengeService.getChallenge(id as string, user.id)
+          const updatedChallenge = await challengeService.getChallenge(
+            id as string,
+            user.id,
+          )
           setChallenge(updatedChallenge)
         } else {
           setChallenge(challengeData)
@@ -68,14 +88,14 @@ export default function ChallengeDetailScreen() {
   // Reload challenge when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('Challenge detail screen focused, reloading data...')
+      console.log("Challenge detail screen focused, reloading data...")
       fetchChallenge()
-    }, [fetchChallenge])
+    }, [fetchChallenge]),
   )
 
   const toggleTaskCompletion = async (taskId: string) => {
     if (!challenge || !user || completingTask) return
-    
+
     // Check if challenge is expired
     const daysLeft = challenge.daysLeft || 0
     if (daysLeft <= 0) return
@@ -83,52 +103,53 @@ export default function ChallengeDetailScreen() {
     setCompletingTask(true)
     try {
       // Check if task is currently completed
-      const taskProgress = challenge.userTaskProgress?.find(tp => tp.task_id === taskId)
+      const taskProgress = challenge.userTaskProgress?.find(
+        (tp) => tp.task_id === taskId,
+      )
       const isCompleted = taskProgress?.is_completed || false
 
       let success: boolean
       if (isCompleted) {
         // Uncomplete the task
-        success = await challengeService.uncompleteTask(user.id, challenge.id, taskId)
+        success = await challengeService.uncompleteTask(
+          user.id,
+          challenge.id,
+          taskId,
+        )
       } else {
         // Complete the task
-        success = await challengeService.completeTask(user.id, challenge.id, taskId)
+        success = await challengeService.completeTask(
+          user.id,
+          challenge.id,
+          taskId,
+        )
       }
 
       if (success) {
         // Refresh challenge data
         await fetchChallenge()
-        
+
         // Show success message if challenge is completed
-        const updatedChallenge = await challengeService.getChallenge(challenge.id, user.id)
-        console.log('Challenge update:', {
+        const updatedChallenge = await challengeService.getChallenge(
+          challenge.id,
+          user.id,
+        )
+        console.log("Challenge update:", {
           challengeId: challenge.id,
           completedTasks: updatedChallenge?.userProgress?.completed_tasks,
           totalTasks: updatedChallenge?.total_tasks,
-          isCompleted: updatedChallenge?.userProgress?.is_completed
+          isCompleted: updatedChallenge?.userProgress?.is_completed,
         })
-        
+
         if (updatedChallenge?.userProgress?.is_completed && !isCompleted) {
-          console.log('🎉 Challenge completed! Showing alert and redirecting...')
-          if (Platform.OS === 'web') {
-            // Web platform - navigate first, then show alert
-            router.back()
-            setTimeout(() => {
-              alert(`🎉 Challenge Completed! Congratulations! You've earned ${challenge.reward_points} points!`)
-            }, 100)
-          } else {
-            // Native platform - use Alert.alert
-            Alert.alert(
-              "🎉 Challenge Completed!",
-              `Congratulations! You've earned ${challenge.reward_points} points!`,
-              [{ text: "Awesome!", onPress: () => router.back() }]
-            )
-          }
+          console.log("🎉 Challenge completed! Showing celebration...")
+          // Show celebration modal
+          setShowCelebration(true)
         }
       }
     } catch (err) {
       console.error("Error toggling task:", err)
-      if (Platform.OS === 'web') {
+      if (Platform.OS === "web") {
         alert("Failed to update task. Please try again.")
       } else {
         Alert.alert("Error", "Failed to update task. Please try again.")
@@ -160,14 +181,24 @@ export default function ChallengeDetailScreen() {
       <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
         <SafeAreaView style={styles.safeArea} edges={["top"]}>
           <View style={styles.header}>
-            <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
               <Ionicons name="arrow-back" size={24} color="#166534" />
             </TouchableOpacity>
           </View>
           <View style={styles.errorContainer}>
             <Ionicons name="alert-circle-outline" size={64} color="#dc2626" />
-            <Text style={styles.errorTitle}>{error || "Challenge not found"}</Text>
-            <Button text="Go Back" color="white" backgroundColor="#166534" onPress={() => router.back()} />
+            <Text style={styles.errorTitle}>
+              {error || "Challenge not found"}
+            </Text>
+            <Button
+              text="Go Back"
+              color="white"
+              backgroundColor="#166534"
+              onPress={() => router.back()}
+            />
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -176,17 +207,27 @@ export default function ChallengeDetailScreen() {
 
   const completedTasks = challenge.userProgress?.completed_tasks || 0
   const totalTasks = challenge.total_tasks
-  const daysLeft = challenge.daysLeft || 0
-  const isExpired = daysLeft <= 0
-  const startDate = new Date(challenge.start_date).toLocaleDateString()
-  const endDate = new Date(challenge.end_date).toLocaleDateString()
+  const daysLeft =
+    challenge.questDaysLeft !== undefined
+      ? challenge.questDaysLeft
+      : challenge.daysLeft || 0
+  const isExpired = daysLeft <= 0 && challenge.isActivated
+  const startDate = challenge.userProgress?.activated_at
+    ? new Date(challenge.userProgress.activated_at).toLocaleDateString()
+    : new Date(challenge.start_date).toLocaleDateString()
+  const endDate = challenge.userProgress?.quest_end_date
+    ? new Date(challenge.userProgress.quest_end_date).toLocaleDateString()
+    : new Date(challenge.end_date).toLocaleDateString()
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
         </View>
@@ -194,16 +235,25 @@ export default function ChallengeDetailScreen() {
         <ScrollView showsVerticalScrollIndicator={false}>
           {/* Challenge Header */}
           <View style={styles.challengeHeaderContainer}>
-            <View style={[styles.iconContainer, { backgroundColor: isExpired ? '#e5e7eb' : challenge.bg_color }]}>
-              <Ionicons name={challenge.icon as any} size={40} color={isExpired ? '#9ca3af' : challenge.color} />
-            </View>
-            <Text style={[styles.challengeTitle, isExpired && { color: '#9ca3af' }]}>{challenge.title}</Text>
-            {isExpired ? (
-              <Badge
-                text="Expired"
-                color="white"
-                backgroundColor="#9ca3af"
+            <View
+              style={[
+                styles.iconContainer,
+                { backgroundColor: isExpired ? "#e5e7eb" : challenge.bg_color },
+              ]}
+            >
+              <Ionicons
+                name={challenge.icon as any}
+                size={40}
+                color={isExpired ? "#9ca3af" : challenge.color}
               />
+            </View>
+            <Text
+              style={[styles.challengeTitle, isExpired && { color: "#9ca3af" }]}
+            >
+              {challenge.title}
+            </Text>
+            {isExpired ? (
+              <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
             ) : (
               <Badge
                 text={challenge.category || "Challenge"}
@@ -220,17 +270,30 @@ export default function ChallengeDetailScreen() {
               {isExpired ? (
                 <Badge text="Expired" color="white" backgroundColor="#9ca3af" />
               ) : (
-                <Badge text={`${daysLeft} days left`} color="#f97316" backgroundColor="#ffedd5" />
+                <Badge
+                  text={`${daysLeft} days left`}
+                  color="#f97316"
+                  backgroundColor="#ffedd5"
+                />
               )}
             </View>
 
             <View style={styles.progressBarContainer}>
               <ProgressBar
                 progress={completedTasks / totalTasks}
-                colors={isExpired ? ['#9ca3af', '#9ca3af'] : [challenge.color, challenge.color]}
+                colors={
+                  isExpired
+                    ? ["#9ca3af", "#9ca3af"]
+                    : [challenge.color, challenge.color]
+                }
                 height={12}
               />
-              <Text style={[styles.progressText, { color: isExpired ? '#9ca3af' : challenge.color }]}>
+              <Text
+                style={[
+                  styles.progressText,
+                  { color: isExpired ? "#9ca3af" : challenge.color },
+                ]}
+              >
                 {completedTasks}/{totalTasks} completed
               </Text>
             </View>
@@ -238,20 +301,26 @@ export default function ChallengeDetailScreen() {
             {isExpired && (
               <View style={styles.expiredWarning}>
                 <Ionicons name="warning" size={16} color="#ef4444" />
-                <Text style={styles.expiredWarningText}>This challenge has expired. Tasks can no longer be completed.</Text>
+                <Text style={styles.expiredWarningText}>
+                  This challenge has expired. Tasks can no longer be completed.
+                </Text>
               </View>
             )}
 
             <View style={styles.rewardContainer}>
               <Ionicons name="trophy" size={20} color="#f59e0b" />
-              <Text style={styles.rewardText}>{challenge.reward_points} XP Reward upon completion</Text>
+              <Text style={styles.rewardText}>
+                {challenge.reward_points} XP Reward upon completion
+              </Text>
             </View>
           </Card>
 
           {/* Challenge Description */}
           <Card style={styles.section}>
             <Text style={styles.sectionTitle}>About This Challenge</Text>
-            <Text style={styles.descriptionText}>{challenge.long_description || challenge.description}</Text>
+            <Text style={styles.descriptionText}>
+              {challenge.long_description || challenge.description}
+            </Text>
 
             <View style={styles.challengeMetaContainer}>
               <View style={styles.challengeMetaItem}>
@@ -262,7 +331,9 @@ export default function ChallengeDetailScreen() {
               </View>
               <View style={styles.challengeMetaItem}>
                 <Ionicons name="time-outline" size={16} color="#64748b" />
-                <Text style={styles.challengeMetaText}>{daysLeft} days remaining</Text>
+                <Text style={styles.challengeMetaText}>
+                  {daysLeft} days remaining
+                </Text>
               </View>
             </View>
           </Card>
@@ -273,40 +344,93 @@ export default function ChallengeDetailScreen() {
               <Text style={styles.sectionTitle}>Challenge Tasks</Text>
 
               {challenge.tasks.map((task) => {
-                const taskProgress = challenge.userTaskProgress?.find(tp => tp.task_id === task.id)
+                const taskProgress = challenge.userTaskProgress?.find(
+                  (tp) => tp.task_id === task.id,
+                )
                 const isCompleted = taskProgress?.is_completed || false
-                const completedDate = taskProgress?.completed_at 
+                const completedDate = taskProgress?.completed_at
                   ? new Date(taskProgress.completed_at).toLocaleDateString()
                   : null
 
-                return (
-                  <TouchableOpacity 
-                    key={task.id} 
-                    style={[styles.taskItem, isExpired && { opacity: 0.5 }]} 
-                    onPress={() => toggleTaskCompletion(task.id)}
-                    disabled={completingTask || isExpired}
+                // Auto-advance tasks progress when the user cooks a recipe, so they
+                // are read-only here rather than a manual checkbox.
+                const isAuto = isAutoAdvanceTask(task.title)
+
+                const checkbox = (
+                  <View
+                    style={[
+                      styles.taskCheckbox,
+                      isCompleted
+                        ? {
+                            backgroundColor: challenge.color,
+                            borderColor: challenge.color,
+                          }
+                        : {},
+                    ]}
                   >
-                    <View
+                    {isCompleted && (
+                      <Ionicons name="checkmark" size={16} color="white" />
+                    )}
+                  </View>
+                )
+
+                const content = (
+                  <View style={styles.taskContent}>
+                    <Text
                       style={[
-                        styles.taskCheckbox,
-                        isCompleted ? { backgroundColor: challenge.color, borderColor: challenge.color } : {},
+                        styles.taskTitle,
+                        isCompleted
+                          ? {
+                              textDecorationLine: "line-through",
+                              color: "#9ca3af",
+                            }
+                          : {},
                       ]}
                     >
-                      {isCompleted && <Ionicons name="checkmark" size={16} color="white" />}
-                    </View>
-                    <View style={styles.taskContent}>
-                      <Text
-                        style={[
-                          styles.taskTitle,
-                          isCompleted ? { textDecorationLine: "line-through", color: "#9ca3af" } : {},
-                        ]}
-                      >
-                        {task.title}
+                      {task.title}
+                    </Text>
+                    {isCompleted && completedDate ? (
+                      <Text style={styles.taskDate}>
+                        Completed on {completedDate}
                       </Text>
-                      {isCompleted && completedDate && (
-                        <Text style={styles.taskDate}>Completed on {completedDate}</Text>
-                      )}
+                    ) : isAuto && !isExpired ? (
+                      <View style={styles.taskHintRow}>
+                        <Ionicons
+                          name="restaurant-outline"
+                          size={12}
+                          color="#94a3b8"
+                        />
+                        <Text style={styles.taskHint}>
+                          Completes when you cook a recipe
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )
+
+                // Read-only for auto tasks (and expired quests); tap-to-complete
+                // only for manual tasks on an active quest.
+                if (isAuto || isExpired) {
+                  return (
+                    <View
+                      key={task.id}
+                      style={[styles.taskItem, isExpired && { opacity: 0.5 }]}
+                    >
+                      {checkbox}
+                      {content}
                     </View>
+                  )
+                }
+
+                return (
+                  <TouchableOpacity
+                    key={task.id}
+                    style={styles.taskItem}
+                    onPress={() => toggleTaskCompletion(task.id)}
+                    disabled={completingTask}
+                  >
+                    {checkbox}
+                    {content}
                   </TouchableOpacity>
                 )
               })}
@@ -318,6 +442,20 @@ export default function ChallengeDetailScreen() {
           {/* Bottom padding */}
           <View style={styles.bottomPadding} />
         </ScrollView>
+
+        {/* Quest Completion Celebration */}
+        <QuestCompletionCelebration
+          visible={showCelebration}
+          questTitle={challenge.title}
+          rewardPoints={challenge.reward_points}
+          onClose={() => {
+            setShowCelebration(false)
+            router.back()
+          }}
+          onViewHistory={() => {
+            router.push("/(tabs)/quest-history")
+          }}
+        />
       </SafeAreaView>
     </LinearGradient>
   )
@@ -508,6 +646,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#64748b",
   },
+  taskHintRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  taskHint: {
+    fontSize: 12,
+    color: "#94a3b8",
+    fontStyle: "italic",
+  },
   nutritionDescription: {
     fontSize: 14,
     color: "#4b5563",
@@ -569,16 +717,16 @@ const styles = StyleSheet.create({
     height: 100,
   },
   expiredWarning: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fef2f2',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fef2f2",
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
   },
   expiredWarningText: {
     fontSize: 13,
-    color: '#dc2626',
+    color: "#dc2626",
     marginLeft: 8,
     flex: 1,
   },

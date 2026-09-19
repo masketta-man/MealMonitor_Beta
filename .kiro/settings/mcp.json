@@ -9,7 +9,12 @@
     },
     "supabase": {
       "command": "C:\\Program Files\\nodejs\\npx.cmd",
-      "args": ["-y", "@supabase/mcp-server-supabase@latest", "--access-token", "sbp_87afbec6ba2495143ff94075f9799533468212b8"],
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--access-token",
+        "sbp_461889a1fd61bc6ce588e8be36d17f8def04fddf"
+      ],
       "disabled": false,
       "autoApprove": ["list_projects"]
     }

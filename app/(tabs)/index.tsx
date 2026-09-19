@@ -15,7 +15,16 @@ import { useFocusEffect } from "@react-navigation/native"
 import { LinearGradient } from "expo-linear-gradient"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useCallback, useEffect, useState } from "react"
-import { Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from "react-native"
+import {
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -78,32 +87,38 @@ export default function HomeScreen() {
   const [recommendedRecipes, setRecommendedRecipes] = useState<Recipe[]>([])
   const [activeChallenges, setActiveChallenges] = useState<Challenge[]>([])
   const [availableIngredients, setAvailableIngredients] = useState<number>(0)
-  const [calorieData, setCalorieData] = useState<{ current: number; goal: number; goalMet: boolean }>({ current: 0, goal: 2000, goalMet: false })
+  const [calorieData, setCalorieData] = useState<{
+    current: number
+    goal: number
+    goalMet: boolean
+  }>({ current: 0, goal: 2000, goalMet: false })
   const [loading, setLoading] = useState(true)
   const [tutorialTriggered, setTutorialTriggered] = useState(false)
   const [readyToCookCount, setReadyToCookCount] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
 
   useEffect(() => {
-    console.log('🏠 Dashboard: useEffect triggered', { 
-      hasUser: !!user, 
-      userId: user?.id, 
-      loading 
+    console.log("🏠 Dashboard: useEffect triggered", {
+      hasUser: !!user,
+      userId: user?.id,
+      loading,
     })
-    
+
     if (user) {
-      console.log('🏠 Dashboard: User found, loading data...')
+      console.log("🏠 Dashboard: User found, loading data...")
       loadUserData()
     } else if (!loading) {
-      console.log('🏠 Dashboard: No user, redirecting to login')
+      console.log("🏠 Dashboard: No user, redirecting to login")
       router.replace("/(auth)/login")
     }
   }, [user])
 
   // Handle explicit refresh from settings or other screens
   useEffect(() => {
-    if (params.refresh === 'true' && user) {
-      console.log('🔄 Dashboard: Refresh param detected, reloading recommendations...')
+    if (params.refresh === "true" && user) {
+      console.log(
+        "🔄 Dashboard: Refresh param detected, reloading recommendations...",
+      )
       setIsRefreshing(true)
       loadUserData().finally(() => {
         setIsRefreshing(false)
@@ -118,25 +133,25 @@ export default function HomeScreen() {
   // Reload data when screen comes into focus (e.g., after completing a recipe)
   useFocusEffect(
     useCallback(() => {
-      console.log('🏠 Dashboard: Screen focused, reloading data...')
+      console.log("🏠 Dashboard: Screen focused, reloading data...")
       if (user && !params.refresh) {
         loadUserData()
       }
-    }, [user])
+    }, [user]),
   )
 
   // Trigger tutorial after initial load for new users or when coming from onboarding
   useEffect(() => {
     if (!loading && !tutorialTriggered) {
       // Check if we should start tutorial from onboarding
-      if (params.startTutorial === 'true') {
-        console.log('Starting tutorial from onboarding completion')
+      if (params.startTutorial === "true") {
+        console.log("Starting tutorial from onboarding completion")
         setTimeout(() => {
           startTutorial(APP_TUTORIAL_STEPS)
           setTutorialTriggered(true)
         }, 500)
       } else if (shouldShowTutorial) {
-        console.log('Starting tutorial for new user')
+        console.log("Starting tutorial for new user")
         setTimeout(() => {
           startTutorial(APP_TUTORIAL_STEPS)
           setTutorialTriggered(true)
@@ -167,14 +182,14 @@ export default function HomeScreen() {
       // Load recipe recommendations
       const recipes = await recipeService.getRecommendations(user.id, 5)
       setRecommendedRecipes(recipes)
-      
+
       // Count recipes that are ready to cook (have all ingredients)
-      const readyCount = recipes.filter(r => r.hasAllIngredients).length
+      const readyCount = recipes.filter((r) => r.hasAllIngredients).length
       setReadyToCookCount(readyCount)
 
       // Load active challenges
       const challenges = await challengeService.getUserActiveChallenges(user.id)
-      const challengesWithStyle = challenges.map(challenge => ({
+      const challengesWithStyle = challenges.map((challenge) => ({
         ...challenge,
         color: getChallengeColor(challenge.category),
         bg_color: getChallengeBgColor(challenge.category),
@@ -185,12 +200,13 @@ export default function HomeScreen() {
       setActiveChallenges(challengesWithStyle)
 
       // Load available ingredients count
-      const ingredients = await ingredientService.getUserInStockIngredients(user.id)
+      const ingredients = await ingredientService.getUserInStockIngredients(
+        user.id,
+      )
       setAvailableIngredients(ingredients.length)
-
     } catch (error) {
-      console.error('Error loading user data:', error)
-      Alert.alert('Error', 'Failed to load user data. Please try again.')
+      console.error("Error loading user data:", error)
+      Alert.alert("Error", "Failed to load user data. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -198,32 +214,32 @@ export default function HomeScreen() {
 
   const getChallengeColor = (category: string) => {
     const colors: Record<string, string> = {
-      'Nutrition': '#a855f7',
-      'Fitness': '#3b82f6',
-      'Cooking': '#22c55e',
-      'Exploration': '#f59e0b',
+      Nutrition: "#a855f7",
+      Fitness: "#3b82f6",
+      Cooking: "#22c55e",
+      Exploration: "#f59e0b",
     }
-    return colors[category] || '#6b7280'
+    return colors[category] || "#6b7280"
   }
 
   const getChallengeBgColor = (category: string) => {
     const colors: Record<string, string> = {
-      'Nutrition': '#f3e8ff',
-      'Fitness': '#dbeafe',
-      'Cooking': '#dcfce7',
-      'Exploration': '#fef3c7',
+      Nutrition: "#f3e8ff",
+      Fitness: "#dbeafe",
+      Cooking: "#dcfce7",
+      Exploration: "#fef3c7",
     }
-    return colors[category] || '#f3f4f6'
+    return colors[category] || "#f3f4f6"
   }
 
   const getChallengeIcon = (category: string) => {
     const icons: Record<string, string> = {
-      'Nutrition': 'leaf',
-      'Fitness': 'fitness',
-      'Cooking': 'restaurant',
-      'Exploration': 'compass',
+      Nutrition: "leaf",
+      Fitness: "fitness",
+      Cooking: "restaurant",
+      Exploration: "compass",
     }
-    return icons[category] || 'star'
+    return icons[category] || "star"
   }
 
   const getMealIdeasContext = () => {
@@ -235,12 +251,12 @@ export default function HomeScreen() {
     if (hour >= 6 && hour < 11) {
       return {
         title: "Breakfast Ideas",
-        subtitle: hasIngredients 
-          ? `${readyToCookCount > 0 ? readyToCookCount + ' ready to cook' : availableIngredients + ' ingredients'}`
+        subtitle: hasIngredients
+          ? `${readyToCookCount > 0 ? readyToCookCount + " ready to cook" : availableIngredients + " ingredients"}`
           : "Browse easy breakfasts",
         icon: "sunny",
         color: "#f59e0b",
-        bgColor: "#fef3c7"
+        bgColor: "#fef3c7",
       }
     }
 
@@ -248,14 +264,15 @@ export default function HomeScreen() {
     if (hour >= 11 && hour < 16) {
       return {
         title: "Lunch Suggestions",
-        subtitle: readyToCookCount > 0
-          ? `${readyToCookCount} ready to make`
-          : caloriesRemaining > 500
-            ? `~${Math.round(caloriesRemaining)} cal left`
-            : "Light meal options",
+        subtitle:
+          readyToCookCount > 0
+            ? `${readyToCookCount} ready to make`
+            : caloriesRemaining > 500
+              ? `~${Math.round(caloriesRemaining)} cal left`
+              : "Light meal options",
         icon: "restaurant",
         color: "#22c55e",
-        bgColor: "#dcfce7"
+        bgColor: "#dcfce7",
       }
     }
 
@@ -263,24 +280,28 @@ export default function HomeScreen() {
     if (hour >= 16 && hour < 22) {
       return {
         title: "Dinner Plans",
-        subtitle: readyToCookCount > 0
-          ? `${readyToCookCount} recipes ready`
-          : hasIngredients
-            ? "What can you make?"
-            : "Quick dinner ideas",
+        subtitle:
+          readyToCookCount > 0
+            ? `${readyToCookCount} recipes ready`
+            : hasIngredients
+              ? "What can you make?"
+              : "Quick dinner ideas",
         icon: "moon",
         color: "#8b5cf6",
-        bgColor: "#f3e8ff"
+        bgColor: "#f3e8ff",
       }
     }
 
     // Late night
     return {
       title: "Quick Bites",
-      subtitle: readyToCookCount > 0 ? `${readyToCookCount} easy options` : "Late night snacks",
+      subtitle:
+        readyToCookCount > 0
+          ? `${readyToCookCount} easy options`
+          : "Late night snacks",
       icon: "fast-food",
       color: "#ef4444",
-      bgColor: "#fee2e2"
+      bgColor: "#fee2e2",
     }
   }
 
@@ -314,14 +335,20 @@ export default function HomeScreen() {
     try {
       const success = await recipeService.completeRecipe(user.id, recipeId)
       if (success) {
-        Alert.alert('Recipe Completed!', 'Great job! You earned points for completing this recipe.')
+        Alert.alert(
+          "Recipe Completed!",
+          "Great job! You earned points for completing this recipe.",
+        )
         loadUserData() // Refresh data
       } else {
-        Alert.alert('Error', 'Failed to mark recipe as completed. Please try again.')
+        Alert.alert(
+          "Error",
+          "Failed to mark recipe as completed. Please try again.",
+        )
       }
     } catch (error) {
-      console.error('Error completing recipe:', error)
-      Alert.alert('Error', 'Something went wrong. Please try again.')
+      console.error("Error completing recipe:", error)
+      Alert.alert("Error", "Something went wrong. Please try again.")
     }
   }
 
@@ -330,7 +357,9 @@ export default function HomeScreen() {
       <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Loading your personalized dashboard...</Text>
+            <Text style={styles.loadingText}>
+              Loading your personalized dashboard...
+            </Text>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -346,230 +375,408 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={[styles.header, isWeb && styles.headerWeb]}>
           <View style={styles.headerLeft}>
-            <Text style={styles.greeting}>Hello, {profile?.full_name?.split(' ')[0] || 'Chef'}! </Text>
-            <Text style={styles.subGreeting}>Ready to cook something delicious?</Text>
+            <Text style={styles.greeting}>
+              Hello, {profile?.full_name?.split(" ")[0] || "Chef"}!{" "}
+            </Text>
+            <Text style={styles.subGreeting}>
+              Ready to cook something delicious?
+            </Text>
           </View>
-          <TouchableOpacity style={styles.profileButton} onPress={navigateToProfile}>
+          <TouchableOpacity
+            style={styles.profileButton}
+            onPress={navigateToProfile}
+          >
             <View style={styles.profileAvatar}>
               <Text style={styles.profileAvatarText}>
-                {profile?.full_name?.charAt(0) || 'U'}
+                {profile?.full_name?.charAt(0) || "U"}
               </Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             {/* Calorie Counter */}
             <View style={styles.calorieSection}>
-            <CalorieCounter
-              currentCalories={calorieData.current}
-              goalCalories={calorieData.goal}
-              goalMet={calorieData.goalMet}
-            />
-          </View>
-
-          {/* User Progress Card */}
-          <Card style={styles.progressCard}>
-            <View style={styles.progressHeader}>
-              <View style={styles.levelBadge}>
-                <Ionicons name="star" size={16} color="#f59e0b" />
-                <Text style={styles.levelText}>Level {levelProgress?.level || profile?.level || 1}</Text>
-              </View>
-              <Text style={styles.expText}>
-                {levelProgress?.currentLevelXp ?? profile?.experience ?? 0}/{levelProgress?.nextLevelXp ?? 500} XP
-              </Text>
+              <CalorieCounter
+                currentCalories={calorieData.current}
+                goalCalories={calorieData.goal}
+                goalMet={calorieData.goalMet}
+              />
             </View>
-            <LevelProgress
-              level={levelProgress?.level || profile?.level || 1}
-              currentXp={levelProgress?.currentLevelXp ?? profile?.experience ?? 0}
-              nextLevelXp={levelProgress?.nextLevelXp ?? 500}
-              progress={levelProgress?.progress ?? ((profile?.experience || 0) % 500) / 500}
-              showDetails={false}
-            />
 
-            <View style={styles.statsRow}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{profile?.streak_days || 0}</Text>
-                <Text style={styles.statLabel}>Day Streak</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{userStats?.stats.mealsCompleted || 0}</Text>
-                <Text style={styles.statLabel}>Meals</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{userStats?.stats.badgesEarned || 0}</Text>
-                <Text style={styles.statLabel}>Badges</Text>
-              </View>
-            </View>
-          </Card>
-
-          {/* Quick Actions */}
-          {(() => {
-            const mealIdeasContext = getMealIdeasContext()
-            return (
-              <View style={styles.quickActionsContainer}>
-                <TouchableOpacity style={styles.quickAction} onPress={navigateToIngredients}>
-                  <View style={[styles.quickActionIcon, { backgroundColor: "#dcfce7" }]}>
-                    <Ionicons name="basket" size={24} color="#22c55e" />
-                  </View>
-                  <Text style={styles.quickActionText}>My Pantry</Text>
-                  <Text style={styles.quickActionSubtext}>{availableIngredients} items</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity 
-                  style={[styles.quickAction, readyToCookCount > 0 && styles.quickActionHighlight]} 
-                  onPress={() => router.push("/(tabs)/recipes?suggestions=true")}
-                >
-                  <View style={[styles.quickActionIcon, { backgroundColor: mealIdeasContext.bgColor }]}>
-                    <Ionicons name={mealIdeasContext.icon as any} size={24} color={mealIdeasContext.color} />
-                  </View>
-                  <Text style={styles.quickActionText}>{mealIdeasContext.title}</Text>
-                  <Text style={styles.quickActionSubtext}>{mealIdeasContext.subtitle}</Text>
-                  
-                  {/* Add notification badge if ready recipes available */}
-                  {readyToCookCount > 0 && (
-                    <View style={styles.notificationBadge}>
-                      <Ionicons name="checkmark-circle" size={12} color="white" />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              </View>
-            )
-          })()}
-
-          {/* Recommended Recipes */}
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionTitleRow}>
-              <Text style={styles.sectionTitle}>Recommended for You</Text>
-              {isRefreshing && (
-                <View style={styles.refreshingIndicator}>
-                  <Text style={styles.refreshingText}>Updating...</Text>
+            {/* User Progress Card */}
+            <Card style={styles.progressCard}>
+              <View style={styles.progressHeader}>
+                <View style={styles.levelBadge}>
+                  <Ionicons name="star" size={16} color="#f59e0b" />
+                  <Text style={styles.levelText}>
+                    Level {levelProgress?.level || profile?.level || 1}
+                  </Text>
                 </View>
-              )}
-            </View>
-            <TouchableOpacity onPress={navigateToRecipes}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
+                <Text style={styles.expText}>
+                  {levelProgress?.currentLevelXp ?? profile?.experience ?? 0}/
+                  {levelProgress?.nextLevelXp ?? 500} XP
+                </Text>
+              </View>
+              <LevelProgress
+                level={levelProgress?.level || profile?.level || 1}
+                currentXp={
+                  levelProgress?.currentLevelXp ?? profile?.experience ?? 0
+                }
+                nextLevelXp={levelProgress?.nextLevelXp ?? 500}
+                progress={
+                  levelProgress?.progress ??
+                  ((profile?.experience || 0) % 500) / 500
+                }
+                showDetails={false}
+              />
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recipesScroll}>
-          {recommendedRecipes.map((recipe) => {
-            // Determine time-appropriate badge
-            const currentHour = new Date().getHours()
-            let preferredMealType = 'Snack'
-            if (currentHour >= 6 && currentHour < 11) preferredMealType = 'Breakfast'
-            else if (currentHour >= 11 && currentHour < 16) preferredMealType = 'Lunch'
-            else if (currentHour >= 16 && currentHour < 22) preferredMealType = 'Dinner'
-            
-            const isTimeAppropriate = recipe.meal_type === preferredMealType
-            const isPerfectMatch = recipe.matchPercentage && recipe.matchPercentage >= 80
-            
-            return (
-              <Card key={recipe.id} style={styles.recipeCard} onPress={() => navigateToRecipe(recipe.id)}>
-                <Image 
-                  source={{ uri: recipe.image_url || 'https://via.placeholder.com/200x120?text=No+Image' }} 
-                  style={styles.recipeImage} 
-                />
-                {isTimeAppropriate && (
-                  <View style={styles.timeBadgeOverlay}>
-                    <Text style={styles.timeBadgeText}>⏰ {preferredMealType}</Text>
-                  </View>
-                )}
-                {recipe.hasAllIngredients && (
-                  <View style={styles.readyBadgeOverlay}>
-                    <Ionicons name="checkmark-circle" size={14} color="white" />
-                    <Text style={styles.readyBadgeText}>Ready to Cook!</Text>
-                  </View>
-                )}
-                <View style={styles.recipeContent}>
-                  <View style={styles.recipeInfo}>
-                    <Text style={styles.recipeTitle} numberOfLines={2}>{recipe.title}</Text>
-                    <View style={styles.recipeMetaRow}>
-                      <View style={styles.recipeMeta}>
-                        <Ionicons name="time-outline" size={14} color="#64748b" />
-                        <Text style={styles.recipeMetaText}>{recipe.prep_time}m</Text>
-                      </View>
-                      <Badge 
-                        text={`+${recipe.points}`} 
-                        color="white" 
-                        backgroundColor="#22c55e" 
-                        size="small"
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {profile?.streak_days || 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Day Streak</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {userStats?.stats.mealsCompleted || 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Meals</Text>
+                </View>
+                <View style={styles.statItem}>
+                  <Text style={styles.statValue}>
+                    {userStats?.stats.badgesEarned || 0}
+                  </Text>
+                  <Text style={styles.statLabel}>Badges</Text>
+                </View>
+              </View>
+            </Card>
+
+            {/* Quick Actions */}
+            {(() => {
+              const mealIdeasContext = getMealIdeasContext()
+              return (
+                <View style={styles.quickActionsContainer}>
+                  <TouchableOpacity
+                    style={styles.quickAction}
+                    onPress={navigateToIngredients}
+                  >
+                    <View
+                      style={[
+                        styles.quickActionIcon,
+                        { backgroundColor: "#dcfce7" },
+                      ]}
+                    >
+                      <Ionicons name="basket" size={24} color="#22c55e" />
+                    </View>
+                    <Text style={styles.quickActionText}>My Pantry</Text>
+                    <Text style={styles.quickActionSubtext}>
+                      {availableIngredients} items
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.quickAction,
+                      readyToCookCount > 0 && styles.quickActionHighlight,
+                    ]}
+                    onPress={() =>
+                      router.push("/(tabs)/recipes?suggestions=true")
+                    }
+                  >
+                    <View
+                      style={[
+                        styles.quickActionIcon,
+                        { backgroundColor: mealIdeasContext.bgColor },
+                      ]}
+                    >
+                      <Ionicons
+                        name={mealIdeasContext.icon as any}
+                        size={24}
+                        color={mealIdeasContext.color}
                       />
                     </View>
-                    {recipe.matchPercentage && (
-                      <View style={styles.matchContainer}>
-                        <Ionicons name="checkmark-circle" size={12} color="#22c55e" />
-                        <Text style={styles.matchText}>
-                          {Math.round(recipe.matchPercentage)}% ingredient match
-                        </Text>
-                        {isPerfectMatch && <Text style={styles.perfectMatchEmoji}> ✨</Text>}
+                    <Text style={styles.quickActionText}>
+                      {mealIdeasContext.title}
+                    </Text>
+                    <Text style={styles.quickActionSubtext}>
+                      {mealIdeasContext.subtitle}
+                    </Text>
+
+                    {/* Add notification badge if ready recipes available */}
+                    {readyToCookCount > 0 && (
+                      <View style={styles.notificationBadge}>
+                        <Ionicons
+                          name="checkmark-circle"
+                          size={12}
+                          color="white"
+                        />
                       </View>
                     )}
-                    {recipe.calories && (
-                      <View style={styles.calorieInfo}>
-                        <Ionicons name="flame-outline" size={12} color="#f59e0b" />
-                        <Text style={styles.calorieText}>{recipe.calories} cal</Text>
-                      </View>
-                    )}
+                  </TouchableOpacity>
+                </View>
+              )
+            })()}
+
+            {/* Recommended Recipes */}
+            <View style={styles.sectionHeader}>
+              <View style={styles.sectionTitleRow}>
+                <Text style={styles.sectionTitle}>Recommended for You</Text>
+                {isRefreshing && (
+                  <View style={styles.refreshingIndicator}>
+                    <Text style={styles.refreshingText}>Updating...</Text>
                   </View>
-                  <Button
-                    text="Start Cooking"
+                )}
+              </View>
+              <TouchableOpacity onPress={navigateToRecipes}>
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+
+            {recommendedRecipes.length === 0 ? (
+              <Card style={styles.emptySection}>
+                <Ionicons name="restaurant-outline" size={32} color="#94a3b8" />
+                <Text style={styles.emptySectionTitle}>
+                  No recommendations yet
+                </Text>
+                <Text style={styles.emptySectionText}>
+                  {availableIngredients === 0
+                    ? "Add a few ingredients to your pantry and we'll show you recipes you can cook right now."
+                    : "Browse the recipe library to get started, and your recommendations will sharpen as you cook."}
+                </Text>
+                <Button
+                  text={
+                    availableIngredients === 0
+                      ? "Set Up My Pantry"
+                      : "Browse Recipes"
+                  }
+                  color="white"
+                  backgroundColor="#22c55e"
+                  onPress={
+                    availableIngredients === 0
+                      ? navigateToIngredients
+                      : navigateToRecipes
+                  }
+                  style={styles.emptySectionButton}
+                />
+              </Card>
+            ) : (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.recipesScroll}
+              >
+                {recommendedRecipes.map((recipe) => {
+                  // Determine time-appropriate badge
+                  const currentHour = new Date().getHours()
+                  let preferredMealType = "Snack"
+                  if (currentHour >= 6 && currentHour < 11)
+                    preferredMealType = "Breakfast"
+                  else if (currentHour >= 11 && currentHour < 16)
+                    preferredMealType = "Lunch"
+                  else if (currentHour >= 16 && currentHour < 22)
+                    preferredMealType = "Dinner"
+
+                  const isTimeAppropriate =
+                    recipe.meal_type === preferredMealType
+                  const isPerfectMatch =
+                    recipe.matchPercentage && recipe.matchPercentage >= 80
+
+                  return (
+                    <Card
+                      key={recipe.id}
+                      style={styles.recipeCard}
+                      onPress={() => navigateToRecipe(recipe.id)}
+                    >
+                      <Image
+                        source={{
+                          uri:
+                            recipe.image_url ||
+                            "https://via.placeholder.com/200x120?text=No+Image",
+                        }}
+                        style={styles.recipeImage}
+                      />
+                      {isTimeAppropriate && (
+                        <View style={styles.timeBadgeOverlay}>
+                          <Text style={styles.timeBadgeText}>
+                            ⏰ {preferredMealType}
+                          </Text>
+                        </View>
+                      )}
+                      {recipe.hasAllIngredients && (
+                        <View style={styles.readyBadgeOverlay}>
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={14}
+                            color="white"
+                          />
+                          <Text style={styles.readyBadgeText}>
+                            Ready to Cook!
+                          </Text>
+                        </View>
+                      )}
+                      <View style={styles.recipeContent}>
+                        <View style={styles.recipeInfo}>
+                          <Text style={styles.recipeTitle} numberOfLines={2}>
+                            {recipe.title}
+                          </Text>
+                          <View style={styles.recipeMetaRow}>
+                            <View style={styles.recipeMeta}>
+                              <Ionicons
+                                name="time-outline"
+                                size={14}
+                                color="#64748b"
+                              />
+                              <Text style={styles.recipeMetaText}>
+                                {recipe.prep_time}m
+                              </Text>
+                            </View>
+                            <Badge
+                              text={`+${recipe.points}`}
+                              color="white"
+                              backgroundColor="#22c55e"
+                              size="small"
+                            />
+                          </View>
+                          {recipe.matchPercentage && (
+                            <View style={styles.matchContainer}>
+                              <Ionicons
+                                name="checkmark-circle"
+                                size={12}
+                                color="#22c55e"
+                              />
+                              <Text style={styles.matchText}>
+                                {Math.round(recipe.matchPercentage)}% ingredient
+                                match
+                              </Text>
+                              {isPerfectMatch && (
+                                <Text style={styles.perfectMatchEmoji}>
+                                  {" "}
+                                  ✨
+                                </Text>
+                              )}
+                            </View>
+                          )}
+                          {recipe.calories && (
+                            <View style={styles.calorieInfo}>
+                              <Ionicons
+                                name="flame-outline"
+                                size={12}
+                                color="#f59e0b"
+                              />
+                              <Text style={styles.calorieText}>
+                                {recipe.calories} cal
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <Button
+                          text="Start Cooking"
+                          color="white"
+                          backgroundColor="#22c55e"
+                          onPress={() => handleStartCooking(recipe.id)}
+                          style={styles.cookButton}
+                        />
+                      </View>
+                    </Card>
+                  )
+                })}
+              </ScrollView>
+            )}
+
+            {/* Active Challenges */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Active Challenges</Text>
+              <TouchableOpacity
+                onPress={() => router.push("/(tabs)/challenges")}
+              >
+                <Text style={styles.seeAllText}>See All</Text>
+              </TouchableOpacity>
+            </View>
+
+            {activeChallenges.length === 0 && (
+              <Card style={styles.emptySection}>
+                <Ionicons name="trophy-outline" size={32} color="#94a3b8" />
+                <Text style={styles.emptySectionTitle}>No active quests</Text>
+                <Text style={styles.emptySectionText}>
+                  Activate a quest to earn bonus points while you cook.
+                </Text>
+                <Button
+                  text="Find a Quest"
+                  color="white"
+                  backgroundColor="#22c55e"
+                  onPress={() => router.push("/(tabs)/challenges")}
+                  style={styles.emptySectionButton}
+                />
+              </Card>
+            )}
+
+            {activeChallenges.slice(0, 2).map((challenge) => (
+              <Card
+                key={challenge.id}
+                style={styles.challengeCard}
+                onPress={() => navigateToChallenge(challenge.id)}
+              >
+                <View style={styles.challengeHeader}>
+                  <View style={styles.challengeTitleContainer}>
+                    <View
+                      style={[
+                        styles.challengeIcon,
+                        { backgroundColor: challenge.bg_color },
+                      ]}
+                    >
+                      <Ionicons
+                        name={challenge.icon as any}
+                        size={20}
+                        color={challenge.color}
+                      />
+                    </View>
+                    <View style={styles.challengeInfo}>
+                      <Text style={styles.challengeTitle}>
+                        {challenge.title}
+                      </Text>
+                      <Text
+                        style={styles.challengeDescription}
+                        numberOfLines={2}
+                      >
+                        {challenge.description}
+                      </Text>
+                    </View>
+                  </View>
+                  <Badge
+                    text={`+${challenge.reward_points}`}
                     color="white"
-                    backgroundColor="#22c55e"
-                    onPress={() => handleStartCooking(recipe.id)}
-                    style={styles.cookButton}
+                    backgroundColor={challenge.color}
                   />
                 </View>
+
+                <View style={styles.challengeProgress}>
+                  <ProgressBar
+                    progress={(challenge.progress || 0) / challenge.total_tasks}
+                    colors={[challenge.color, challenge.color]}
+                    height={6}
+                  />
+                  <View style={styles.challengeProgressText}>
+                    <Text
+                      style={[styles.progressLabel, { color: challenge.color }]}
+                    >
+                      {challenge.progress || 0}/{challenge.total_tasks}{" "}
+                      completed
+                    </Text>
+                    <Text style={styles.daysLeftText}>
+                      {challenge.daysLeft} days left
+                    </Text>
+                  </View>
+                </View>
               </Card>
-            )
-          })}
-          </ScrollView>
-
-          {/* Active Challenges */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Active Challenges</Text>
-            <TouchableOpacity onPress={() => router.push("/(tabs)/challenges")}>
-              <Text style={styles.seeAllText}>See All</Text>
-            </TouchableOpacity>
-          </View>
-
-          {activeChallenges.slice(0, 2).map((challenge) => (
-                <Card key={challenge.id} style={styles.challengeCard} onPress={() => navigateToChallenge(challenge.id)}>
-                  <View style={styles.challengeHeader}>
-                    <View style={styles.challengeTitleContainer}>
-                      <View style={[styles.challengeIcon, { backgroundColor: challenge.bg_color }]}>
-                        <Ionicons name={challenge.icon as any} size={20} color={challenge.color} />
-                      </View>
-                      <View style={styles.challengeInfo}>
-                        <Text style={styles.challengeTitle}>{challenge.title}</Text>
-                        <Text style={styles.challengeDescription} numberOfLines={2}>
-                          {challenge.description}
-                        </Text>
-                      </View>
-                    </View>
-                    <Badge 
-                      text={`+${challenge.reward_points}`} 
-                      color="white" 
-                      backgroundColor={challenge.color}
-                    />
-                  </View>
-                  
-                  <View style={styles.challengeProgress}>
-                    <ProgressBar
-                      progress={(challenge.progress || 0) / challenge.total_tasks}
-                      colors={[challenge.color, challenge.color]}
-                      height={6}
-                    />
-                    <View style={styles.challengeProgressText}>
-                      <Text style={[styles.progressLabel, { color: challenge.color }]}>
-                        {challenge.progress || 0}/{challenge.total_tasks} completed
-                      </Text>
-                      <Text style={styles.daysLeftText}>{challenge.daysLeft} days left</Text>
-                    </View>
-                  </View>
-                </Card>
-          ))}
+            ))}
 
             {/* Bottom padding for tab bar */}
             <View style={styles.bottomPadding} />
@@ -794,6 +1001,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
     color: "#22c55e",
+  },
+  // Shown in place of the Recommended / Active Quests carousels, which otherwise
+  // leave a section header sitting over blank space for a brand new user.
+  emptySection: {
+    marginHorizontal: 16,
+    alignItems: "center",
+    paddingVertical: 28,
+  },
+  emptySectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#374151",
+    marginTop: 12,
+  },
+  emptySectionText: {
+    fontSize: 14,
+    color: "#64748b",
+    textAlign: "center",
+    marginTop: 6,
+    paddingHorizontal: 8,
+  },
+  emptySectionButton: {
+    marginTop: 16,
+    minWidth: 180,
   },
   recipesScroll: {
     paddingHorizontal: 16,

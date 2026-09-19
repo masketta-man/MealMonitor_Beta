@@ -1,8 +1,15 @@
-import React, { useEffect, useRef } from 'react'
-import { Modal, View, Text, StyleSheet, Animated, Dimensions } from 'react-native'
-import { LinearGradient } from 'expo-linear-gradient'
-import { Ionicons } from '@expo/vector-icons'
-import Button from './Button'
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import React, { useEffect, useRef } from "react"
+import {
+    Animated,
+    Dimensions,
+    Modal,
+    StyleSheet,
+    Text,
+    View,
+} from "react-native"
+import Button from "./Button"
 
 interface LevelUpModalProps {
   visible: boolean
@@ -10,9 +17,13 @@ interface LevelUpModalProps {
   onClose: () => void
 }
 
-const { width, height } = Dimensions.get('window')
+const { width, height } = Dimensions.get("window")
 
-export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModalProps) {
+export default function LevelUpModal({
+  visible,
+  newLevel,
+  onClose,
+}: LevelUpModalProps) {
   const scaleAnim = useRef(new Animated.Value(0)).current
   const fadeAnim = useRef(new Animated.Value(0)).current
   const starAnim1 = useRef(new Animated.Value(0)).current
@@ -81,13 +92,17 @@ export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModa
               duration: 1000,
               useNativeDriver: true,
             }),
-          ])
+          ]),
         ).start()
       })
     }
   }, [visible])
 
-  const getStarTransform = (anim: Animated.Value, angle: number, distance: number) => {
+  const getStarTransform = (
+    anim: Animated.Value,
+    angle: number,
+    distance: number,
+  ) => {
     return {
       transform: [
         {
@@ -108,7 +123,7 @@ export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModa
         {
           rotate: anim.interpolate({
             inputRange: [0, 1],
-            outputRange: ['0deg', '360deg'],
+            outputRange: ["0deg", "360deg"],
           }),
         },
       ],
@@ -124,7 +139,7 @@ export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModa
     >
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <LinearGradient
-          colors={['rgba(34, 197, 94, 0.95)', 'rgba(22, 101, 52, 0.95)']}
+          colors={["rgba(34, 197, 94, 0.95)", "rgba(22, 101, 52, 0.95)"]}
           style={styles.gradient}
         >
           <Animated.View
@@ -137,13 +152,25 @@ export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModa
           >
             {/* Animated stars */}
             <View style={styles.starsContainer}>
-              <Animated.View style={[styles.star, getStarTransform(starAnim1, -Math.PI / 4, 60)]}>
+              <Animated.View
+                style={[
+                  styles.star,
+                  getStarTransform(starAnim1, -Math.PI / 4, 60),
+                ]}
+              >
                 <Ionicons name="star" size={30} color="#fbbf24" />
               </Animated.View>
-              <Animated.View style={[styles.star, getStarTransform(starAnim2, Math.PI / 4, 60)]}>
+              <Animated.View
+                style={[
+                  styles.star,
+                  getStarTransform(starAnim2, Math.PI / 4, 60),
+                ]}
+              >
                 <Ionicons name="star" size={30} color="#fbbf24" />
               </Animated.View>
-              <Animated.View style={[styles.star, getStarTransform(starAnim3, Math.PI, 60)]}>
+              <Animated.View
+                style={[styles.star, getStarTransform(starAnim3, Math.PI, 60)]}
+              >
                 <Ionicons name="star" size={30} color="#fbbf24" />
               </Animated.View>
             </View>
@@ -168,7 +195,7 @@ export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModa
 
             {/* New level display */}
             <View style={styles.levelContainer}>
-              <Text style={styles.levelLabel}>You've reached</Text>
+              <Text style={styles.levelLabel}>You&rsquo;ve reached</Text>
               <View style={styles.levelBadge}>
                 <Text style={styles.levelNumber}>{newLevel}</Text>
               </View>
@@ -196,37 +223,37 @@ export default function LevelUpModal({ visible, newLevel, onClose }: LevelUpModa
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
   },
   gradient: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   contentContainer: {
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderRadius: 24,
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
     width: width * 0.85,
     maxWidth: 400,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.3,
     shadowRadius: 20,
     elevation: 10,
   },
   starsContainer: {
-    position: 'absolute',
+    position: "absolute",
     top: 80,
     left: 0,
     right: 0,
     height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   star: {
-    position: 'absolute',
+    position: "absolute",
   },
   iconContainer: {
     marginBottom: 24,
@@ -235,57 +262,57 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#fef3c7',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: "#fef3c7",
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 4,
-    borderColor: '#fbbf24',
+    borderColor: "#fbbf24",
   },
   title: {
     fontSize: 32,
-    fontWeight: '800',
-    color: '#166534',
+    fontWeight: "800",
+    color: "#166534",
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 18,
-    fontWeight: '600',
-    color: '#22c55e',
+    fontWeight: "600",
+    color: "#22c55e",
     marginBottom: 24,
   },
   levelContainer: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 24,
   },
   levelLabel: {
     fontSize: 16,
-    color: '#64748b',
+    color: "#64748b",
     marginBottom: 12,
   },
   levelBadge: {
-    backgroundColor: '#dcfce7',
+    backgroundColor: "#dcfce7",
     borderRadius: 50,
     width: 100,
     height: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     borderWidth: 3,
-    borderColor: '#22c55e',
+    borderColor: "#22c55e",
   },
   levelNumber: {
     fontSize: 48,
-    fontWeight: '800',
-    color: '#166534',
+    fontWeight: "800",
+    color: "#166534",
   },
   message: {
     fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
+    color: "#64748b",
+    textAlign: "center",
     marginBottom: 24,
     lineHeight: 20,
   },
   button: {
-    width: '100%',
+    width: "100%",
     paddingVertical: 14,
   },
 })

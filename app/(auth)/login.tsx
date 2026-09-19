@@ -5,12 +5,22 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { useState } from "react"
-import { StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import {
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
 import Button from "@/components/Button"
 import Card from "@/components/Card"
+
+const LOGO = require("@/assets/images/MM.png")
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -51,22 +61,27 @@ export default function LoginScreen() {
       return
     }
 
-    console.log('🔑 Login: Starting login process...')
+    console.log("🔑 Login: Starting login process...")
     setIsLoading(true)
 
     const { error } = await signIn(email, password)
 
     if (error) {
-      console.log('🔑 Login: Login failed:', error.message)
+      console.log("🔑 Login: Login failed:", error.message)
 
       let errorMessage = "An error occurred during login. Please try again."
 
       if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password. Please check your credentials and try again."
+        errorMessage =
+          "Invalid email or password. Please check your credentials and try again."
       } else if (error.message.includes("Email not confirmed")) {
         errorMessage = "Please verify your email address before logging in."
-      } else if (error.message.includes("network") || error.message.includes("fetch")) {
-        errorMessage = "Network error. Please check your internet connection and try again."
+      } else if (
+        error.message.includes("network") ||
+        error.message.includes("fetch")
+      ) {
+        errorMessage =
+          "Network error. Please check your internet connection and try again."
       } else if (error.message.includes("User not found")) {
         errorMessage = "No account found with this email. Please sign up first."
       }
@@ -74,7 +89,7 @@ export default function LoginScreen() {
       setErrors({ general: errorMessage })
       setIsLoading(false)
     } else {
-      console.log('🔑 Login: Login successful')
+      console.log("🔑 Login: Login successful")
     }
   }
 
@@ -91,19 +106,26 @@ export default function LoginScreen() {
       <SafeAreaView style={styles.safeArea}>
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <View style={styles.logo}>
-              <Ionicons name="restaurant" size={32} color="#22c55e" />
-            </View>
+            <Image
+              source={LOGO}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel="MealMonitor logo"
+            />
             <Text style={styles.appName}>MealMonitor</Text>
-            <Text style={styles.tagline}>Your Cooking Companion</Text>
+            <Text style={styles.tagline}>Cook with what you already have</Text>
           </View>
         </View>
 
         <View style={styles.content}>
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             <Card style={styles.loginCard}>
-              <Text style={styles.title}>Welcome Back!</Text>
-              <Text style={styles.subtitle}>Sign in to continue your cooking journey</Text>
+              <Text style={styles.title}>Welcome</Text>
+              <Text style={styles.subtitle}>
+                Log in to continue, or create an account to get started.
+              </Text>
 
               {errors.general && (
                 <View style={styles.errorBanner}>
@@ -114,15 +136,25 @@ export default function LoginScreen() {
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
-                <View style={[styles.inputWrapper, errors.email && styles.inputWrapperError]}>
-                  <Ionicons name="mail-outline" size={20} color="#64748b" style={styles.inputIcon} />
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.email && styles.inputWrapperError,
+                  ]}
+                >
+                  <Ionicons
+                    name="mail-outline"
+                    size={20}
+                    color="#64748b"
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.textInput}
                     value={email}
                     onChangeText={(text) => {
                       setEmail(text)
                       if (errors.email) {
-                        setErrors(prev => ({ ...prev, email: undefined }))
+                        setErrors((prev) => ({ ...prev, email: undefined }))
                       }
                     }}
                     placeholder="Enter your email"
@@ -134,7 +166,11 @@ export default function LoginScreen() {
                 </View>
                 {errors.email && (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={14}
+                      color="#dc2626"
+                    />
                     <Text style={styles.errorText}>{errors.email}</Text>
                   </View>
                 )}
@@ -142,15 +178,25 @@ export default function LoginScreen() {
 
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Password</Text>
-                <View style={[styles.inputWrapper, errors.password && styles.inputWrapperError]}>
-                  <Ionicons name="lock-closed-outline" size={20} color="#64748b" style={styles.inputIcon} />
+                <View
+                  style={[
+                    styles.inputWrapper,
+                    errors.password && styles.inputWrapperError,
+                  ]}
+                >
+                  <Ionicons
+                    name="lock-closed-outline"
+                    size={20}
+                    color="#64748b"
+                    style={styles.inputIcon}
+                  />
                   <TextInput
                     style={styles.textInput}
                     value={password}
                     onChangeText={(text) => {
                       setPassword(text)
                       if (errors.password) {
-                        setErrors(prev => ({ ...prev, password: undefined }))
+                        setErrors((prev) => ({ ...prev, password: undefined }))
                       }
                     }}
                     placeholder="Enter your password"
@@ -171,13 +217,20 @@ export default function LoginScreen() {
                 </View>
                 {errors.password && (
                   <View style={styles.errorContainer}>
-                    <Ionicons name="alert-circle-outline" size={14} color="#dc2626" />
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={14}
+                      color="#dc2626"
+                    />
                     <Text style={styles.errorText}>{errors.password}</Text>
                   </View>
                 )}
               </View>
 
-              <TouchableOpacity style={styles.forgotPassword} onPress={navigateToForgotPassword}>
+              <TouchableOpacity
+                style={styles.forgotPassword}
+                onPress={navigateToForgotPassword}
+              >
                 <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
               </TouchableOpacity>
 
@@ -190,12 +243,23 @@ export default function LoginScreen() {
                 style={styles.loginButton}
               />
 
-              <View style={styles.signupContainer}>
-                <Text style={styles.signupText}>Don&apos;t have an account? </Text>
-                <TouchableOpacity onPress={navigateToSignUp}>
-                  <Text style={styles.signupLink}>Sign Up</Text>
-                </TouchableOpacity>
+              {/* Signing up is the path most first-time visitors need, so it gets a
+                  real secondary button rather than a text link buried in body copy. */}
+              <View style={styles.dividerRow}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>New here?</Text>
+                <View style={styles.dividerLine} />
               </View>
+
+              <Button
+                text="Create an Account"
+                color="#22c55e"
+                backgroundColor="transparent"
+                outline="#22c55e"
+                onPress={navigateToSignUp}
+                disabled={isLoading}
+                style={styles.signupButton}
+              />
             </Card>
           </View>
         </View>
@@ -220,18 +284,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   logo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "white",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    width: 96,
+    height: 96,
+    marginBottom: 12,
   },
   appName: {
     fontSize: 32,
@@ -342,20 +397,25 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   loginButton: {
-    marginBottom: 24,
+    marginBottom: 20,
   },
-  signupContainer: {
+  dividerRow: {
     flexDirection: "row",
-    justifyContent: "center",
     alignItems: "center",
+    gap: 12,
+    marginBottom: 16,
   },
-  signupText: {
-    fontSize: 14,
-    color: "#64748b",
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#e2e8f0",
   },
-  signupLink: {
-    fontSize: 14,
-    color: "#22c55e",
+  dividerText: {
+    fontSize: 13,
+    color: "#94a3b8",
     fontWeight: "600",
+  },
+  signupButton: {
+    marginBottom: 4,
   },
 })

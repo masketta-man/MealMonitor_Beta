@@ -1,11 +1,18 @@
-import React, { ReactNode } from 'react';
-import { View, StyleSheet, ViewStyle, TouchableOpacity, TouchableOpacityProps } from 'react-native';
+import React, { ReactNode } from "react"
+import {
+    StyleProp,
+    StyleSheet,
+    TouchableOpacity,
+    TouchableOpacityProps,
+    View,
+    ViewStyle,
+} from "react-native"
 
 interface CardProps extends TouchableOpacityProps {
-  children: ReactNode;
-  style?: ViewStyle;
-  onPress?: () => void;
-  noPadding?: boolean;
+  children: ReactNode
+  style?: StyleProp<ViewStyle>
+  onPress?: () => void
+  noPadding?: boolean
 }
 
 const Card: React.FC<CardProps> = ({
@@ -19,7 +26,7 @@ const Card: React.FC<CardProps> = ({
     styles.card,
     style,
     noPadding ? styles.noPadding : styles.withPadding,
-  ];
+  ]
 
   if (onPress) {
     return (
@@ -31,21 +38,21 @@ const Card: React.FC<CardProps> = ({
       >
         {children}
       </TouchableOpacity>
-    );
+    )
   }
 
   return (
     <View style={cardStyle} {...rest}>
       {children}
     </View>
-  );
-};
+  )
+}
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: "#fff",
     borderRadius: 12,
-    shadowColor: '#000',
+    shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
@@ -58,6 +65,6 @@ const styles = StyleSheet.create({
   noPadding: {
     padding: 0,
   },
-});
+})
 
-export default Card;
+export default Card

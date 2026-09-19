@@ -1,11 +1,17 @@
-import { TouchableOpacity, Text, StyleSheet, type ViewStyle, ViewStyle as RNViewStyle } from "react-native"
+import {
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    type StyleProp,
+    type ViewStyle,
+} from "react-native"
 
 interface ButtonProps {
   text: string
   color: string
   backgroundColor: string
   onPress: () => void
-  style?: RNViewStyle
+  style?: StyleProp<ViewStyle>
   disabled?: boolean
   outline?: string
 }
@@ -15,21 +21,20 @@ const Button = ({
   color,
   backgroundColor,
   onPress,
-  style = {},
+  style,
   disabled = false,
   outline,
 }: ButtonProps) => {
-  const buttonStyles: RNViewStyle = {
+  const buttonStyles: ViewStyle = {
     ...styles.button,
     ...(outline
       ? {
-          backgroundColor: 'transparent',
+          backgroundColor: "transparent",
           borderWidth: 1,
           borderColor: outline,
         }
       : { backgroundColor: disabled ? "#e2e8f0" : backgroundColor }),
   }
-
 
   return (
     <TouchableOpacity
@@ -38,7 +43,12 @@ const Button = ({
       disabled={disabled}
       activeOpacity={0.8}
     >
-      <Text style={[styles.text, { color: disabled ? "#94a3b8" : outline ? outline : color }]}>
+      <Text
+        style={[
+          styles.text,
+          { color: disabled ? "#94a3b8" : outline ? outline : color },
+        ]}
+      >
         {text}
       </Text>
     </TouchableOpacity>

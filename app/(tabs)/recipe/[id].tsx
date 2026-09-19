@@ -6,7 +6,17 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router"
 import { useCallback, useState } from "react"
-import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
@@ -28,9 +38,10 @@ export default function RecipeDetailScreen() {
   const [isLoading, setIsLoading] = useState(true)
   const [enhancedTags, setEnhancedTags] = useState<any[]>([])
   const [userIngredients, setUserIngredients] = useState<Set<string>>(new Set())
+  const [showPrepChecklist, setShowPrepChecklist] = useState(false)
 
   const handleBackNavigation = useCallback(() => {
-    if (typeof router.canGoBack === 'function' && router.canGoBack()) {
+    if (typeof router.canGoBack === "function" && router.canGoBack()) {
       router.back()
     } else {
       router.replace("/(tabs)/recipes")
@@ -39,7 +50,7 @@ export default function RecipeDetailScreen() {
 
   const loadRecipe = useCallback(async () => {
     if (!params.id) {
-      Alert.alert('Error', 'Recipe not found')
+      Alert.alert("Error", "Recipe not found")
       handleBackNavigation()
       setIsLoading(false)
       return
@@ -55,7 +66,7 @@ export default function RecipeDetailScreen() {
       const [recipeData, tagsData, userIngredientsData] = await Promise.all([
         recipeService.getRecipe(params.id, user.id),
         recipeService.getRecipeEnhancedTags(params.id),
-        recipeService.getUserIngredients(user.id)
+        recipeService.getUserIngredients(user.id),
       ])
 
       if (recipeData) {
@@ -65,14 +76,14 @@ export default function RecipeDetailScreen() {
         setUserIngredients(userIngredientsData)
 
         // Track view interaction for learning
-        await recipeService.trackRecipeInteraction(user.id, params.id, 'view')
+        await recipeService.trackRecipeInteraction(user.id, params.id, "view")
       } else {
-        Alert.alert('Error', 'Recipe not found')
+        Alert.alert("Error", "Recipe not found")
         handleBackNavigation()
       }
     } catch (error) {
-      console.error('Error loading recipe:', error)
-      Alert.alert('Error', 'Failed to load recipe. Please try again.')
+      console.error("Error loading recipe:", error)
+      Alert.alert("Error", "Failed to load recipe. Please try again.")
       handleBackNavigation()
     } finally {
       setIsLoading(false)
@@ -82,25 +93,31 @@ export default function RecipeDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       loadRecipe()
-    }, [loadRecipe])
+    }, [loadRecipe]),
   )
 
   const toggleFavorite = async () => {
     if (!user || !params.id) return
 
     try {
-      const newFavoriteStatus = await recipeService.toggleFavorite(user.id, params.id)
+      const newFavoriteStatus = await recipeService.toggleFavorite(
+        user.id,
+        params.id,
+      )
       setIsFavorite(newFavoriteStatus)
 
       // Track like/unlike interaction
       await recipeService.trackRecipeInteraction(
         user.id,
         params.id,
-        newFavoriteStatus ? 'like' : 'skip'
+        newFavoriteStatus ? "like" : "skip",
       )
     } catch (error) {
-      console.error('Error toggling favorite:', error)
-      Alert.alert('Error', 'Failed to update favorite status. Please try again.')
+      console.error("Error toggling favorite:", error)
+      Alert.alert(
+        "Error",
+        "Failed to update favorite status. Please try again.",
+      )
     }
   }
 
@@ -130,11 +147,19 @@ export default function RecipeDetailScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
         {/* Header */}
         <View style={[styles.header, isWeb && styles.headerWeb]}>
-          <TouchableOpacity onPress={handleBackNavigation} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={handleBackNavigation}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="#1f2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle} numberOfLines={1}>{recipe.title}</Text>
-          <TouchableOpacity onPress={toggleFavorite} style={styles.favoriteButton}>
+          <Text style={styles.headerTitle} numberOfLines={1}>
+            {recipe.title}
+          </Text>
+          <TouchableOpacity
+            onPress={toggleFavorite}
+            style={styles.favoriteButton}
+          >
             <Ionicons
               name={isFavorite ? "heart" : "heart-outline"}
               size={24}
@@ -143,197 +168,269 @@ export default function RecipeDetailScreen() {
           </TouchableOpacity>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             {/* Recipe Image */}
             <View style={styles.imageContainer}>
-            <Image source={{ uri: recipe.image_url || 'https://via.placeholder.com/300x200' }} style={styles.recipeImage} resizeMode="cover" />
-            <View style={styles.badgesOverlay}>
-              <Badge
-                text={recipe.difficulty}
-                color={
-                  recipe.difficulty === "Beginner"
-                    ? "#166534"
-                    : recipe.difficulty === "Intermediate"
-                      ? "#9a3412"
-                      : "#7e22ce"
-                }
-                backgroundColor={
-                  recipe.difficulty === "Beginner"
-                    ? "#dcfce7"
-                    : recipe.difficulty === "Intermediate"
-                      ? "#ffedd5"
-                      : "#f3e8ff"
-                }
+              <Image
+                source={{
+                  uri:
+                    recipe.image_url || "https://via.placeholder.com/300x200",
+                }}
+                style={styles.recipeImage}
+                resizeMode="cover"
               />
+              <View style={styles.badgesOverlay}>
+                <Badge
+                  text={recipe.difficulty}
+                  color={
+                    recipe.difficulty === "Beginner"
+                      ? "#166534"
+                      : recipe.difficulty === "Intermediate"
+                        ? "#9a3412"
+                        : "#7e22ce"
+                  }
+                  backgroundColor={
+                    recipe.difficulty === "Beginner"
+                      ? "#dcfce7"
+                      : recipe.difficulty === "Intermediate"
+                        ? "#ffedd5"
+                        : "#f3e8ff"
+                  }
+                />
+                <Badge
+                  text={recipe.meal_type}
+                  color={
+                    recipe.meal_type === "Breakfast"
+                      ? "#1e40af"
+                      : recipe.meal_type === "Lunch"
+                        ? "#0e7490"
+                        : "#7e22ce"
+                  }
+                  backgroundColor={
+                    recipe.meal_type === "Breakfast"
+                      ? "#dbeafe"
+                      : recipe.meal_type === "Lunch"
+                        ? "#cffafe"
+                        : "#f3e8ff"
+                  }
+                  style={styles.secondBadge}
+                />
+              </View>
               <Badge
-                text={recipe.meal_type}
-                color={
-                  recipe.meal_type === "Breakfast" ? "#1e40af" : recipe.meal_type === "Lunch" ? "#0e7490" : "#7e22ce"
-                }
-                backgroundColor={
-                  recipe.meal_type === "Breakfast" ? "#dbeafe" : recipe.meal_type === "Lunch" ? "#cffafe" : "#f3e8ff"
-                }
-                style={styles.secondBadge}
+                text={`+${recipe.points} pts`}
+                color="white"
+                backgroundColor="#22c55e"
+                style={styles.pointsBadge}
               />
             </View>
-            <Badge text={`+${recipe.points} pts`} color="white" backgroundColor="#22c55e" style={styles.pointsBadge} />
-          </View>
 
-          {/* Recipe Title and Meta */}
-          <View style={styles.titleContainer}>
-            <Text style={styles.recipeTitle}>{recipe.title}</Text>
-            <View style={styles.metaContainer}>
-              <View style={styles.metaItem}>
-                <Ionicons name="time-outline" size={18} color="#4b5563" />
-                <Text style={styles.metaText}>{recipe.prep_time}m</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="flame-outline" size={18} color="#4b5563" />
-                <Text style={styles.metaText}>{recipe.calories || 0} cal</Text>
-              </View>
-              <View style={styles.metaItem}>
-                <Ionicons name="star-outline" size={18} color="#4b5563" />
-                <Text style={styles.metaText}>{recipe.nutrition_score || 0}</Text>
+            {/* Recipe Title and Meta */}
+            <View style={styles.titleContainer}>
+              <Text style={styles.recipeTitle}>{recipe.title}</Text>
+              <View style={styles.metaContainer}>
+                <View style={styles.metaItem}>
+                  <Ionicons name="time-outline" size={18} color="#4b5563" />
+                  <Text style={styles.metaText}>{recipe.prep_time}m</Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Ionicons name="flame-outline" size={18} color="#4b5563" />
+                  <Text style={styles.metaText}>
+                    {recipe.calories || 0} cal
+                  </Text>
+                </View>
+                <View style={styles.metaItem}>
+                  <Ionicons name="star-outline" size={18} color="#4b5563" />
+                  <Text style={styles.metaText}>
+                    {recipe.nutrition_score || 0}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* Enhanced Tags */}
-          {enhancedTags.length > 0 && (
+            {/* Enhanced Tags */}
+            {enhancedTags.length > 0 && (
+              <Card style={styles.section}>
+                <Text style={styles.sectionTitle}>Tags</Text>
+                <View style={styles.tagsContainer}>
+                  {enhancedTags.map((tag: any, index: number) => (
+                    <TagChip
+                      key={index}
+                      label={tag.name}
+                      category={tag.category?.name}
+                      size="small"
+                    />
+                  ))}
+                </View>
+              </Card>
+            )}
+
+            {/* Description */}
             <Card style={styles.section}>
-              <Text style={styles.sectionTitle}>Tags</Text>
-              <View style={styles.tagsContainer}>
-                {enhancedTags.map((tag: any, index: number) => (
-                  <TagChip
-                    key={index}
-                    label={tag.name}
-                    category={tag.category?.name}
-                    size="small"
-                  />
+              <Text style={styles.sectionTitle}>Description</Text>
+              <Text style={styles.descriptionText}>{recipe.description}</Text>
+            </Card>
+
+            {/* Nutrition Info */}
+            <Card style={styles.section}>
+              <Text style={styles.sectionTitle}>Nutrition Information</Text>
+              <View style={styles.nutritionContainer}>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>
+                    {recipe.calories || 0}
+                  </Text>
+                  <Text style={styles.nutritionLabel}>Calories</Text>
+                </View>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>
+                    {recipe.protein || 0}g
+                  </Text>
+                  <Text style={styles.nutritionLabel}>Protein</Text>
+                </View>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>
+                    {recipe.carbs || 0}g
+                  </Text>
+                  <Text style={styles.nutritionLabel}>Carbs</Text>
+                </View>
+                <View style={styles.nutritionItem}>
+                  <Text style={styles.nutritionValue}>{recipe.fat || 0}g</Text>
+                  <Text style={styles.nutritionLabel}>Fat</Text>
+                </View>
+              </View>
+            </Card>
+
+            {/* Ingredients */}
+            <Card style={styles.section}>
+              <View style={styles.ingredientsHeader}>
+                <Text style={styles.sectionTitle}>Ingredients</Text>
+                {userIngredients.size > 0 && (
+                  <View style={styles.ingredientsSummary}>
+                    <Ionicons
+                      name="checkmark-circle"
+                      size={16}
+                      color="#22c55e"
+                    />
+                    <Text style={styles.ingredientsSummaryText}>
+                      {
+                        recipe.ingredients.filter((ing) =>
+                          userIngredients.has(ing.name.toLowerCase().trim()),
+                        ).length
+                      }
+                      /{recipe.ingredients.length} in pantry
+                    </Text>
+                  </View>
+                )}
+              </View>
+              <View style={styles.ingredientsList}>
+                {recipe.ingredients.map((ingredient: any, index: number) => {
+                  const normalizedName = ingredient.name.toLowerCase().trim()
+                  const hasIngredient = userIngredients.has(normalizedName)
+
+                  return (
+                    <View
+                      key={index}
+                      style={[
+                        styles.ingredientItem,
+                        !hasIngredient &&
+                          userIngredients.size > 0 &&
+                          styles.missingIngredientItem,
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.ingredientDot,
+                          hasIngredient
+                            ? styles.ingredientDotAvailable
+                            : styles.ingredientDotMissing,
+                        ]}
+                      />
+                      <Text
+                        style={[
+                          styles.ingredientName,
+                          !hasIngredient &&
+                            userIngredients.size > 0 &&
+                            styles.missingIngredientText,
+                        ]}
+                      >
+                        {ingredient.name}
+                      </Text>
+                      <Text
+                        style={[
+                          styles.ingredientAmount,
+                          !hasIngredient &&
+                            userIngredients.size > 0 &&
+                            styles.missingIngredientText,
+                        ]}
+                      >
+                        {ingredient.amount}
+                      </Text>
+                      {userIngredients.size > 0 && (
+                        <Ionicons
+                          name={
+                            hasIngredient ? "checkmark-circle" : "close-circle"
+                          }
+                          size={18}
+                          color={hasIngredient ? "#22c55e" : "#ef4444"}
+                          style={styles.ingredientStatusIcon}
+                        />
+                      )}
+                    </View>
+                  )
+                })}
+              </View>
+              {userIngredients.size > 0 &&
+                recipe.ingredients.some(
+                  (ing) => !userIngredients.has(ing.name.toLowerCase().trim()),
+                ) && (
+                  <View style={styles.missingIngredientsNote}>
+                    <Ionicons
+                      name="information-circle"
+                      size={16}
+                      color="#f59e0b"
+                    />
+                    <Text style={styles.missingIngredientsNoteText}>
+                      Red items are missing from your pantry. Update your pantry
+                      in Settings.
+                    </Text>
+                  </View>
+                )}
+            </Card>
+
+            {/* Instructions */}
+            <Card style={styles.section}>
+              <Text style={styles.sectionTitle}>Instructions</Text>
+              <View style={styles.instructionsList}>
+                {recipe.instructions.map((instruction, index: number) => (
+                  <View key={index} style={styles.instructionItem}>
+                    <View style={styles.instructionNumber}>
+                      <Text style={styles.instructionNumberText}>
+                        {instruction.step_number}
+                      </Text>
+                    </View>
+                    <Text style={styles.instructionText}>
+                      {instruction.instruction}
+                    </Text>
+                  </View>
                 ))}
               </View>
             </Card>
-          )}
 
-          {/* Description */}
-          <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Description</Text>
-            <Text style={styles.descriptionText}>{recipe.description}</Text>
-          </Card>
-
-          {/* Nutrition Info */}
-          <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Nutrition Information</Text>
-            <View style={styles.nutritionContainer}>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.calories || 0}</Text>
-                <Text style={styles.nutritionLabel}>Calories</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.protein || 0}g</Text>
-                <Text style={styles.nutritionLabel}>Protein</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.carbs || 0}g</Text>
-                <Text style={styles.nutritionLabel}>Carbs</Text>
-              </View>
-              <View style={styles.nutritionItem}>
-                <Text style={styles.nutritionValue}>{recipe.fat || 0}g</Text>
-                <Text style={styles.nutritionLabel}>Fat</Text>
-              </View>
+            {/* Action Button */}
+            <View style={styles.actionButtons}>
+              <Button
+                text="Start Cooking"
+                color="white"
+                backgroundColor="#22c55e"
+                style={styles.cookButton}
+                onPress={handleStartCooking}
+              />
             </View>
-          </Card>
-
-          {/* Ingredients */}
-          <Card style={styles.section}>
-            <View style={styles.ingredientsHeader}>
-              <Text style={styles.sectionTitle}>Ingredients</Text>
-              {userIngredients.size > 0 && (
-                <View style={styles.ingredientsSummary}>
-                  <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-                  <Text style={styles.ingredientsSummaryText}>
-                    {recipe.ingredients.filter(ing => userIngredients.has(ing.name.toLowerCase().trim())).length}/{recipe.ingredients.length} in pantry
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={styles.ingredientsList}>
-              {recipe.ingredients.map((ingredient: any, index: number) => {
-                const normalizedName = ingredient.name.toLowerCase().trim()
-                const hasIngredient = userIngredients.has(normalizedName)
-                
-                return (
-                  <View 
-                    key={index} 
-                    style={[
-                      styles.ingredientItem,
-                      !hasIngredient && userIngredients.size > 0 && styles.missingIngredientItem
-                    ]}
-                  >
-                    <View style={[
-                      styles.ingredientDot,
-                      hasIngredient ? styles.ingredientDotAvailable : styles.ingredientDotMissing
-                    ]} />
-                    <Text style={[
-                      styles.ingredientName,
-                      !hasIngredient && userIngredients.size > 0 && styles.missingIngredientText
-                    ]}>
-                      {ingredient.name}
-                    </Text>
-                    <Text style={[
-                      styles.ingredientAmount,
-                      !hasIngredient && userIngredients.size > 0 && styles.missingIngredientText
-                    ]}>
-                      {ingredient.amount}
-                    </Text>
-                    {userIngredients.size > 0 && (
-                      <Ionicons 
-                        name={hasIngredient ? "checkmark-circle" : "close-circle"} 
-                        size={18} 
-                        color={hasIngredient ? "#22c55e" : "#ef4444"}
-                        style={styles.ingredientStatusIcon}
-                      />
-                    )}
-                  </View>
-                )
-              })}
-            </View>
-            {userIngredients.size > 0 && recipe.ingredients.some(ing => !userIngredients.has(ing.name.toLowerCase().trim())) && (
-              <View style={styles.missingIngredientsNote}>
-                <Ionicons name="information-circle" size={16} color="#f59e0b" />
-                <Text style={styles.missingIngredientsNoteText}>
-                  Red items are missing from your pantry. Update your pantry in Settings.
-                </Text>
-              </View>
-            )}
-          </Card>
-
-          {/* Instructions */}
-          <Card style={styles.section}>
-            <Text style={styles.sectionTitle}>Instructions</Text>
-            <View style={styles.instructionsList}>
-              {recipe.instructions.map((instruction, index: number) => (
-                <View key={index} style={styles.instructionItem}>
-                  <View style={styles.instructionNumber}>
-                    <Text style={styles.instructionNumberText}>{instruction.step_number}</Text>
-                  </View>
-                  <Text style={styles.instructionText}>{instruction.instruction}</Text>
-                </View>
-              ))}
-            </View>
-          </Card>
-
-          {/* Action Button */}
-          <View style={styles.actionButtons}>
-            <Button
-              text="Start Cooking"
-              color="white"
-              backgroundColor="#22c55e"
-              style={styles.cookButton}
-              onPress={handleStartCooking}
-            />
-          </View>
 
             {/* Bottom padding */}
             <View style={styles.bottomPadding} />
@@ -379,9 +476,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: 'white',
+    backgroundColor: "white",
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: "#e5e7eb",
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -394,17 +491,17 @@ const styles = StyleSheet.create({
   headerTitle: {
     flex: 1,
     fontSize: 18,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
     marginHorizontal: 8,
-    color: '#1f2937',
+    color: "#1f2937",
   },
   favoriteButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   backButton: {
     width: 40,
@@ -532,15 +629,15 @@ const styles = StyleSheet.create({
     borderBottomColor: "#f1f5f9",
   },
   ingredientsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 12,
   },
   ingredientsSummary: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0fdf4',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f0fdf4",
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
@@ -548,8 +645,8 @@ const styles = StyleSheet.create({
   },
   ingredientsSummaryText: {
     fontSize: 12,
-    color: '#166534',
-    fontWeight: '600',
+    color: "#166534",
+    fontWeight: "600",
   },
   ingredientDot: {
     width: 8,
@@ -564,21 +661,21 @@ const styles = StyleSheet.create({
     backgroundColor: "#ef4444",
   },
   missingIngredientItem: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: "#fef2f2",
     borderLeftWidth: 3,
-    borderLeftColor: '#ef4444',
+    borderLeftColor: "#ef4444",
     paddingLeft: 12,
   },
   missingIngredientText: {
-    color: '#991b1b',
+    color: "#991b1b",
   },
   ingredientStatusIcon: {
     marginLeft: 8,
   },
   missingIngredientsNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fffbeb',
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#fffbeb",
     padding: 12,
     borderRadius: 8,
     marginTop: 12,
@@ -587,7 +684,7 @@ const styles = StyleSheet.create({
   missingIngredientsNoteText: {
     flex: 1,
     fontSize: 12,
-    color: '#92400e',
+    color: "#92400e",
   },
   ingredientName: {
     flex: 1,
@@ -629,6 +726,10 @@ const styles = StyleSheet.create({
   actionButtons: {
     paddingHorizontal: 16,
     marginBottom: 16,
+    gap: 12,
+  },
+  prepButton: {
+    width: "100%",
   },
   cookButton: {
     width: "100%",
