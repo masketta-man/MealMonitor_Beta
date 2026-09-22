@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import { activityRecommendationBias } from "@/utils/calorieGoal"
+import { medicalConditionBias } from "@/utils/medicalConditions"
 import { calorieService } from "./calorieService"
 import { RecipeWithDetails } from "./recipeService"
 import { settingsService } from "./settingsService"
@@ -766,6 +767,11 @@ export const recommendationService = {
       if (isHeavy) score += bias * 15
       if (isLight) score += -bias * 15
     }
+
+    // Soft medical-condition bias: favor recipes whose tags suit the user's
+    // declared conditions, disfavor unsuitable ones. Never hides anything.
+    const conditionIds = userSettings?.meal_preferences?.medical_conditions
+    score += medicalConditionBias(conditionIds, recipeTagNames)
 
     return Math.max(0, Math.min(100, score))
   },

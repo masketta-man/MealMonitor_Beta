@@ -519,6 +519,17 @@ export default function SignUpScreen() {
                 style={styles.signupButton}
               />
 
+              <Text style={styles.privacyNotice}>
+                By creating an account you agree to our{" "}
+                <Text
+                  style={styles.privacyLink}
+                  onPress={() => router.push("/(auth)/privacy")}
+                >
+                  Data Privacy policy
+                </Text>
+                .
+              </Text>
+
               <View style={styles.loginContainer}>
                 <Text style={styles.loginText}>Already have an account? </Text>
                 <TouchableOpacity onPress={navigateToLogin}>
@@ -715,6 +726,17 @@ const styles = StyleSheet.create({
   },
   loginLink: {
     fontSize: 14,
+    color: "#22c55e",
+    fontWeight: "600",
+  },
+  privacyNotice: {
+    fontSize: 12,
+    color: "#94a3b8",
+    textAlign: "center",
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  privacyLink: {
     color: "#22c55e",
     fontWeight: "600",
   },

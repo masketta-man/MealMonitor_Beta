@@ -4,7 +4,9 @@ import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 import { useTutorial } from "@/contexts/TutorialContext"
 import { useAuth } from "@/hooks/useAuth"
 import {
+    getMedicalConditions,
     settingsService,
+    withMedicalConditions,
     type UserSettings,
     type UserSettingsUpdate,
 } from "@/services/settingsService"
@@ -14,6 +16,7 @@ import {
     calculateCalorieGoal,
     type ActivityLevel,
 } from "@/utils/calorieGoal"
+import { MEDICAL_CONDITIONS } from "@/utils/medicalConditions"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
@@ -80,6 +83,7 @@ export default function SettingsScreen() {
   const [activityLevel, setActivityLevel] =
     useState<ActivityLevel>("moderately_active")
   const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([])
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([])
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
@@ -106,6 +110,7 @@ export default function SettingsScreen() {
         setCalorieTarget(userSettings.daily_calorie_target.toString())
         setWeightGoal(userSettings.weight_goal)
         setActivityLevel(userSettings.activity_level)
+        setSelectedConditions(getMedicalConditions(userSettings))
 
         // Migrate old restriction IDs to new consistent format
         let restrictions = (userSettings.dietary_restrictions || []).map(
@@ -162,6 +167,14 @@ export default function SettingsScreen() {
       prev.includes(restrictionId)
         ? prev.filter((id) => id !== restrictionId)
         : [...prev, restrictionId],
+    )
+  }
+
+  const toggleCondition = (conditionId: string) => {
+    setSelectedConditions((prev) =>
+      prev.includes(conditionId)
+        ? prev.filter((id) => id !== conditionId)
+        : [...prev, conditionId],
     )
   }
 
@@ -224,6 +237,11 @@ export default function SettingsScreen() {
         weight_goal: weightGoal as UserSettings["weight_goal"],
         activity_level: activityLevel as UserSettings["activity_level"],
         dietary_restrictions: selectedRestrictions,
+        // Medical conditions live inside meal_preferences (no dedicated column).
+        meal_preferences: withMedicalConditions(
+          settings?.meal_preferences,
+          selectedConditions,
+        ),
       }
 
       const dietaryPrefs = selectedRestrictions.filter((r) =>
@@ -478,6 +496,38 @@ export default function SettingsScreen() {
             </Card>
 
             <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>Health Conditions</Text>
+              <Text style={styles.sectionSubtitle}>
+                Optional. We&rsquo;ll gently favor suitable recipes. This
+                isn&rsquo;t medical advice.
+              </Text>
+              <View style={styles.restrictionsContainer}>
+                {MEDICAL_CONDITIONS.map((condition) => {
+                  const active = selectedConditions.includes(condition.id)
+                  return (
+                    <TouchableOpacity
+                      key={condition.id}
+                      style={[
+                        styles.restrictionChip,
+                        active && styles.restrictionChipActive,
+                      ]}
+                      onPress={() => toggleCondition(condition.id)}
+                    >
+                      <Text
+                        style={[
+                          styles.restrictionChipText,
+                          active && styles.restrictionChipTextActive,
+                        ]}
+                      >
+                        {condition.label}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </Card>
+
+            <Card style={styles.card}>
               <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
               <Text style={styles.sectionSubtitle}>
                 Select any dietary restrictions or preferences
@@ -532,6 +582,25 @@ export default function SettingsScreen() {
                   <Ionicons name="play-circle" size={24} color="#22c55e" />
                   <Text style={styles.tutorialButtonText}>
                     Restart Tutorial
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </Card>
+
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>Data Privacy</Text>
+              <Text style={styles.sectionSubtitle}>
+                Review what we collect and how it&rsquo;s used
+              </Text>
+              <TouchableOpacity
+                style={styles.tutorialButton}
+                onPress={() => router.push("/(auth)/privacy")}
+              >
+                <View style={styles.tutorialButtonContent}>
+                  <Ionicons name="shield-checkmark" size={24} color="#22c55e" />
+                  <Text style={styles.tutorialButtonText}>
+                    View Data Privacy
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color="#64748b" />

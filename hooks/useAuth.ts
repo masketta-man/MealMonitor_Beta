@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabase"
 import { Session, User } from "@supabase/supabase-js"
+import * as Linking from "expo-linking"
 import { useEffect, useState } from "react"
 
 export function useAuth() {
@@ -115,6 +116,11 @@ export function useAuth() {
       password,
       options: {
         data: userData,
+        // Where the confirmation email link should return the user. Works for
+        // web (origin) and native (mealmonitor:// deep link) via expo-linking.
+        // The account-creation email is sent by Supabase when email
+        // confirmations are enabled for the project (Auth > Providers > Email).
+        emailRedirectTo: Linking.createURL("/"),
       },
     })
 

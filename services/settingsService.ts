@@ -161,3 +161,27 @@ export const settingsService = {
     return this.upsertUserSettings(userId, {})
   },
 }
+
+/**
+ * Medical conditions are stored inside the existing `meal_preferences` JSON
+ * column (no dedicated column / migration needed). These helpers keep that shape
+ * in one place so callers don't hand-roll the nesting.
+ */
+export const getMedicalConditions = (
+  settings: Pick<UserSettings, "meal_preferences"> | null | undefined,
+): string[] => {
+  const raw = settings?.meal_preferences?.medical_conditions
+  return Array.isArray(raw)
+    ? raw.filter((c): c is string => typeof c === "string")
+    : []
+}
+
+export const withMedicalConditions = (
+  mealPreferences: any,
+  conditionIds: string[],
+): any => ({
+  ...(mealPreferences && typeof mealPreferences === "object"
+    ? mealPreferences
+    : {}),
+  medical_conditions: conditionIds,
+})
