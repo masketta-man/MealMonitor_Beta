@@ -13,7 +13,7 @@
         "-y",
         "@supabase/mcp-server-supabase@latest",
         "--access-token",
-        "sbp_461889a1fd61bc6ce588e8be36d17f8def04fddf"
+        "sbp_fc213c3f05a9fe3018ad6db5c679edf754480c37"
       ],
       "disabled": false,
       "autoApprove": ["list_projects"]

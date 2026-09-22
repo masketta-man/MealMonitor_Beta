@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuth } from "@/hooks/useAuth"
+import { ingredientService } from "@/services/ingredientService"
 import { recipeService } from "@/services/recipeService"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
@@ -10,6 +11,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -73,6 +75,8 @@ export default function RecipeDetailScreen() {
         setRecipe(recipeData)
         setIsFavorite(recipeData.isFavorite || false)
         setEnhancedTags(tagsData)
+        // getUserIngredients returns a Set of normalized names of the user's
+        // in-stock ingredients — used below to warn about anything missing.
         setUserIngredients(userIngredientsData)
 
         // Track view interaction for learning
@@ -121,12 +125,94 @@ export default function RecipeDetailScreen() {
     }
   }
 
+  const normalizeIngredientName = (name: string) =>
+    name.toLowerCase().trim().replace(/\s+/g, " ")
+
+  // Tapping a recipe ingredient that isn't in the pantry offers to add it, so a
+  // user can stock up straight from the recipe instead of hunting in the pantry.
+  const addIngredientToPantry = async (ingredient: {
+    id: string
+    name: string
+  }) => {
+    if (!user) return
+
+    const normalized = normalizeIngredientName(ingredient.name)
+    if (userIngredients.has(normalized)) return // Already in pantry
+
+    const doAdd = async () => {
+      try {
+        const added = await ingredientService.addUserIngredient(
+          user.id,
+          ingredient.id,
+        )
+        if (added) {
+          // Optimistically flip the row to "in pantry" without a full reload.
+          setUserIngredients((prev) => new Set(prev).add(normalized))
+        } else {
+          Alert.alert(
+            "Error",
+            "Couldn't add that ingredient. Please try again.",
+          )
+        }
+      } catch (error) {
+        console.error("Error adding ingredient to pantry:", error)
+        Alert.alert("Error", "Couldn't add that ingredient. Please try again.")
+      }
+    }
+
+    const title = "Add to pantry?"
+    const message = `Add ${ingredient.name} to your pantry?`
+
+    if (Platform.OS === "web") {
+      if (window.confirm(`${title}\n\n${message}`)) await doAdd()
+      return
+    }
+
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Add", onPress: doAdd },
+    ])
+  }
+
   // Edit recipe feature removed
 
-  const handleStartCooking = () => {
+  const proceedToCooking = () => {
     if (params.id) {
       router.push(`/(tabs)/cooking/${params.id}`)
     }
+  }
+
+  const handleStartCooking = () => {
+    if (!params.id) return
+
+    // userIngredients is a Set of normalized in-stock ingredient names, so we
+    // compare recipe ingredient names normalized the same way to find missing.
+    const normalize = (name: string) =>
+      name.toLowerCase().trim().replace(/\s+/g, " ")
+    const missing = (recipe?.ingredients ?? []).filter(
+      (ing) => !userIngredients.has(normalize(ing.name)),
+    )
+
+    if (missing.length === 0) {
+      proceedToCooking()
+      return
+    }
+
+    const names = missing.map((m) => m.name).join(", ")
+    const title = "Missing ingredients"
+    const message = `You don't have ${missing.length} of the ingredients for this recipe:\n\n${names}\n\nStart cooking anyway?`
+
+    if (Platform.OS === "web") {
+      if (window.confirm(`${title}\n\n${message}`)) {
+        proceedToCooking()
+      }
+      return
+    }
+
+    Alert.alert(title, message, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Cook Anyway", onPress: proceedToCooking },
+    ])
   }
 
   if (isLoading || !recipe) {
@@ -329,11 +415,13 @@ export default function RecipeDetailScreen() {
               </View>
               <View style={styles.ingredientsList}>
                 {recipe.ingredients.map((ingredient: any, index: number) => {
-                  const normalizedName = ingredient.name.toLowerCase().trim()
+                  const normalizedName = normalizeIngredientName(
+                    ingredient.name,
+                  )
                   const hasIngredient = userIngredients.has(normalizedName)
 
                   return (
-                    <View
+                    <TouchableOpacity
                       key={index}
                       style={[
                         styles.ingredientItem,
@@ -341,6 +429,15 @@ export default function RecipeDetailScreen() {
                           userIngredients.size > 0 &&
                           styles.missingIngredientItem,
                       ]}
+                      // Only actionable when the user doesn't already have it.
+                      disabled={hasIngredient}
+                      activeOpacity={0.6}
+                      onPress={() =>
+                        addIngredientToPantry({
+                          id: ingredient.id,
+                          name: ingredient.name,
+                        })
+                      }
                     >
                       <View
                         style={[
@@ -370,17 +467,25 @@ export default function RecipeDetailScreen() {
                       >
                         {ingredient.amount}
                       </Text>
-                      {userIngredients.size > 0 && (
+                      {hasIngredient ? (
+                        userIngredients.size > 0 && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={18}
+                            color="#22c55e"
+                            style={styles.ingredientStatusIcon}
+                          />
+                        )
+                      ) : (
+                        // Clear "tap to add" affordance for missing ingredients.
                         <Ionicons
-                          name={
-                            hasIngredient ? "checkmark-circle" : "close-circle"
-                          }
-                          size={18}
-                          color={hasIngredient ? "#22c55e" : "#ef4444"}
+                          name="add-circle"
+                          size={20}
+                          color="#22c55e"
                           style={styles.ingredientStatusIcon}
                         />
                       )}
-                    </View>
+                    </TouchableOpacity>
                   )
                 })}
               </View>
@@ -395,8 +500,7 @@ export default function RecipeDetailScreen() {
                       color="#f59e0b"
                     />
                     <Text style={styles.missingIngredientsNoteText}>
-                      Red items are missing from your pantry. Update your pantry
-                      in Settings.
+                      Red items are missing from your pantry. Tap one to add it.
                     </Text>
                   </View>
                 )}

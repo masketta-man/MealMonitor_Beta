@@ -7,6 +7,11 @@ import {
 } from "@/services/ingredientService"
 import { settingsService } from "@/services/settingsService"
 import { userService } from "@/services/userService"
+import {
+    ACTIVITY_LEVELS,
+    calculateCalorieGoal,
+    type ActivityLevel,
+} from "@/utils/calorieGoal"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
@@ -116,6 +121,11 @@ export default function OnboardingScreen() {
     cookingFrequency: "",
     foodRestrictions: [] as string[],
   })
+  // Activity level is stored by id (e.g. "moderately_active") and lives outside
+  // the generic `preferences` map because its options are rendered with a label
+  // that differs from the stored value.
+  const [activityLevel, setActivityLevel] =
+    useState<ActivityLevel>("moderately_active")
 
   const steps = [
     {
@@ -152,11 +162,13 @@ export default function OnboardingScreen() {
     },
   ]
 
-  // The pantry step sits after the preference questions. It can't live in `steps`
-  // because its options come from the database and are identified by id rather
-  // than by their label.
-  const PANTRY_STEP_INDEX = steps.length
-  const totalSteps = steps.length + 1
+  // The activity and pantry steps sit after the preference questions. They can't
+  // live in `steps`: activity stores an id that differs from its label, and the
+  // pantry options come from the database and are identified by id.
+  const ACTIVITY_STEP_INDEX = steps.length
+  const PANTRY_STEP_INDEX = steps.length + 1
+  const totalSteps = steps.length + 2
+  const isActivityStep = currentStep === ACTIVITY_STEP_INDEX
   const isPantryStep = currentStep === PANTRY_STEP_INDEX
   const isLastStep = currentStep === totalSteps - 1
 
@@ -293,65 +305,6 @@ export default function OnboardingScreen() {
     )
   }
 
-  const calculateCalorieGoal = (healthGoals: string[]): number => {
-    // Default calorie goal
-    if (!healthGoals || healthGoals.length === 0) {
-      return 2000
-    }
-
-    // Map each goal to a calorie value
-    // Keys must match the HEALTH_GOALS option labels exactly.
-    const goalCalorieMap: Record<string, number> = {
-      "Lose weight": 1800,
-      "Gain muscle": 2500,
-      "Maintain weight": 2000,
-      "Improve energy": 2000,
-      "Eat healthier": 2000,
-      "Manage a health condition": 2000,
-    }
-
-    // If user selected multiple goals, calculate average
-    const selectedGoalCalories = healthGoals
-      .map((goal) => goalCalorieMap[goal])
-      .filter((cal) => cal !== undefined)
-
-    if (selectedGoalCalories.length === 0) {
-      return 2000 // Default if no matching goals
-    }
-
-    // Handle conflicting goals (Lose weight + Gain muscle)
-    const hasLoseWeight = healthGoals.includes("Lose weight")
-    const hasGainMuscle = healthGoals.includes("Gain muscle")
-    const hasMaintainWeight = healthGoals.includes("Maintain weight")
-
-    // If conflicting goals, prioritize maintain weight as a middle ground
-    if (hasLoseWeight && hasGainMuscle) {
-      console.log(
-        "🔑 Onboarding: Conflicting goals detected, using balanced approach",
-      )
-      return 2000 // Balanced middle ground
-    }
-
-    // If maintain weight is selected with other goals, use maintain weight
-    if (hasMaintainWeight && selectedGoalCalories.length > 1) {
-      return 2000
-    }
-
-    // Calculate average of selected goals
-    const averageCalories = Math.round(
-      selectedGoalCalories.reduce((sum, cal) => sum + cal, 0) /
-        selectedGoalCalories.length,
-    )
-
-    console.log(
-      "🔑 Onboarding: Calculated calorie goal from",
-      healthGoals.length,
-      "goals:",
-      averageCalories,
-    )
-    return averageCalories
-  }
-
   // The preference columns written to `users`, shared by the create/update paths.
   const profilePreferenceFields = () => ({
     health_goals: preferences.healthGoals,
@@ -371,7 +324,12 @@ export default function OnboardingScreen() {
    * recommend until they separately open Settings and save.
    */
   const persistSettings = async (userId: string) => {
-    const initialCalorieGoal = calculateCalorieGoal(preferences.healthGoals)
+    // Activity level now feeds the target alongside the user's goals, so a very
+    // active user and a sedentary one with the same goal get different numbers.
+    const initialCalorieGoal = calculateCalorieGoal(
+      preferences.healthGoals,
+      activityLevel,
+    )
 
     // "None" is a UI affordance meaning "no restrictions". Persisting it verbatim
     // would have the engine try to match a literal "none" tag against recipes.
@@ -381,11 +339,13 @@ export default function OnboardingScreen() {
 
     console.log("🔑 Onboarding: Saving settings", {
       initialCalorieGoal,
+      activityLevel,
       dietaryRestrictions,
     })
 
     const settings = await settingsService.upsertUserSettings(userId, {
       daily_calorie_target: initialCalorieGoal,
+      activity_level: activityLevel,
       dietary_restrictions: dietaryRestrictions,
     })
 
@@ -628,6 +588,54 @@ export default function OnboardingScreen() {
                 </>
               )}
             </Card>
+          ) : isActivityStep ? (
+            <Card style={styles.questionCard}>
+              <Text style={styles.title}>How active are you?</Text>
+              <Text style={styles.subtitle}>
+                We use this with your goals to set a daily calorie target and to
+                tune whether we suggest lighter or heartier meals.
+              </Text>
+
+              <View style={styles.optionsContainer}>
+                {ACTIVITY_LEVELS.map((level) => {
+                  const selected = activityLevel === level.id
+
+                  return (
+                    <TouchableOpacity
+                      key={level.id}
+                      style={[
+                        styles.optionButton,
+                        selected && styles.optionButtonSelected,
+                      ]}
+                      onPress={() => setActivityLevel(level.id)}
+                    >
+                      <View style={styles.optionContent}>
+                        <View style={styles.optionTextGroup}>
+                          <Text
+                            style={[
+                              styles.optionText,
+                              selected && styles.optionTextSelected,
+                            ]}
+                          >
+                            {level.label}
+                          </Text>
+                          <Text style={styles.optionDescription}>
+                            {level.description}
+                          </Text>
+                        </View>
+                        {selected && (
+                          <Ionicons
+                            name="checkmark-circle"
+                            size={20}
+                            color="#22c55e"
+                          />
+                        )}
+                      </View>
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
+            </Card>
           ) : (
             <Card style={styles.questionCard}>
               <Text style={styles.title}>{currentStepData.title}</Text>
@@ -700,10 +708,13 @@ export default function OnboardingScreen() {
               onPress={handleNext}
               disabled={isLoading}
             >
-              {/* On question steps this is a real answer ("none apply"), not
-                  dodging. The pantry step keeps plain "Skip for now". */}
+              {/* On multi-select question steps this is a real answer ("none
+                  apply"), not dodging. The pantry and activity steps (which
+                  have a default) keep a plain "Skip for now". */}
               <Text style={styles.skipButtonText}>
-                {isPantryStep ? "Skip for now" : "None of these apply"}
+                {isPantryStep || isActivityStep
+                  ? "Skip for now"
+                  : "None of these apply"}
               </Text>
             </TouchableOpacity>
           )}

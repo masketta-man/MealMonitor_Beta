@@ -215,8 +215,7 @@ export const recipeService = {
         supabase
           .from("user_ingredients")
           .select("ingredient_id, ingredients(name)")
-          .eq("user_id", userId)
-          .eq("in_stock", true),
+          .eq("user_id", userId),
         userService.getProfile(userId),
         settingsService.getOrCreateSettings(userId),
         calorieService.getTodaysLog(userId),
@@ -376,6 +375,9 @@ export const recipeService = {
     userId: string,
     recipeId: string,
     awardPoints: boolean = true,
+    // How many servings the user actually made, relative to the recipe's base.
+    // Calories are logged in proportion to this (e.g. 0.5 = half a serving).
+    servingsScale: number = 1,
   ): Promise<{
     success: boolean
     leveledUp: boolean
@@ -387,6 +389,7 @@ export const recipeService = {
       userId,
       recipeId,
       awardPoints,
+      servingsScale,
     })
 
     // Get start and end of today in user's local timezone
@@ -496,20 +499,25 @@ export const recipeService = {
       isFirstCompletionToday: !completedToday,
     })
 
-    // Log meal calories if recipe has calorie data
-    if (recipeCalories > 0) {
+    // Log meal calories if recipe has calorie data, scaled to how many servings
+    // the user actually made (base calories assume the recipe's base servings).
+    const safeScale =
+      Number.isFinite(servingsScale) && servingsScale > 0 ? servingsScale : 1
+    const loggedCalories = Math.round(recipeCalories * safeScale)
+    if (loggedCalories > 0) {
       const mealTypeForLog = recipeMealType.toLowerCase()
       await calorieService.logMeal(
         userId,
         recipeTitle,
-        recipeCalories,
+        loggedCalories,
         mealTypeForLog,
         recipeId,
       )
       console.log(
         "📊 Logged calories for meal:",
         recipeTitle,
-        recipeCalories,
+        loggedCalories,
+        `(base ${recipeCalories} × ${safeScale})`,
         mealTypeForLog,
       )
     }
@@ -720,8 +728,7 @@ export const recipeService = {
         supabase
           .from("user_ingredients")
           .select("ingredient_id, ingredients(name)")
-          .eq("user_id", userId)
-          .eq("in_stock", true),
+          .eq("user_id", userId),
         settingsService.getUserSettings(userId),
       ])
 
@@ -828,7 +835,6 @@ export const recipeService = {
       .from("user_ingredients")
       .select("ingredient_id, ingredients(name)")
       .eq("user_id", userId)
-      .eq("in_stock", true)
 
     const availableIngredients =
       userIngredients?.map((ui: any) => ui.ingredients.name) || []
@@ -882,7 +888,6 @@ export const recipeService = {
       .from("user_ingredients")
       .select("ingredient_id, ingredients(name)")
       .eq("user_id", userId)
-      .eq("in_stock", true)
 
     // Normalize ingredient names for matching
     const normalizeIngredientName = (name: string) =>

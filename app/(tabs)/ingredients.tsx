@@ -1,23 +1,49 @@
-import { useState, useEffect } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, FlatList, Pressable, Modal, Alert, ActivityIndicator, Platform, useWindowDimensions } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
-import { ingredientService, type UserIngredientWithDetails } from "@/services/ingredientService"
+import {
+    ingredientService,
+    type UserIngredientWithDetails,
+} from "@/services/ingredientService"
 import { Database } from "@/types/database"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useRouter } from "expo-router"
+import { useEffect, useState } from "react"
+import {
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Modal,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
-type Ingredient = Database['public']['Tables']['ingredients']['Row']
+type Ingredient = Database["public"]["Tables"]["ingredients"]["Row"]
 
 // Components
-import Card from "@/components/Card"
 import Badge from "@/components/Badge"
+import Card from "@/components/Card"
 
-type IngredientCategory = "Fruits" | "Vegetables" | "Protein" | "Dairy" | "Grains" | "Pantry"
+type IngredientCategory =
+  | "Fruits"
+  | "Vegetables"
+  | "Protein"
+  | "Dairy"
+  | "Grains"
+  | "Pantry"
 
 // Define category styles
-const CATEGORY_STYLES: Record<IngredientCategory, { color: string; bgColor: string }> = {
+const CATEGORY_STYLES: Record<
+  IngredientCategory,
+  { color: string; bgColor: string }
+> = {
   Fruits: { color: "#f97316", bgColor: "#ffedd5" },
   Vegetables: { color: "#22c55e", bgColor: "#dcfce7" },
   Protein: { color: "#ef4444", bgColor: "#fee2e2" },
@@ -32,18 +58,30 @@ export default function IngredientsScreen() {
   const { width } = useWindowDimensions()
   const isWeb = width > 768
   const [searchQuery, setSearchQuery] = useState("")
-  const [ingredients, setIngredients] = useState<UserIngredientWithDetails[]>([])
-  const [filteredIngredients, setFilteredIngredients] = useState<UserIngredientWithDetails[]>([])
-  const [selectedCategory, setSelectedCategory] = useState<IngredientCategory | "All">("All")
-  const [showInStockOnly, setShowInStockOnly] = useState(false)
+  const [ingredients, setIngredients] = useState<UserIngredientWithDetails[]>(
+    [],
+  )
+  const [filteredIngredients, setFilteredIngredients] = useState<
+    UserIngredientWithDetails[]
+  >([])
+  const [selectedCategory, setSelectedCategory] = useState<
+    IngredientCategory | "All"
+  >("All")
   const [loading, setLoading] = useState(true)
-  
+
   // Add ingredient modal states
   const [showAddModal, setShowAddModal] = useState(false)
-  const [availableIngredients, setAvailableIngredients] = useState<Ingredient[]>([])
+  const [availableIngredients, setAvailableIngredients] = useState<
+    Ingredient[]
+  >([])
   const [modalSearchQuery, setModalSearchQuery] = useState("")
-  const [filteredAvailableIngredients, setFilteredAvailableIngredients] = useState<Ingredient[]>([])
-  const [selectedIngredient, setSelectedIngredient] = useState<Ingredient | null>(null)
+  const [modalSelectedCategory, setModalSelectedCategory] = useState<
+    IngredientCategory | "All"
+  >("All")
+  const [filteredAvailableIngredients, setFilteredAvailableIngredients] =
+    useState<Ingredient[]>([])
+  const [selectedIngredient, setSelectedIngredient] =
+    useState<Ingredient | null>(null)
   const [quantity, setQuantity] = useState("")
   const [expiryDate, setExpiryDate] = useState("")
   const [addingIngredient, setAddingIngredient] = useState(false)
@@ -62,47 +100,26 @@ export default function IngredientsScreen() {
 
   useEffect(() => {
     filterAvailableIngredients()
-  }, [modalSearchQuery, availableIngredients, ingredients])
-
-  // Toggle ingredient stock status
-  const toggleIngredientStock = async (ingredientId: string) => {
-    if (!user) return
-
-    try {
-      const newStockStatus = await ingredientService.toggleIngredientStock(user.id, ingredientId)
-      
-      // Update local state
-      const updatedIngredients = ingredients.map((userIngredient) =>
-        userIngredient.ingredient_id === ingredientId 
-          ? { ...userIngredient, in_stock: newStockStatus } 
-          : userIngredient,
-      )
-      setIngredients(updatedIngredients)
-      filterIngredients(searchQuery, selectedCategory, showInStockOnly, updatedIngredients)
-
-      // Show a message to the user about meal suggestions
-      if (newStockStatus) {
-        setTimeout(() => {
-          alert("Your meal suggestions have been updated based on your available ingredients!")
-        }, 500)
-      }
-    } catch (error) {
-      console.error('Error toggling ingredient stock:', error)
-      alert('Failed to update ingredient status. Please try again.')
-    }
-  }
+  }, [
+    modalSearchQuery,
+    modalSelectedCategory,
+    availableIngredients,
+    ingredients,
+  ])
 
   const loadIngredients = async () => {
     if (!user) return
 
     try {
       setLoading(true)
-      const userIngredients = await ingredientService.getUserIngredients(user.id)
+      const userIngredients = await ingredientService.getUserIngredients(
+        user.id,
+      )
       setIngredients(userIngredients)
       setFilteredIngredients(userIngredients)
     } catch (error) {
-      console.error('Error loading ingredients:', error)
-      Alert.alert('Error', 'Failed to load ingredients. Please try again.')
+      console.error("Error loading ingredients:", error)
+      Alert.alert("Error", "Failed to load ingredients. Please try again.")
     } finally {
       setLoading(false)
     }
@@ -113,25 +130,34 @@ export default function IngredientsScreen() {
       const allIngredients = await ingredientService.getAllIngredients()
       setAvailableIngredients(allIngredients)
     } catch (error) {
-      console.error('Error loading available ingredients:', error)
-      Alert.alert('Error', 'Failed to load ingredients list.')
+      console.error("Error loading available ingredients:", error)
+      Alert.alert("Error", "Failed to load ingredients list.")
     }
   }
 
   const filterAvailableIngredients = () => {
     // Get IDs of ingredients user already has
-    const userIngredientIds = new Set(ingredients.map(ui => ui.ingredient_id))
-    
+    const userIngredientIds = new Set(ingredients.map((ui) => ui.ingredient_id))
+
     // Filter out ingredients user already has
-    let filtered = availableIngredients.filter(ing => !userIngredientIds.has(ing.id))
-    
-    // Apply search filter
-    if (modalSearchQuery) {
-      filtered = filtered.filter(ing => 
-        ing.name.toLowerCase().includes(modalSearchQuery.toLowerCase())
+    let filtered = availableIngredients.filter(
+      (ing) => !userIngredientIds.has(ing.id),
+    )
+
+    // Apply category filter
+    if (modalSelectedCategory !== "All") {
+      filtered = filtered.filter(
+        (ing) => ing.category === modalSelectedCategory,
       )
     }
-    
+
+    // Apply search filter
+    if (modalSearchQuery) {
+      filtered = filtered.filter((ing) =>
+        ing.name.toLowerCase().includes(modalSearchQuery.toLowerCase()),
+      )
+    }
+
     setFilteredAvailableIngredients(filtered)
   }
 
@@ -144,99 +170,132 @@ export default function IngredientsScreen() {
         user.id,
         selectedIngredient.id,
         quantity || undefined,
-        expiryDate || undefined
+        expiryDate || undefined,
       )
 
       if (result) {
-        Alert.alert('Success', `${selectedIngredient.name} has been added to your pantry!`)
+        Alert.alert(
+          "Success",
+          `${selectedIngredient.name} has been added to your pantry!`,
+        )
         // Reload ingredients to show the new one
         await loadIngredients()
         // Close modal and reset form
         closeAddModal()
       } else {
-        Alert.alert('Error', 'Failed to add ingredient. Please try again.')
+        Alert.alert("Error", "Failed to add ingredient. Please try again.")
       }
     } catch (error) {
-      console.error('Error adding ingredient:', error)
-      Alert.alert('Error', 'Failed to add ingredient. Please try again.')
+      console.error("Error adding ingredient:", error)
+      Alert.alert("Error", "Failed to add ingredient. Please try again.")
     } finally {
       setAddingIngredient(false)
     }
   }
 
-  const handleDeleteIngredient = async (userIngredientId: string, ingredientName: string) => {
-    console.log('Delete button pressed for:', ingredientName, userIngredientId)
-    
+  const handleDeleteIngredient = async (
+    userIngredientId: string,
+    ingredientName: string,
+  ) => {
+    console.log("Delete button pressed for:", ingredientName, userIngredientId)
+
     // Web-compatible confirmation
-    if (Platform.OS === 'web') {
-      const confirmed = window.confirm(`Are you sure you want to remove ${ingredientName} from your pantry?`)
-      console.log('Web confirmation result:', confirmed)
-      
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        `Are you sure you want to remove ${ingredientName} from your pantry?`,
+      )
+      console.log("Web confirmation result:", confirmed)
+
       if (!confirmed) {
-        console.log('Deletion cancelled by user')
+        console.log("Deletion cancelled by user")
         return
       }
-      
-      console.log('Delete confirmed for:', ingredientName)
+
+      console.log("Delete confirmed for:", ingredientName)
       try {
-        const success = await ingredientService.removeUserIngredient(userIngredientId)
-        console.log('Delete result:', success)
-        
+        const success =
+          await ingredientService.removeUserIngredient(userIngredientId)
+        console.log("Delete result:", success)
+
         if (success) {
-          console.log('Updating local state after deletion')
+          console.log("Updating local state after deletion")
           // Update local state - filter out the deleted ingredient
-          const updatedIngredients = ingredients.filter(ing => ing.id !== userIngredientId)
-          const updatedFilteredIngredients = filteredIngredients.filter(ing => ing.id !== userIngredientId)
-          
+          const updatedIngredients = ingredients.filter(
+            (ing) => ing.id !== userIngredientId,
+          )
+          const updatedFilteredIngredients = filteredIngredients.filter(
+            (ing) => ing.id !== userIngredientId,
+          )
+
           setIngredients(updatedIngredients)
           setFilteredIngredients(updatedFilteredIngredients)
-          
-          console.log('State updated. Remaining ingredients:', updatedIngredients.length)
+
+          console.log(
+            "State updated. Remaining ingredients:",
+            updatedIngredients.length,
+          )
           alert(`${ingredientName} has been removed from your pantry.`)
         } else {
-          alert('Failed to delete ingredient. Please try again.')
+          alert("Failed to delete ingredient. Please try again.")
         }
       } catch (error) {
-        console.error('Error deleting ingredient:', error)
-        alert('Failed to delete ingredient. Please try again.')
+        console.error("Error deleting ingredient:", error)
+        alert("Failed to delete ingredient. Please try again.")
       }
     } else {
       // Native platform - use Alert.alert
       Alert.alert(
-        'Delete Ingredient',
+        "Delete Ingredient",
         `Are you sure you want to remove ${ingredientName} from your pantry?`,
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: "Cancel", style: "cancel" },
           {
-            text: 'Delete',
-            style: 'destructive',
+            text: "Delete",
+            style: "destructive",
             onPress: async () => {
-              console.log('Delete confirmed for:', ingredientName)
+              console.log("Delete confirmed for:", ingredientName)
               try {
-                const success = await ingredientService.removeUserIngredient(userIngredientId)
-                console.log('Delete result:', success)
-                
+                const success =
+                  await ingredientService.removeUserIngredient(userIngredientId)
+                console.log("Delete result:", success)
+
                 if (success) {
-                  console.log('Updating local state after deletion')
+                  console.log("Updating local state after deletion")
                   // Update local state - filter out the deleted ingredient
-                  const updatedIngredients = ingredients.filter(ing => ing.id !== userIngredientId)
-                  const updatedFilteredIngredients = filteredIngredients.filter(ing => ing.id !== userIngredientId)
-                  
+                  const updatedIngredients = ingredients.filter(
+                    (ing) => ing.id !== userIngredientId,
+                  )
+                  const updatedFilteredIngredients = filteredIngredients.filter(
+                    (ing) => ing.id !== userIngredientId,
+                  )
+
                   setIngredients(updatedIngredients)
                   setFilteredIngredients(updatedFilteredIngredients)
-                  
-                  console.log('State updated. Remaining ingredients:', updatedIngredients.length)
-                  Alert.alert('Success', `${ingredientName} has been removed from your pantry.`)
+
+                  console.log(
+                    "State updated. Remaining ingredients:",
+                    updatedIngredients.length,
+                  )
+                  Alert.alert(
+                    "Success",
+                    `${ingredientName} has been removed from your pantry.`,
+                  )
                 } else {
-                  Alert.alert('Error', 'Failed to delete ingredient. Please try again.')
+                  Alert.alert(
+                    "Error",
+                    "Failed to delete ingredient. Please try again.",
+                  )
                 }
               } catch (error) {
-                console.error('Error deleting ingredient:', error)
-                Alert.alert('Error', 'Failed to delete ingredient. Please try again.')
+                console.error("Error deleting ingredient:", error)
+                Alert.alert(
+                  "Error",
+                  "Failed to delete ingredient. Please try again.",
+                )
               }
-            }
-          }
-        ]
+            },
+          },
+        ],
       )
     }
   }
@@ -244,6 +303,7 @@ export default function IngredientsScreen() {
   const openAddModal = () => {
     setShowAddModal(true)
     setModalSearchQuery("")
+    setModalSelectedCategory("All")
     setSelectedIngredient(null)
     setQuantity("")
     setExpiryDate("")
@@ -252,37 +312,34 @@ export default function IngredientsScreen() {
   const closeAddModal = () => {
     setShowAddModal(false)
     setModalSearchQuery("")
+    setModalSelectedCategory("All")
     setSelectedIngredient(null)
     setQuantity("")
     setExpiryDate("")
   }
 
-  // Filter ingredients based on search query, category, and stock status
+  // Filter ingredients based on search query and category
   const filterIngredients = (
     query: string,
     category: IngredientCategory | "All",
-    inStockOnly: boolean,
     ingredientsList: UserIngredientWithDetails[] = ingredients,
   ) => {
     let filtered = [...ingredientsList]
 
     // Apply search filter
     if (query) {
-      filtered = filtered.filter((userIngredient) => 
-        userIngredient.ingredient.name.toLowerCase().includes(query.toLowerCase())
+      filtered = filtered.filter((userIngredient) =>
+        userIngredient.ingredient.name
+          .toLowerCase()
+          .includes(query.toLowerCase()),
       )
     }
 
     // Apply category filter
     if (category !== "All") {
-      filtered = filtered.filter((userIngredient) => 
-        userIngredient.ingredient.category === category
+      filtered = filtered.filter(
+        (userIngredient) => userIngredient.ingredient.category === category,
       )
-    }
-
-    // Apply in-stock filter
-    if (inStockOnly) {
-      filtered = filtered.filter((userIngredient) => userIngredient.in_stock)
     }
 
     setFilteredIngredients(filtered)
@@ -299,29 +356,31 @@ export default function IngredientsScreen() {
   })
 
   // Render ingredient item
-  const renderIngredientItem = ({ item }: { item: UserIngredientWithDetails }) => {
-    const categoryStyle = CATEGORY_STYLES[item.ingredient.category as IngredientCategory]
+  const renderIngredientItem = ({
+    item,
+  }: {
+    item: UserIngredientWithDetails
+  }) => {
+    const categoryStyle =
+      CATEGORY_STYLES[item.ingredient.category as IngredientCategory]
     return (
       <Card style={styles.ingredientCard}>
         <View style={styles.ingredientHeader}>
           <View style={styles.ingredientTitleContainer}>
-            <Badge text={item.ingredient.category} color={categoryStyle.color} backgroundColor={categoryStyle.bgColor} small />
+            <Badge
+              text={item.ingredient.category}
+              color={categoryStyle.color}
+              backgroundColor={categoryStyle.bgColor}
+              small
+            />
             <Text style={styles.ingredientName}>{item.ingredient.name}</Text>
           </View>
           <View style={styles.ingredientActions}>
             <TouchableOpacity
-              style={[styles.stockButton, item.in_stock ? styles.inStockButton : styles.outOfStockButton]}
-              onPress={() => toggleIngredientStock(item.ingredient_id)}
-            >
-              <Text
-                style={[styles.stockButtonText, item.in_stock ? styles.inStockButtonText : styles.outOfStockButtonText]}
-              >
-                {item.in_stock ? "In Stock" : "Out of Stock"}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
               style={styles.deleteButton}
-              onPress={() => handleDeleteIngredient(item.id, item.ingredient.name)}
+              onPress={() =>
+                handleDeleteIngredient(item.id, item.ingredient.name)
+              }
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
@@ -330,7 +389,7 @@ export default function IngredientsScreen() {
           </View>
         </View>
 
-        {item.in_stock && (
+        {(item.quantity || item.expiry_date) && (
           <View style={styles.ingredientDetails}>
             {item.quantity && (
               <View style={styles.detailItem}>
@@ -341,7 +400,9 @@ export default function IngredientsScreen() {
             {item.expiry_date && (
               <View style={styles.detailItem}>
                 <Ionicons name="calendar-outline" size={16} color="#4b5563" />
-                <Text style={styles.detailText}>Expires: {new Date(item.expiry_date).toLocaleDateString()}</Text>
+                <Text style={styles.detailText}>
+                  Expires: {new Date(item.expiry_date).toLocaleDateString()}
+                </Text>
               </View>
             )}
           </View>
@@ -367,14 +428,14 @@ export default function IngredientsScreen() {
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         {/* Header */}
         <View style={[styles.header, isWeb && styles.headerWeb]}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+          >
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>My Ingredients</Text>
-          <TouchableOpacity
-            style={styles.addButton}
-            onPress={openAddModal}
-          >
+          <TouchableOpacity style={styles.addButton} onPress={openAddModal}>
             <Ionicons name="add" size={24} color="#166534" />
           </TouchableOpacity>
         </View>
@@ -384,14 +445,24 @@ export default function IngredientsScreen() {
           data={filteredIngredients}
           renderItem={renderIngredientItem}
           keyExtractor={(item) => item.id}
-          contentContainerStyle={[styles.ingredientsList, isWeb && styles.ingredientsListWeb]}
+          contentContainerStyle={[
+            styles.ingredientsList,
+            isWeb && styles.ingredientsListWeb,
+          ]}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+            <View
+              style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+            >
               {/* Search Bar */}
               <View style={styles.searchContainer}>
                 <View style={styles.searchInputContainer}>
-                  <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+                  <Ionicons
+                    name="search"
+                    size={20}
+                    color="#9ca3af"
+                    style={styles.searchIcon}
+                  />
                   <TextInput
                     style={styles.searchInput}
                     placeholder="Search ingredients..."
@@ -399,14 +470,14 @@ export default function IngredientsScreen() {
                     value={searchQuery}
                     onChangeText={(text) => {
                       setSearchQuery(text)
-                      filterIngredients(text, selectedCategory, showInStockOnly)
+                      filterIngredients(text, selectedCategory)
                     }}
                   />
                   {searchQuery ? (
                     <TouchableOpacity
                       onPress={() => {
                         setSearchQuery("")
-                        filterIngredients("", selectedCategory, showInStockOnly)
+                        filterIngredients("", selectedCategory)
                       }}
                     >
                       <Ionicons name="close-circle" size={20} color="#9ca3af" />
@@ -417,16 +488,30 @@ export default function IngredientsScreen() {
 
               {/* Filters */}
               <View style={styles.filtersContainer}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryFilters}>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.categoryFilters}
+                >
                   <Pressable
-                    style={[styles.categoryChip, selectedCategory === "All" ? styles.selectedCategoryChip : {}]}
+                    style={[
+                      styles.categoryChip,
+                      selectedCategory === "All"
+                        ? styles.selectedCategoryChip
+                        : {},
+                    ]}
                     onPress={() => {
                       setSelectedCategory("All")
-                      filterIngredients(searchQuery, "All", showInStockOnly)
+                      filterIngredients(searchQuery, "All")
                     }}
                   >
                     <Text
-                      style={[styles.categoryChipText, selectedCategory === "All" ? styles.selectedCategoryChipText : {}]}
+                      style={[
+                        styles.categoryChipText,
+                        selectedCategory === "All"
+                          ? styles.selectedCategoryChipText
+                          : {},
+                      ]}
                     >
                       All
                     </Text>
@@ -439,19 +524,33 @@ export default function IngredientsScreen() {
                         key={category}
                         style={[
                           styles.categoryChip,
-                          selectedCategory === catKey ? styles.selectedCategoryChip : {},
-                          { backgroundColor: selectedCategory === catKey ? CATEGORY_STYLES[catKey].color : "white" },
+                          selectedCategory === catKey
+                            ? styles.selectedCategoryChip
+                            : {},
+                          {
+                            backgroundColor:
+                              selectedCategory === catKey
+                                ? CATEGORY_STYLES[catKey].color
+                                : "white",
+                          },
                         ]}
                         onPress={() => {
                           setSelectedCategory(catKey)
-                          filterIngredients(searchQuery, catKey, showInStockOnly)
+                          filterIngredients(searchQuery, catKey)
                         }}
                       >
                         <Text
                           style={[
                             styles.categoryChipText,
-                            selectedCategory === catKey ? styles.selectedCategoryChipText : {},
-                            { color: selectedCategory === catKey ? "white" : CATEGORY_STYLES[catKey].color },
+                            selectedCategory === catKey
+                              ? styles.selectedCategoryChipText
+                              : {},
+                            {
+                              color:
+                                selectedCategory === catKey
+                                  ? "white"
+                                  : CATEGORY_STYLES[catKey].color,
+                            },
                           ]}
                         >
                           {category}
@@ -460,27 +559,35 @@ export default function IngredientsScreen() {
                     )
                   })}
                 </ScrollView>
-
-                <TouchableOpacity
-                  style={styles.stockFilterButton}
-                  onPress={() => {
-                    setShowInStockOnly(!showInStockOnly)
-                    filterIngredients(searchQuery, selectedCategory, !showInStockOnly)
-                  }}
-                >
-                  <View style={[styles.checkbox, showInStockOnly ? styles.checkboxChecked : {}]}>
-                    {showInStockOnly && <Ionicons name="checkmark" size={16} color="white" />}
-                  </View>
-                  <Text style={styles.stockFilterText}>Show in-stock only</Text>
-                </TouchableOpacity>
               </View>
+
+              {/* Prominent, labeled entry point. The header "+" alone was easy to
+                  miss, leaving users unsure how to add ingredients. */}
+              <TouchableOpacity
+                style={styles.addIngredientCta}
+                onPress={openAddModal}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle" size={20} color="white" />
+                <Text style={styles.addIngredientCtaText}>Add Ingredient</Text>
+              </TouchableOpacity>
             </View>
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="nutrition-outline" size={64} color="#9ca3af" />
               <Text style={styles.emptyTitle}>No ingredients found</Text>
-              <Text style={styles.emptyText}>Try adjusting your filters or add new ingredients</Text>
+              <Text style={styles.emptyText}>
+                Add ingredients you have on hand to get recipe matches.
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyAddButton}
+                onPress={openAddModal}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="add-circle" size={20} color="white" />
+                <Text style={styles.emptyAddButtonText}>Add Ingredient</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -506,7 +613,12 @@ export default function IngredientsScreen() {
                 <>
                   {/* Search Bar */}
                   <View style={styles.modalSearchContainer}>
-                    <Ionicons name="search" size={20} color="#9ca3af" style={styles.searchIcon} />
+                    <Ionicons
+                      name="search"
+                      size={20}
+                      color="#9ca3af"
+                      style={styles.searchIcon}
+                    />
                     <TextInput
                       style={styles.modalSearchInput}
                       placeholder="Search ingredients..."
@@ -517,12 +629,74 @@ export default function IngredientsScreen() {
                     />
                   </View>
 
+                  {/* Category filter chips */}
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.modalCategoryFilters}
+                    contentContainerStyle={styles.modalCategoryFiltersContent}
+                  >
+                    <Pressable
+                      style={[
+                        styles.categoryChip,
+                        modalSelectedCategory === "All"
+                          ? styles.selectedCategoryChip
+                          : {},
+                      ]}
+                      onPress={() => setModalSelectedCategory("All")}
+                    >
+                      <Text
+                        style={[
+                          styles.categoryChipText,
+                          modalSelectedCategory === "All"
+                            ? styles.selectedCategoryChipText
+                            : {},
+                        ]}
+                      >
+                        All
+                      </Text>
+                    </Pressable>
+
+                    {Object.keys(CATEGORY_STYLES).map((category) => {
+                      const catKey = category as IngredientCategory
+                      const active = modalSelectedCategory === catKey
+                      return (
+                        <Pressable
+                          key={category}
+                          style={[
+                            styles.categoryChip,
+                            {
+                              backgroundColor: active
+                                ? CATEGORY_STYLES[catKey].color
+                                : "white",
+                            },
+                          ]}
+                          onPress={() => setModalSelectedCategory(catKey)}
+                        >
+                          <Text
+                            style={[
+                              styles.categoryChipText,
+                              {
+                                color: active
+                                  ? "white"
+                                  : CATEGORY_STYLES[catKey].color,
+                              },
+                            ]}
+                          >
+                            {category}
+                          </Text>
+                        </Pressable>
+                      )
+                    })}
+                  </ScrollView>
+
                   {/* Available Ingredients List */}
                   <FlatList
                     data={filteredAvailableIngredients}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
-                      const categoryStyle = CATEGORY_STYLES[item.category as IngredientCategory]
+                      const categoryStyle =
+                        CATEGORY_STYLES[item.category as IngredientCategory]
                       return (
                         <TouchableOpacity
                           style={styles.modalIngredientItem}
@@ -534,16 +708,28 @@ export default function IngredientsScreen() {
                             backgroundColor={categoryStyle.bgColor}
                             small
                           />
-                          <Text style={styles.modalIngredientName}>{item.name}</Text>
-                          <Ionicons name="chevron-forward" size={20} color="#9ca3af" />
+                          <Text style={styles.modalIngredientName}>
+                            {item.name}
+                          </Text>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={20}
+                            color="#9ca3af"
+                          />
                         </TouchableOpacity>
                       )
                     }}
                     ListEmptyComponent={
                       <View style={styles.modalEmptyState}>
-                        <Ionicons name="search-outline" size={48} color="#cbd5e1" />
+                        <Ionicons
+                          name="search-outline"
+                          size={48}
+                          color="#cbd5e1"
+                        />
                         <Text style={styles.modalEmptyText}>
-                          {modalSearchQuery ? "No ingredients found" : "Loading ingredients..."}
+                          {availableIngredients.length === 0
+                            ? "Loading ingredients..."
+                            : "No ingredients found"}
                         </Text>
                       </View>
                     }
@@ -554,10 +740,15 @@ export default function IngredientsScreen() {
                   {/* Selected Ingredient Details Form */}
                   <ScrollView style={styles.ingredientForm}>
                     <View style={styles.selectedIngredientHeader}>
-                      <TouchableOpacity onPress={() => setSelectedIngredient(null)} style={styles.backButton}>
+                      <TouchableOpacity
+                        onPress={() => setSelectedIngredient(null)}
+                        style={styles.backButton}
+                      >
                         <Ionicons name="arrow-back" size={24} color="#166534" />
                       </TouchableOpacity>
-                      <Text style={styles.selectedIngredientName}>{selectedIngredient.name}</Text>
+                      <Text style={styles.selectedIngredientName}>
+                        {selectedIngredient.name}
+                      </Text>
                     </View>
 
                     <View style={styles.formGroup}>
@@ -572,7 +763,9 @@ export default function IngredientsScreen() {
                     </View>
 
                     <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>Expiry Date (Optional)</Text>
+                      <Text style={styles.formLabel}>
+                        Expiry Date (Optional)
+                      </Text>
                       <TextInput
                         style={styles.formInput}
                         placeholder="YYYY-MM-DD"
@@ -580,11 +773,16 @@ export default function IngredientsScreen() {
                         value={expiryDate}
                         onChangeText={setExpiryDate}
                       />
-                      <Text style={styles.formHint}>Format: YYYY-MM-DD (e.g., 2025-12-31)</Text>
+                      <Text style={styles.formHint}>
+                        Format: YYYY-MM-DD (e.g., 2025-12-31)
+                      </Text>
                     </View>
 
                     <TouchableOpacity
-                      style={[styles.addIngredientButton, addingIngredient && styles.addIngredientButtonDisabled]}
+                      style={[
+                        styles.addIngredientButton,
+                        addingIngredient && styles.addIngredientButtonDisabled,
+                      ]}
                       onPress={handleAddIngredient}
                       disabled={addingIngredient}
                     >
@@ -593,7 +791,9 @@ export default function IngredientsScreen() {
                       ) : (
                         <>
                           <Ionicons name="add-circle" size={24} color="white" />
-                          <Text style={styles.addIngredientButtonText}>Add to Pantry</Text>
+                          <Text style={styles.addIngredientButtonText}>
+                            Add to Pantry
+                          </Text>
                         </>
                       )}
                     </TouchableOpacity>
@@ -720,28 +920,22 @@ const styles = StyleSheet.create({
   selectedCategoryChipText: {
     color: "white",
   },
-  stockFilterButton: {
+  addIngredientCta: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: "#22c55e",
     justifyContent: "center",
-    alignItems: "center",
-    marginRight: 8,
-  },
-  checkboxChecked: {
+    gap: 8,
     backgroundColor: "#22c55e",
+    marginHorizontal: 16,
+    marginTop: 4,
+    marginBottom: 8,
+    paddingVertical: 12,
+    borderRadius: 14,
   },
-  stockFilterText: {
-    fontSize: 14,
-    color: "#4b5563",
+  addIngredientCtaText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "700",
   },
   ingredientsList: {
     padding: 16,
@@ -770,28 +964,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#1f2937",
     marginTop: 8,
-  },
-  stockButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-    marginLeft: 8,
-  },
-  inStockButton: {
-    backgroundColor: "#dcfce7",
-  },
-  outOfStockButton: {
-    backgroundColor: "#fee2e2",
-  },
-  stockButtonText: {
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  inStockButtonText: {
-    color: "#166534",
-  },
-  outOfStockButtonText: {
-    color: "#b91c1c",
   },
   ingredientDetails: {
     marginTop: 12,
@@ -822,6 +994,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#4b5563",
     textAlign: "center",
+  },
+  emptyAddButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    backgroundColor: "#22c55e",
+    marginTop: 20,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+  },
+  emptyAddButtonText: {
+    color: "white",
+    fontSize: 15,
+    fontWeight: "700",
   },
   ingredientActions: {
     flexDirection: "row",
@@ -880,6 +1068,15 @@ const styles = StyleSheet.create({
     height: 48,
     fontSize: 16,
     color: "#1f2937",
+  },
+  modalCategoryFilters: {
+    flexGrow: 0,
+    marginBottom: 12,
+  },
+  modalCategoryFiltersContent: {
+    paddingHorizontal: 20,
+    paddingVertical: 4,
+    alignItems: "center",
   },
   modalIngredientItem: {
     flexDirection: "row",

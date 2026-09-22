@@ -33,7 +33,6 @@ import EnhancedRatingModal, {
     RatingData,
 } from "@/components/EnhancedRatingModal"
 import LevelUpModal from "@/components/LevelUpModal"
-import MultiTimerManager from "@/components/MultiTimerManager"
 import StepPreview from "@/components/StepPreview"
 
 // Types
@@ -61,9 +60,27 @@ interface RecipeData {
   calories?: number
 }
 
-// The recipe amounts are written for this many servings. There's no per-recipe
-// base-servings column yet, so assume a standard 2 and scale relative to it.
-const DEFAULT_BASE_SERVINGS = 2
+// Recipe amounts and calories are written for a single serving, so 1 is the
+// scaling base: at 1 serving nothing changes, ½ halves everything, 2 doubles it.
+const DEFAULT_BASE_SERVINGS = 1
+
+// Servings can go down to a half serving. Below 1 we step by halves (1 -> 0.5),
+// at or above 1 we step by whole servings (1 -> 2 -> 3 ...).
+const MIN_SERVINGS = 0.5
+const MAX_SERVINGS = 20
+
+const decrementServings = (s: number): number => {
+  if (s <= 1) return Math.max(MIN_SERVINGS, s - 0.5)
+  return s - 1
+}
+
+const incrementServings = (s: number): number => {
+  if (s < 1) return Math.min(MAX_SERVINGS, s + 0.5)
+  return Math.min(MAX_SERVINGS, s + 1)
+}
+
+// Render a half serving as "½" rather than "0.5"; whole numbers stay plain.
+const formatServings = (s: number): string => (s === 0.5 ? "½" : String(s))
 
 export default function CookingModeScreen() {
   const router = useRouter()
@@ -83,7 +100,7 @@ export default function CookingModeScreen() {
   // own step. null means no inline timer is running.
   const [timerStep, setTimerStep] = useState<number | null>(null)
   const [completedSteps, setCompletedSteps] = useState<boolean[]>([])
-  const [servings, setServings] = useState(DEFAULT_BASE_SERVINGS)
+  const [servings, setServings] = useState(1)
   const [showIngredients, setShowIngredients] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -92,9 +109,17 @@ export default function CookingModeScreen() {
   const [levelUpInfo, setLevelUpInfo] = useState<{ newLevel: number } | null>(
     null,
   )
-  const [showMultiTimer, setShowMultiTimer] = useState(false)
   const [showRatingModal, setShowRatingModal] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | null>(null)
+  // Steps whose timer we've already auto-started, so returning to a step doesn't
+  // restart a timer the user deliberately paused or stopped.
+  const autoStartedStepsRef = useRef<Set<number>>(new Set())
+  // When cooking began, so we can auto-fill the rating's "how long did it take".
+  const cookStartRef = useRef<number>(Date.now())
+  // The measured cook duration in seconds, computed when finishing.
+  const [measuredCookSeconds, setMeasuredCookSeconds] = useState<number | null>(
+    null,
+  )
 
   useEffect(() => {
     const loadRecipe = async () => {
@@ -107,6 +132,22 @@ export default function CookingModeScreen() {
       try {
         setIsLoading(true)
         setError(null)
+
+        // Reset all per-cook state so a new recipe starts fresh. This screen is
+        // one reused route (cooking/[id]); without this, the previous recipe's
+        // step index and running timer leak into the next one.
+        setCurrentStep(0)
+        setIsTimerActive(false)
+        setIsTimerPaused(false)
+        setTimeRemaining(0)
+        setTimerStep(null)
+        setServings(1)
+        setShowIngredients(false)
+        setShowRatingModal(false)
+        setMeasuredCookSeconds(null)
+        autoStartedStepsRef.current = new Set()
+        cookStartRef.current = Date.now()
+
         const recipeData = await recipeService.getRecipe(id, user.id)
 
         if (recipeData && recipeData.instructions) {
@@ -114,9 +155,8 @@ export default function CookingModeScreen() {
           setCompletedSteps(
             new Array(recipeData.instructions.length).fill(false),
           )
-          // Seed the servings control from the recipe's own base if it has one.
-          const base = (recipeData as RecipeData).servings
-          if (base && base > 0) setServings(base)
+          // Servings always start at 1; the user scales up from there. The
+          // recipe's own `servings` remains the scaling base for amounts.
         } else {
           setError("Recipe not found")
           Alert.alert("Error", "Recipe not found", [
@@ -204,6 +244,26 @@ export default function CookingModeScreen() {
     }
   }, [recipe, currentStep])
 
+  // Auto-start a step's timer the first time the user lands on it, so a timed
+  // step just starts counting instead of waiting on a manual "Start Timer" tap.
+  // We only do it once per step (tracked in the ref) and never for a step that's
+  // already done or while another timer is running, so it never fights the user.
+  useEffect(() => {
+    if (!recipe) return
+    const instruction = recipe.instructions[currentStep]
+    const timerMinutes = instruction?.timer || 0
+    if (timerMinutes <= 0) return
+    if (autoStartedStepsRef.current.has(currentStep)) return
+    if (completedSteps[currentStep]) return
+    if (isTimerActive) return // Don't interrupt a running timer.
+
+    autoStartedStepsRef.current.add(currentStep)
+    setTimeRemaining(timerMinutes * 60)
+    setTimerStep(currentStep)
+    setIsTimerActive(true)
+    setIsTimerPaused(false)
+  }, [recipe, currentStep, completedSteps, isTimerActive])
+
   const startTimer = () => {
     if (!recipe) return
     const currentInstruction = recipe.instructions[currentStep]
@@ -233,7 +293,8 @@ export default function CookingModeScreen() {
   // suggested-time preview instead.
   const currentStepTimerActive = isTimerActive && timerStep === currentStep
 
-  const markStepComplete = () => {
+  // Single primary action per step: mark the current step done and advance.
+  const completeAndAdvance = () => {
     if (!recipe) return
     const newCompletedSteps = [...completedSteps]
     newCompletedSteps[currentStep] = true
@@ -245,13 +306,14 @@ export default function CookingModeScreen() {
     }
   }
 
-  const nextStep = () => {
+  // Last step: mark it complete, then open the finish/rating flow.
+  const completeAndFinish = () => {
     if (!recipe) return
-    const nextIndex = currentStep + 1
-    if (nextIndex < recipe.instructions.length) {
-      // Leave any running timer alone; the cook may be reading ahead.
-      setCurrentStep(nextIndex)
-    }
+    const newCompletedSteps = [...completedSteps]
+    newCompletedSteps[currentStep] = true
+    setCompletedSteps(newCompletedSteps)
+    if (timerStep === currentStep) stopTimer()
+    finishCooking()
   }
 
   const previousStep = () => {
@@ -275,37 +337,49 @@ export default function CookingModeScreen() {
     if (!user || !id || !recipe) return
 
     try {
+      // Scale logged calories to the servings the user actually made. Recipe
+      // calories are per single serving, so the base is DEFAULT_BASE_SERVINGS.
+      const completionScale = servings / DEFAULT_BASE_SERVINGS
       // First complete the recipe to get the completion ID
-      const result = await recipeService.completeRecipe(user.id, id)
+      const result = await recipeService.completeRecipe(
+        user.id,
+        id,
+        true,
+        completionScale,
+      )
 
       if (result.success && result.completionId) {
-        // Save the rating
-        const { error } = await ratingService.createRating(
-          user.id,
-          id,
-          result.completionId,
-          recipe.prep_time || 0,
-          ratingData,
-        )
-
-        if (error) {
-          console.error("Error saving rating:", error)
-          Alert.alert(
-            "Rating Saved Locally",
-            "Your rating couldn't be synced but was recorded. The recipe is marked complete.",
-          )
-        }
-
-        // Track interaction
-        await recipeService.trackRecipeInteraction(user.id, id, "complete")
-
-        // Show level up if applicable
+        // Navigate away immediately once the completion is recorded. The rating
+        // save and interaction tracking below aren't needed to leave the cooking
+        // screen, so we run them in the background rather than making the user
+        // wait on the finished cooking view while several requests resolve.
         if (result.leveledUp && result.newLevel) {
           setLevelUpInfo({ newLevel: result.newLevel })
           setShowLevelUp(true)
         } else {
           router.replace("/(tabs)")
         }
+
+        // Fire-and-forget: persist the rating and interaction without blocking
+        // navigation. Failures are logged but don't interrupt the user.
+        ratingService
+          .createRating(
+            user.id,
+            id,
+            result.completionId,
+            recipe.prep_time || 0,
+            ratingData,
+          )
+          .then(({ error }) => {
+            if (error) console.error("Error saving rating:", error)
+          })
+          .catch((err) => console.error("Error saving rating:", err))
+
+        recipeService
+          .trackRecipeInteraction(user.id, id, "complete")
+          .catch((err) =>
+            console.error("Error tracking completion interaction:", err),
+          )
       }
     } catch (error) {
       console.error("Error completing recipe with rating:", error)
@@ -313,21 +387,43 @@ export default function CookingModeScreen() {
     }
   }
 
+  // Skipping the rating shouldn't strand the user on the cooking screen — the
+  // recipe is still finished, just without a rating. Close the modal and run the
+  // normal completion (points, calories, XP) then navigate away.
+  const handleRatingSkip = () => {
+    setShowRatingModal(false)
+    completeCookingProcess()
+  }
+
   const completeCookingProcess = async () => {
     if (!user || !id) return
 
     try {
-      const result = await recipeService.completeRecipe(user.id, id)
+      // Scale logged calories to the servings the user actually made. Recipe
+      // calories are per single serving, so the base is DEFAULT_BASE_SERVINGS.
+      const completionScale = servings / DEFAULT_BASE_SERVINGS
+      const result = await recipeService.completeRecipe(
+        user.id,
+        id,
+        true,
+        completionScale,
+      )
 
       if (result.success) {
-        await recipeService.trackRecipeInteraction(user.id, id, "complete")
-
+        // Navigate away immediately; interaction tracking runs in the background
+        // so the user isn't left on the cooking screen while it resolves.
         if (result.leveledUp && result.newLevel) {
           setLevelUpInfo({ newLevel: result.newLevel })
           setShowLevelUp(true)
         } else {
           router.replace("/(tabs)")
         }
+
+        recipeService
+          .trackRecipeInteraction(user.id, id, "complete")
+          .catch((err) =>
+            console.error("Error tracking completion interaction:", err),
+          )
       }
     } catch (error) {
       console.error("Error completing recipe:", error)
@@ -341,6 +437,11 @@ export default function CookingModeScreen() {
       console.warn("⚠️ FINISH COOKING: Missing user or recipe ID")
       return
     }
+
+    // Measure how long cooking actually took (in seconds, min 1) so the rating
+    // modal shows the real elapsed time instead of asking the user to guess.
+    const elapsedMs = Date.now() - cookStartRef.current
+    setMeasuredCookSeconds(Math.max(1, Math.round(elapsedMs / 1000)))
 
     // Show rating modal
     setShowRatingModal(true)
@@ -392,10 +493,9 @@ export default function CookingModeScreen() {
   }
 
   const isLastStep = currentStep === recipe.instructions.length - 1
-  const allStepsCompleted = completedSteps.every((step) => step)
 
-  const baseServings = recipe.servings || DEFAULT_BASE_SERVINGS
-  const scaleFactor = servings / baseServings
+  // Recipe amounts/calories are per single serving, so scale relative to that.
+  const scaleFactor = servings / DEFAULT_BASE_SERVINGS
   const hasIngredients = !!recipe.ingredients && recipe.ingredients.length > 0
   const currentStepType = getStepType(currentInstruction.instruction)
 
@@ -426,12 +526,6 @@ export default function CookingModeScreen() {
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Cooking Mode</Text>
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={() => setShowMultiTimer(true)}
-            >
-              <Ionicons name="timer-outline" size={24} color="#166534" />
-            </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
               onPress={finishCooking}
@@ -483,21 +577,25 @@ export default function CookingModeScreen() {
                     <TouchableOpacity
                       style={[
                         styles.servingsButton,
-                        servings <= 1 && styles.servingsButtonDisabled,
+                        servings <= MIN_SERVINGS &&
+                          styles.servingsButtonDisabled,
                       ]}
-                      onPress={() => setServings((s) => Math.max(1, s - 1))}
-                      disabled={servings <= 1}
+                      onPress={() => setServings(decrementServings)}
+                      disabled={servings <= MIN_SERVINGS}
                     >
                       <Ionicons name="remove" size={20} color="#166534" />
                     </TouchableOpacity>
-                    <Text style={styles.servingsValue}>{servings}</Text>
+                    <Text style={styles.servingsValue}>
+                      {formatServings(servings)}
+                    </Text>
                     <TouchableOpacity
                       style={[
                         styles.servingsButton,
-                        servings >= 20 && styles.servingsButtonDisabled,
+                        servings >= MAX_SERVINGS &&
+                          styles.servingsButtonDisabled,
                       ]}
-                      onPress={() => setServings((s) => Math.min(20, s + 1))}
-                      disabled={servings >= 20}
+                      onPress={() => setServings(incrementServings)}
+                      disabled={servings >= MAX_SERVINGS}
                     >
                       <Ionicons name="add" size={20} color="#166534" />
                     </TouchableOpacity>
@@ -655,23 +753,10 @@ export default function CookingModeScreen() {
                     </Text>
                   </TouchableOpacity>
                 )}
-
-              {/* Step Actions */}
-              <View style={styles.stepActions}>
-                <Button
-                  text="Mark Complete"
-                  color="white"
-                  backgroundColor={
-                    completedSteps[currentStep] ? "#16a34a" : "#22c55e"
-                  }
-                  onPress={markStepComplete}
-                  style={styles.actionButton}
-                  disabled={completedSteps[currentStep]}
-                />
-              </View>
             </Card>
 
-            {/* Navigation */}
+            {/* Navigation — a single primary action per step marks it done and
+                moves on, so there's no separate "Mark Complete" + "Next". */}
             <View style={styles.navigationContainer}>
               <Button
                 text="Previous"
@@ -686,10 +771,14 @@ export default function CookingModeScreen() {
               />
               {!isLastStep ? (
                 <Button
-                  text="Next Step"
+                  text={
+                    completedSteps[currentStep]
+                      ? "Next Step"
+                      : "Complete & Next"
+                  }
                   color="white"
                   backgroundColor="#22c55e"
-                  onPress={nextStep}
+                  onPress={completeAndAdvance}
                   style={styles.navButton}
                 />
               ) : (
@@ -697,13 +786,8 @@ export default function CookingModeScreen() {
                   text="Finish Cooking"
                   color="white"
                   backgroundColor="#16a34a"
-                  onPress={finishCooking}
-                  style={
-                    allStepsCompleted
-                      ? styles.navButton
-                      : { ...styles.navButton, opacity: 0.6 }
-                  }
-                  disabled={!allStepsCompleted}
+                  onPress={completeAndFinish}
+                  style={styles.navButton}
                 />
               )}
             </View>
@@ -785,27 +869,15 @@ export default function CookingModeScreen() {
         />
       )}
 
-      {/* Multi-Timer Manager */}
-      {recipe && (
-        <MultiTimerManager
-          visible={showMultiTimer}
-          onClose={() => setShowMultiTimer(false)}
-          currentStep={currentStep}
-          stepLabel={recipe.instructions[currentStep]?.instruction.substring(
-            0,
-            30,
-          )}
-        />
-      )}
-
       {/* Enhanced Rating Modal */}
       {recipe && (
         <EnhancedRatingModal
           visible={showRatingModal}
-          onClose={() => setShowRatingModal(false)}
+          onClose={handleRatingSkip}
           onSubmit={handleRatingSubmit}
           recipeTitle={recipe.title}
           suggestedPrepTime={recipe.prep_time}
+          measuredSeconds={measuredCookSeconds ?? undefined}
         />
       )}
     </SafeAreaView>

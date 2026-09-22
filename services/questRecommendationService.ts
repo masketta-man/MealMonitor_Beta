@@ -121,7 +121,6 @@ export const questRecommendationService = {
         .from("user_ingredients")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
-        .eq("in_stock", true)
 
       // Get base recommendations
       const recommendations = await this.getRecommendedQuests(userId, limit * 2)

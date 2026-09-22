@@ -1,20 +1,33 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Pressable, useWindowDimensions, Alert, Platform } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
-import { LinearGradient } from "expo-linear-gradient"
-import { Ionicons } from "@expo/vector-icons"
-import { useRouter, useFocusEffect } from "expo-router"
 import { useAuth } from "@/hooks/useAuth"
-import { userService } from "@/services/userService"
+import {
+    activityService,
+    type ActivityWithMetadata,
+} from "@/services/activityService"
 import { badgeService, type BadgeWithProgress } from "@/services/badgeService"
-import { activityService, type ActivityWithMetadata } from "@/services/activityService"
+import { userService } from "@/services/userService"
+import { Ionicons } from "@expo/vector-icons"
+import { LinearGradient } from "expo-linear-gradient"
+import { useFocusEffect, useRouter } from "expo-router"
+import { useCallback, useEffect, useState } from "react"
+import {
+    Alert,
+    Platform,
+    Pressable,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
+import { SafeAreaView } from "react-native-safe-area-context"
 
 // Components
-import Card from "@/components/Card"
 import Badge from "@/components/Badge"
-import ProgressBar from "@/components/ProgressBar"
+import BadgeDetailModal from "@/components/BadgeDetailModal"
+import Card from "@/components/Card"
 import { LevelProgress } from "@/components/LevelProgress"
 import TabView from "@/components/TabView"
 
@@ -35,7 +48,6 @@ interface UserStats {
   } | null
 }
 
-
 export default function ProfileScreen() {
   const router = useRouter()
   const { user, signOut } = useAuth()
@@ -44,7 +56,12 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState("achievements")
   const [userStats, setUserStats] = useState<UserStats | null>(null)
   const [badges, setBadges] = useState<BadgeWithProgress[]>([])
-  const [activityHistory, setActivityHistory] = useState<ActivityWithMetadata[]>([])
+  const [selectedBadge, setSelectedBadge] = useState<BadgeWithProgress | null>(
+    null,
+  )
+  const [activityHistory, setActivityHistory] = useState<
+    ActivityWithMetadata[]
+  >([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [hasMoreActivities, setHasMoreActivities] = useState(true)
@@ -61,10 +78,10 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       if (user) {
-        console.log('Profile screen focused, reloading badges and stats...')
+        console.log("Profile screen focused, reloading badges and stats...")
         loadUserData()
       }
-    }, [user])
+    }, [user]),
   )
 
   const loadUserData = async () => {
@@ -82,13 +99,16 @@ export default function ProfileScreen() {
       setBadges(badgesData)
 
       // Load initial activity history
-      const activities = await activityService.getUserActivities(user.id, ACTIVITY_PAGE_SIZE, 0)
+      const activities = await activityService.getUserActivities(
+        user.id,
+        ACTIVITY_PAGE_SIZE,
+        0,
+      )
       setActivityHistory(activities)
       setActivityOffset(ACTIVITY_PAGE_SIZE)
       setHasMoreActivities(activities.length === ACTIVITY_PAGE_SIZE)
-
     } catch (error) {
-      console.error('Error loading user data:', error)
+      console.error("Error loading user data:", error)
     } finally {
       setLoading(false)
     }
@@ -99,44 +119,48 @@ export default function ProfileScreen() {
 
     try {
       setLoadingMore(true)
-      const moreActivities = await activityService.getUserActivities(user.id, ACTIVITY_PAGE_SIZE, activityOffset)
+      const moreActivities = await activityService.getUserActivities(
+        user.id,
+        ACTIVITY_PAGE_SIZE,
+        activityOffset,
+      )
 
       if (moreActivities.length > 0) {
-        setActivityHistory(prev => [...prev, ...moreActivities])
-        setActivityOffset(prev => prev + ACTIVITY_PAGE_SIZE)
+        setActivityHistory((prev) => [...prev, ...moreActivities])
+        setActivityOffset((prev) => prev + ACTIVITY_PAGE_SIZE)
         setHasMoreActivities(moreActivities.length === ACTIVITY_PAGE_SIZE)
       } else {
         setHasMoreActivities(false)
       }
     } catch (error) {
-      console.error('Error loading more activities:', error)
+      console.error("Error loading more activities:", error)
     } finally {
       setLoadingMore(false)
     }
   }
 
   const handleSignOut = () => {
-    if (Platform.OS === 'web') {
-      const confirmed = confirm('Are you sure you want to log out?')
+    if (Platform.OS === "web") {
+      const confirmed = confirm("Are you sure you want to log out?")
       if (confirmed) {
         performSignOut()
       }
     } else {
       Alert.alert(
-        'Log Out',
-        'Are you sure you want to log out?',
+        "Log Out",
+        "Are you sure you want to log out?",
         [
           {
-            text: 'Cancel',
-            style: 'cancel',
+            text: "Cancel",
+            style: "cancel",
           },
           {
-            text: 'Log Out',
-            style: 'destructive',
+            text: "Log Out",
+            style: "destructive",
             onPress: performSignOut,
           },
         ],
-        { cancelable: true }
+        { cancelable: true },
       )
     }
   }
@@ -146,11 +170,11 @@ export default function ProfileScreen() {
       await signOut()
       router.replace("/(auth)/login")
     } catch (error) {
-      console.error('Error signing out:', error)
-      if (Platform.OS === 'web') {
-        alert('Failed to log out. Please try again.')
+      console.error("Error signing out:", error)
+      if (Platform.OS === "web") {
+        alert("Failed to log out. Please try again.")
       } else {
-        Alert.alert('Error', 'Failed to log out. Please try again.')
+        Alert.alert("Error", "Failed to log out. Please try again.")
       }
     }
   }
@@ -169,9 +193,9 @@ export default function ProfileScreen() {
 
   const profile = userStats.profile
   const levelProgress = userStats.levelProgress
-  const joinDate = new Date(profile.created_at).toLocaleDateString('en-US', { 
-    year: 'numeric', 
-    month: 'long' 
+  const joinDate = new Date(profile.created_at).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
   })
 
   return (
@@ -200,219 +224,339 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             {/* User Profile Card */}
             <Card style={styles.profileCard}>
-            <View style={styles.profileHeader}>
-              <View style={styles.profileImageContainer}>
-                <Text style={styles.profileImageText}>{profile.full_name?.charAt(0) || 'U'}</Text>
-              </View>
-              <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{profile.full_name || 'User'}</Text>
-                <Text style={styles.profileUsername}>@{profile.username || 'user'}</Text>
-                <View style={styles.profileMeta}>
-                  <View style={styles.profileMetaItem}>
-                    <Ionicons name="calendar-outline" size={14} color="#64748b" />
-                    <Text style={styles.profileMetaText}>Joined {joinDate}</Text>
-                  </View>
+              <View style={styles.profileHeader}>
+                <View style={styles.profileImageContainer}>
+                  <Text style={styles.profileImageText}>
+                    {profile.full_name?.charAt(0) || "U"}
+                  </Text>
                 </View>
-              </View>
-            </View>
-
-            <View style={styles.levelContainer}>
-              <LevelProgress
-                level={levelProgress?.level || profile.level}
-                currentXp={levelProgress?.currentLevelXp ?? profile.experience}
-                nextLevelXp={levelProgress?.nextLevelXp ?? 500}
-                progress={levelProgress?.progress ?? ((profile.experience % 500) / 500)}
-              />
-            </View>
-
-            <View style={styles.statsContainer}>
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: "#dcfce7" }]}>
-                    <Ionicons name="flame" size={20} color="#22c55e" />
-                  </View>
-                  <Text style={styles.statValue}>{profile.streak_days}</Text>
-                  <Text style={styles.statLabel}>Day Streak</Text>
-                </View>
-
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: "#fef3c7" }]}>
-                    <Ionicons name="star" size={20} color="#f59e0b" />
-                  </View>
-                  <Text style={styles.statValue}>{profile.total_points}</Text>
-                  <Text style={styles.statLabel}>Total Points</Text>
-                </View>
-              </View>
-
-              <View style={styles.statsRow}>
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: "#dbeafe" }]}>
-                    <Ionicons name="restaurant" size={20} color="#3b82f6" />
-                  </View>
-                  <Text style={styles.statValue}>{userStats.stats.mealsCompleted}</Text>
-                  <Text style={styles.statLabel}>Meals</Text>
-                </View>
-
-                <View style={styles.statItem}>
-                  <View style={[styles.statIconContainer, { backgroundColor: "#f3e8ff" }]}>
-                    <Ionicons name="trophy" size={20} color="#8b5cf6" />
-                  </View>
-                  <Text style={styles.statValue}>{userStats.stats.challengesCompleted}</Text>
-                  <Text style={styles.statLabel}>Challenges</Text>
-                </View>
-              </View>
-            </View>
-          </Card>
-
-          {/* Tabs for Achievements and Activity */}
-          <View style={styles.tabsContainer}>
-            <TabView
-              tabs={[
-                { key: "achievements", title: "Achievements" },
-                { key: "activity", title: "Activity" },
-              ]}
-              activeTab={activeTab}
-              onChangeTab={setActiveTab}
-            >
-              {activeTab === "achievements" ? (
-                <View style={styles.achievementsContainer}>
-                  {/* Earned Badges Section */}
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Earned Badges</Text>
-                    <Badge
-                      text={`${badges.filter((b) => b.isEarned).length}/${badges.length}`}
-                      color="#166534"
-                      backgroundColor="#dcfce7"
-                    />
-                  </View>
-
-                  <View style={styles.badgesGrid}>
-                    {badges.map((badge) => (
-                      <Pressable key={badge.id} style={styles.badgeItem}>
-                        <View
-                          style={[
-                            styles.badgeIconContainer,
-                            { backgroundColor: badge.isEarned ? badge.color : "#e2e8f0" },
-                            badge.isEarned && styles.badgeEarnedGlow,
-                          ]}
-                        >
-                          <Ionicons
-                            name={badge.icon as keyof typeof Ionicons.glyphMap}
-                            size={24}
-                            color={badge.isEarned ? "white" : "#94a3b8"}
-                          />
-                          {badge.isEarned && (
-                            <View style={styles.badgeCheckmark}>
-                              <Ionicons name="checkmark-circle" size={20} color="#22c55e" />
-                            </View>
-                          )}
-                          {!badge.isEarned && (
-                            <View style={styles.badgeLock}>
-                              <Ionicons name="lock-closed" size={12} color="white" />
-                            </View>
-                          )}
-                        </View>
-                        <Text style={[styles.badgeName, { color: badge.isEarned ? "#1e293b" : "#94a3b8" }]}>
-                          {badge.name}
-                        </Text>
-                        {badge.isEarned ? (
-                          <View style={styles.badgeCompletedContainer}>
-                            <View style={styles.badgeCompletedBadge}>
-                              <Ionicons name="trophy" size={12} color="#f59e0b" />
-                              <Text style={styles.badgeCompletedText}>Completed</Text>
-                            </View>
-                            <Text style={styles.badgeEarned}>
-                              {badge.earnedAt ? new Date(badge.earnedAt).toLocaleDateString() : 'Earned'}
-                            </Text>
-                          </View>
-                        ) : (
-                          <View style={styles.badgeProgressContainer}>
-                            <View style={styles.badgeProgressBar}>
-                              <View
-                                style={[
-                                  styles.badgeProgressFill,
-                                  {
-                                    width: `${(badge.progress / badge.requirement_value) * 100}%`,
-                                    backgroundColor: badge.color,
-                                  },
-                                ]}
-                              />
-                            </View>
-                            <Text style={styles.badgeProgressText}>
-                              {badge.progress}/{badge.requirement_value}
-                            </Text>
-                          </View>
-                        )}
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.activityContainer}>
-                  {/* Activity History */}
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Recent Activity</Text>
-                  </View>
-
-                  {activityHistory.length === 0 ? (
-                    <View style={styles.emptyStateContainer}>
-                      <Ionicons name="time-outline" size={48} color="#94a3b8" />
-                      <Text style={styles.emptyStateText}>No activities yet</Text>
-                      <Text style={styles.emptyStateSubtext}>Start cooking and completing challenges!</Text>
+                <View style={styles.profileInfo}>
+                  <Text style={styles.profileName}>
+                    {profile.full_name || "User"}
+                  </Text>
+                  <Text style={styles.profileUsername}>
+                    @{profile.username || "user"}
+                  </Text>
+                  <View style={styles.profileMeta}>
+                    <View style={styles.profileMetaItem}>
+                      <Ionicons
+                        name="calendar-outline"
+                        size={14}
+                        color="#64748b"
+                      />
+                      <Text style={styles.profileMetaText}>
+                        Joined {joinDate}
+                      </Text>
                     </View>
-                  ) : (
-                    <>
-                      {activityHistory.map((activity) => (
-                        <Card key={activity.id} style={styles.activityCard}>
-                          <View style={styles.activityContent}>
-                            <View style={[styles.activityIconContainer, { backgroundColor: activity.color }]}>
-                              <Ionicons name={activity.icon as keyof typeof Ionicons.glyphMap} size={20} color="white" />
-                            </View>
-                            <View style={styles.activityInfo}>
-                              <Text style={styles.activityTitle}>{activity.activity_title}</Text>
-                              <Text style={styles.activityDate}>{activity.displayDate}</Text>
-                            </View>
-                            {activity.points_earned > 0 && (
-                              <View style={styles.activityPoints}>
-                                <Ionicons name="star" size={16} color="#f59e0b" />
-                                <Text style={styles.activityPointsText}>+{activity.points_earned}</Text>
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.levelContainer}>
+                <LevelProgress
+                  level={levelProgress?.level || profile.level}
+                  currentXp={
+                    levelProgress?.currentLevelXp ?? profile.experience
+                  }
+                  nextLevelXp={levelProgress?.nextLevelXp ?? 500}
+                  progress={
+                    levelProgress?.progress ?? (profile.experience % 500) / 500
+                  }
+                />
+              </View>
+
+              <View style={styles.statsContainer}>
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <View
+                      style={[
+                        styles.statIconContainer,
+                        { backgroundColor: "#dcfce7" },
+                      ]}
+                    >
+                      <Ionicons name="flame" size={20} color="#22c55e" />
+                    </View>
+                    <Text style={styles.statValue}>{profile.streak_days}</Text>
+                    <Text style={styles.statLabel}>Day Streak</Text>
+                  </View>
+
+                  <View style={styles.statItem}>
+                    <View
+                      style={[
+                        styles.statIconContainer,
+                        { backgroundColor: "#fef3c7" },
+                      ]}
+                    >
+                      <Ionicons name="star" size={20} color="#f59e0b" />
+                    </View>
+                    <Text style={styles.statValue}>{profile.total_points}</Text>
+                    <Text style={styles.statLabel}>Total Points</Text>
+                  </View>
+                </View>
+
+                <View style={styles.statsRow}>
+                  <View style={styles.statItem}>
+                    <View
+                      style={[
+                        styles.statIconContainer,
+                        { backgroundColor: "#dbeafe" },
+                      ]}
+                    >
+                      <Ionicons name="restaurant" size={20} color="#3b82f6" />
+                    </View>
+                    <Text style={styles.statValue}>
+                      {userStats.stats.mealsCompleted}
+                    </Text>
+                    <Text style={styles.statLabel}>Meals</Text>
+                  </View>
+
+                  <View style={styles.statItem}>
+                    <View
+                      style={[
+                        styles.statIconContainer,
+                        { backgroundColor: "#f3e8ff" },
+                      ]}
+                    >
+                      <Ionicons name="trophy" size={20} color="#8b5cf6" />
+                    </View>
+                    <Text style={styles.statValue}>
+                      {userStats.stats.challengesCompleted}
+                    </Text>
+                    <Text style={styles.statLabel}>Challenges</Text>
+                  </View>
+                </View>
+              </View>
+            </Card>
+
+            {/* Tabs for Achievements and Activity */}
+            <View style={styles.tabsContainer}>
+              <TabView
+                tabs={[
+                  { key: "achievements", title: "Achievements" },
+                  { key: "activity", title: "Activity" },
+                ]}
+                activeTab={activeTab}
+                onChangeTab={setActiveTab}
+              >
+                {activeTab === "achievements" ? (
+                  <View style={styles.achievementsContainer}>
+                    {/* Earned Badges Section */}
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Earned Badges</Text>
+                      <Badge
+                        text={`${badges.filter((b) => b.isEarned).length}/${badges.length}`}
+                        color="#166534"
+                        backgroundColor="#dcfce7"
+                      />
+                    </View>
+
+                    <View style={styles.badgesGrid}>
+                      {badges.map((badge) => (
+                        <Pressable
+                          key={badge.id}
+                          style={styles.badgeItem}
+                          onPress={() => setSelectedBadge(badge)}
+                        >
+                          <View
+                            style={[
+                              styles.badgeIconContainer,
+                              {
+                                backgroundColor: badge.isEarned
+                                  ? badge.color
+                                  : "#e2e8f0",
+                              },
+                              badge.isEarned && styles.badgeEarnedGlow,
+                            ]}
+                          >
+                            <Ionicons
+                              name={
+                                badge.icon as keyof typeof Ionicons.glyphMap
+                              }
+                              size={24}
+                              color={badge.isEarned ? "white" : "#94a3b8"}
+                            />
+                            {badge.isEarned && (
+                              <View style={styles.badgeCheckmark}>
+                                <Ionicons
+                                  name="checkmark-circle"
+                                  size={20}
+                                  color="#22c55e"
+                                />
+                              </View>
+                            )}
+                            {!badge.isEarned && (
+                              <View style={styles.badgeLock}>
+                                <Ionicons
+                                  name="lock-closed"
+                                  size={12}
+                                  color="white"
+                                />
                               </View>
                             )}
                           </View>
-                        </Card>
-                      ))}
-
-                      {hasMoreActivities && (
-                        <TouchableOpacity
-                          style={styles.viewMoreButton}
-                          onPress={loadMoreActivities}
-                          disabled={loadingMore}
-                        >
-                          {loadingMore ? (
-                            <Text style={styles.viewMoreText}>Loading...</Text>
+                          <Text
+                            style={[
+                              styles.badgeName,
+                              { color: badge.isEarned ? "#1e293b" : "#94a3b8" },
+                            ]}
+                          >
+                            {badge.name}
+                          </Text>
+                          {badge.isEarned ? (
+                            <View style={styles.badgeCompletedContainer}>
+                              <View style={styles.badgeCompletedBadge}>
+                                <Ionicons
+                                  name="trophy"
+                                  size={12}
+                                  color="#f59e0b"
+                                />
+                                <Text style={styles.badgeCompletedText}>
+                                  Completed
+                                </Text>
+                              </View>
+                              <Text style={styles.badgeEarned}>
+                                {badge.earnedAt
+                                  ? new Date(
+                                      badge.earnedAt,
+                                    ).toLocaleDateString()
+                                  : "Earned"}
+                              </Text>
+                            </View>
                           ) : (
-                            <>
-                              <Text style={styles.viewMoreText}>View More Activity</Text>
-                              <Ionicons name="chevron-down" size={16} color="#22c55e" />
-                            </>
+                            <View style={styles.badgeProgressContainer}>
+                              <View style={styles.badgeProgressBar}>
+                                <View
+                                  style={[
+                                    styles.badgeProgressFill,
+                                    {
+                                      width: `${(badge.progress / badge.requirement_value) * 100}%`,
+                                      backgroundColor: badge.color,
+                                    },
+                                  ]}
+                                />
+                              </View>
+                              <Text style={styles.badgeProgressText}>
+                                {badge.progress}/{badge.requirement_value}
+                              </Text>
+                            </View>
                           )}
-                        </TouchableOpacity>
-                      )}
-                    </>
-                  )}
-                </View>
-              )}
-            </TabView>
-          </View>
+                        </Pressable>
+                      ))}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.activityContainer}>
+                    {/* Activity History */}
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionTitle}>Recent Activity</Text>
+                    </View>
+
+                    {activityHistory.length === 0 ? (
+                      <View style={styles.emptyStateContainer}>
+                        <Ionicons
+                          name="time-outline"
+                          size={48}
+                          color="#94a3b8"
+                        />
+                        <Text style={styles.emptyStateText}>
+                          No activities yet
+                        </Text>
+                        <Text style={styles.emptyStateSubtext}>
+                          Start cooking and completing challenges!
+                        </Text>
+                      </View>
+                    ) : (
+                      <>
+                        {activityHistory.map((activity) => (
+                          <Card key={activity.id} style={styles.activityCard}>
+                            <View style={styles.activityContent}>
+                              <View
+                                style={[
+                                  styles.activityIconContainer,
+                                  { backgroundColor: activity.color },
+                                ]}
+                              >
+                                <Ionicons
+                                  name={
+                                    activity.icon as keyof typeof Ionicons.glyphMap
+                                  }
+                                  size={20}
+                                  color="white"
+                                />
+                              </View>
+                              <View style={styles.activityInfo}>
+                                <Text style={styles.activityTitle}>
+                                  {activity.activity_title}
+                                </Text>
+                                <Text style={styles.activityDate}>
+                                  {activity.displayDate}
+                                </Text>
+                              </View>
+                              {activity.points_earned > 0 && (
+                                <View style={styles.activityPoints}>
+                                  <Ionicons
+                                    name="star"
+                                    size={16}
+                                    color="#f59e0b"
+                                  />
+                                  <Text style={styles.activityPointsText}>
+                                    +{activity.points_earned}
+                                  </Text>
+                                </View>
+                              )}
+                            </View>
+                          </Card>
+                        ))}
+
+                        {hasMoreActivities && (
+                          <TouchableOpacity
+                            style={styles.viewMoreButton}
+                            onPress={loadMoreActivities}
+                            disabled={loadingMore}
+                          >
+                            {loadingMore ? (
+                              <Text style={styles.viewMoreText}>
+                                Loading...
+                              </Text>
+                            ) : (
+                              <>
+                                <Text style={styles.viewMoreText}>
+                                  View More Activity
+                                </Text>
+                                <Ionicons
+                                  name="chevron-down"
+                                  size={16}
+                                  color="#22c55e"
+                                />
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        )}
+                      </>
+                    )}
+                  </View>
+                )}
+              </TabView>
+            </View>
 
             {/* Bottom padding to account for tab bar */}
             <View style={styles.bottomPadding} />
           </View>
         </ScrollView>
+
+        <BadgeDetailModal
+          badge={selectedBadge}
+          onClose={() => setSelectedBadge(null)}
+        />
       </SafeAreaView>
     </LinearGradient>
   )

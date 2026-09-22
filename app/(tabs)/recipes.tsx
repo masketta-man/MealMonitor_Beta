@@ -68,14 +68,6 @@ export default function RecipesScreen() {
   const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [showFavoritesModal, setShowFavoritesModal] = useState(false)
-  const [showBookmarksModal, setShowBookmarksModal] = useState(false)
-  const [bookmarkCollections, setBookmarkCollections] = useState<
-    BookmarkCollection[]
-  >([])
-  const [selectedCollection, setSelectedCollection] = useState<string | null>(
-    null,
-  )
-  const [bookmarkedRecipes, setBookmarkedRecipes] = useState<any[]>([])
 
   const favoriteRecipes = useMemo(
     () => recipes.filter((recipe) => recipe.isFavorite),
@@ -98,57 +90,8 @@ export default function RecipesScreen() {
   useEffect(() => {
     if (user) {
       loadRecipes()
-      loadBookmarkCollections()
     }
   }, [user])
-
-  const loadBookmarkCollections = async () => {
-    if (!user) return
-
-    try {
-      const collections = await bookmarkService.getCollections(user.id)
-      setBookmarkCollections(collections)
-    } catch (error) {
-      console.error("Error loading bookmark collections:", error)
-    }
-  }
-
-  const loadBookmarkedRecipes = async (collectionId?: string) => {
-    if (!user) return
-
-    try {
-      const bookmarks = await bookmarkService.getBookmarks(
-        user.id,
-        collectionId,
-      )
-      // Transform bookmarks to match RecipeWithDetails format
-      const recipes = bookmarks.map((bookmark: any) => ({
-        ...bookmark.recipes,
-        ingredients: bookmark.recipes.recipe_ingredients.map((ri: any) => ({
-          id: ri.ingredients.id,
-          name: ri.ingredients.name,
-          amount: ri.amount,
-          category: ri.ingredients.category,
-        })),
-        instructions: bookmark.recipes.recipe_instructions
-          .sort((a: any, b: any) => a.step_number - b.step_number)
-          .map((inst: any) => ({
-            step_number: inst.step_number,
-            instruction: inst.instruction,
-            timer_minutes: inst.timer_minutes,
-          })),
-        tags: bookmark.recipes.recipe_tags.map((tag: any) => ({
-          tag: tag.tag,
-          tag_type: tag.tag_type,
-        })),
-        bookmarkId: bookmark.id,
-        bookmarkNotes: bookmark.notes,
-      }))
-      setBookmarkedRecipes(recipes)
-    } catch (error) {
-      console.error("Error loading bookmarked recipes:", error)
-    }
-  }
 
   // Check if we should show suggestions
   useEffect(() => {
@@ -696,12 +639,6 @@ export default function RecipesScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.headerButton}
-              onPress={() => setShowBookmarksModal(true)}
-            >
-              <Ionicons name="bookmark-outline" size={24} color="#166534" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.headerButton}
               onPress={() => router.push("/(tabs)/ingredients")}
             >
               <Ionicons name="nutrition-outline" size={24} color="#166534" />
@@ -1035,137 +972,6 @@ export default function RecipesScreen() {
                   showsVerticalScrollIndicator={false}
                   numColumns={isWeb ? 2 : 1}
                   key={isWeb ? "fav-web" : "fav-mobile"}
-                  columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
-                />
-              )}
-            </View>
-          </View>
-        </Modal>
-
-        {/* Bookmarks Modal */}
-        <Modal
-          visible={showBookmarksModal}
-          animationType="slide"
-          transparent
-          onRequestClose={() => {
-            setShowBookmarksModal(false)
-            setSelectedCollection(null)
-          }}
-        >
-          <View style={styles.savedModalOverlay}>
-            <View
-              style={[
-                styles.savedModalContent,
-                isWeb && styles.savedModalContentWeb,
-              ]}
-            >
-              <View style={styles.savedModalHeader}>
-                <View style={styles.savedModalTitleContainer}>
-                  <Ionicons name="bookmark" size={24} color="#166534" />
-                  <Text style={styles.savedModalTitle}>
-                    {selectedCollection
-                      ? bookmarkCollections.find(
-                          (c) => c.id === selectedCollection,
-                        )?.name || "Bookmarks"
-                      : "Bookmark Collections"}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => {
-                    if (selectedCollection) {
-                      setSelectedCollection(null)
-                    } else {
-                      setShowBookmarksModal(false)
-                    }
-                  }}
-                  style={styles.savedModalCloseButton}
-                >
-                  <Ionicons
-                    name={selectedCollection ? "arrow-back" : "close"}
-                    size={24}
-                    color="#166534"
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {!selectedCollection ? (
-                // Show collections list
-                bookmarkCollections.length === 0 ? (
-                  <View style={styles.savedEmptyState}>
-                    <Ionicons
-                      name="bookmark-outline"
-                      size={48}
-                      color="#9ca3af"
-                    />
-                    <Text style={styles.savedEmptyTitle}>
-                      No Collections Yet
-                    </Text>
-                    <Text style={styles.savedEmptyText}>
-                      Bookmark recipes to automatically create your first
-                      collection.
-                    </Text>
-                  </View>
-                ) : (
-                  <ScrollView style={styles.collectionsContainer}>
-                    {bookmarkCollections.map((collection) => (
-                      <TouchableOpacity
-                        key={collection.id}
-                        style={styles.collectionCard}
-                        onPress={() => {
-                          setSelectedCollection(collection.id)
-                          loadBookmarkedRecipes(collection.id)
-                        }}
-                      >
-                        <View style={styles.collectionIconContainer}>
-                          <Ionicons
-                            name="bookmark"
-                            size={32}
-                            color={collection.color}
-                          />
-                        </View>
-                        <View style={styles.collectionInfo}>
-                          <Text style={styles.collectionName}>
-                            {collection.name}
-                          </Text>
-                          {collection.description && (
-                            <Text style={styles.collectionDescription}>
-                              {collection.description}
-                            </Text>
-                          )}
-                          <Text style={styles.collectionCount}>
-                            {collection.bookmarkCount || 0}{" "}
-                            {collection.bookmarkCount === 1
-                              ? "recipe"
-                              : "recipes"}
-                          </Text>
-                        </View>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={20}
-                          color="#9ca3af"
-                        />
-                      </TouchableOpacity>
-                    ))}
-                  </ScrollView>
-                )
-              ) : // Show recipes in selected collection
-              bookmarkedRecipes.length === 0 ? (
-                <View style={styles.savedEmptyState}>
-                  <Ionicons name="bookmark-outline" size={48} color="#9ca3af" />
-                  <Text style={styles.savedEmptyTitle}>No Recipes Yet</Text>
-                  <Text style={styles.savedEmptyText}>
-                    Bookmark recipes to add them to this collection.
-                  </Text>
-                </View>
-              ) : (
-                <FlatList
-                  data={bookmarkedRecipes}
-                  renderItem={renderRecipeCard}
-                  keyExtractor={(item) => item.id}
-                  contentContainerStyle={styles.savedModalList}
-                  showsVerticalScrollIndicator={false}
-                  numColumns={isWeb ? 2 : 1}
-                  key={isWeb ? "bookmark-web" : "bookmark-mobile"}
                   columnWrapperStyle={isWeb ? styles.columnWrapper : undefined}
                 />
               )}
@@ -1708,51 +1514,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-  },
-  collectionsContainer: {
-    flex: 1,
-    padding: 16,
-  },
-  collectionCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  collectionIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#f0fdf4",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 16,
-  },
-  collectionInfo: {
-    flex: 1,
-  },
-  collectionName: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#166534",
-    marginBottom: 4,
-  },
-  collectionDescription: {
-    fontSize: 13,
-    color: "#6b7280",
-    marginBottom: 4,
-  },
-  collectionCount: {
-    fontSize: 12,
-    color: "#9ca3af",
-    fontWeight: "500",
   },
   tagScrollViewWeb: {
     maxWidth: "100%",

@@ -244,7 +244,6 @@ export const ingredientService = {
     updates: {
       quantity?: string
       expiryDate?: string
-      inStock?: boolean
     },
   ): Promise<UserIngredient | null> {
     const updateData: Partial<UserIngredientUpdate> = {}
@@ -252,7 +251,6 @@ export const ingredientService = {
     if (updates.quantity !== undefined) updateData.quantity = updates.quantity
     if (updates.expiryDate !== undefined)
       updateData.expiry_date = updates.expiryDate
-    if (updates.inStock !== undefined) updateData.in_stock = updates.inStock
 
     const { data, error } = await supabase
       .from("user_ingredients")
@@ -267,56 +265,6 @@ export const ingredientService = {
     }
 
     return data
-  },
-
-  // Toggle ingredient stock status
-  async toggleIngredientStock(
-    userId: string,
-    ingredientId: string,
-  ): Promise<boolean> {
-    // First check if the user ingredient exists
-    const { data: existing } = await supabase
-      .from("user_ingredients")
-      .select("*")
-      .eq("user_id", userId)
-      .eq("ingredient_id", ingredientId)
-      .single<UserIngredient>()
-
-    if (existing) {
-      // Update existing ingredient
-      const newStockState = !existing.in_stock
-      const { data, error } = await supabase
-        .from("user_ingredients")
-        .update({ in_stock: newStockState } as UserIngredientUpdate)
-        .eq("id", existing.id)
-        .select()
-        .single<UserIngredient>()
-
-      // in_stock is nullable in the database; treat null as "not in stock".
-      if (error) {
-        console.error("Error toggling ingredient stock:", error)
-        return existing.in_stock ?? false // Return original state on error
-      }
-      return data?.in_stock ?? existing.in_stock ?? false
-    } else {
-      // Add new ingredient as in stock
-      const insertData: UserIngredientInsert = {
-        user_id: userId,
-        ingredient_id: ingredientId,
-        in_stock: true,
-        quantity: null,
-        expiry_date: null,
-      }
-      const { error } = await supabase
-        .from("user_ingredients")
-        .insert(insertData)
-
-      if (error) {
-        console.error("Error adding ingredient:", error)
-        return false
-      }
-      return true
-    }
   },
 
   // Remove ingredient from user's pantry
@@ -367,7 +315,8 @@ export const ingredientService = {
     return data
   },
 
-  // Get user's in-stock ingredients
+  // Get the user's pantry ingredients (everything in the pantry is treated as
+  // available; the in-stock/out-of-stock concept was removed).
   async getUserInStockIngredients(
     userId: string,
   ): Promise<UserIngredientWithDetails[]> {
@@ -384,11 +333,10 @@ export const ingredientService = {
       `,
       )
       .eq("user_id", userId)
-      .eq("in_stock", true)
       .order("ingredients(name)")
 
     if (error) {
-      console.error("Error fetching user in-stock ingredients:", error)
+      console.error("Error fetching user pantry ingredients:", error)
       return []
     }
 

@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { activityRecommendationBias } from "@/utils/calorieGoal"
 import { calorieService } from "./calorieService"
 import { RecipeWithDetails } from "./recipeService"
 import { settingsService } from "./settingsService"
@@ -734,7 +735,39 @@ export const recommendationService = {
       return 0 // Recipe violates restrictions
     }
 
-    return Math.min(100, score)
+    // Activity-level nudge: more active users get pushed toward heartier,
+    // protein-rich meals; less active users toward lighter, low-calorie ones.
+    // `bias` is in [-1, 1] (positive = more active). We tilt the score by up to
+    // ±15 depending on whether the recipe's tags read as "heavy" or "light".
+    const bias = activityRecommendationBias(userSettings?.activity_level)
+    if (bias !== 0) {
+      const heavyTags = [
+        "high-protein",
+        "high-calorie",
+        "protein",
+        "bulking",
+        "post-workout",
+        "hearty",
+        "energy",
+      ]
+      const lightTags = [
+        "low-calorie",
+        "light",
+        "low-carb",
+        "salad",
+        "low-fat",
+        "diet",
+      ]
+      const isHeavy = recipeTagNames.some((t: string) => heavyTags.includes(t))
+      const isLight = recipeTagNames.some((t: string) => lightTags.includes(t))
+
+      // A recipe that leans heavy benefits from a positive bias (active user)
+      // and is penalised by a negative one; light recipes are the reverse.
+      if (isHeavy) score += bias * 15
+      if (isLight) score += -bias * 15
+    }
+
+    return Math.max(0, Math.min(100, score))
   },
 
   /**

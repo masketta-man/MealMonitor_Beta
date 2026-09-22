@@ -2,7 +2,6 @@
 
 import { CalorieCounter } from "@/components/CalorieCounter"
 import { LevelProgress } from "@/components/LevelProgress"
-import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 import { useTutorial } from "@/contexts/TutorialContext"
 import { useAuth } from "@/hooks/useAuth"
 import { calorieService } from "@/services/calorieService"
@@ -18,6 +17,7 @@ import { useCallback, useEffect, useState } from "react"
 import {
     Alert,
     Image,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -32,6 +32,7 @@ import Badge from "@/components/Badge"
 import Button from "@/components/Button"
 import Card from "@/components/Card"
 import ProgressBar from "@/components/ProgressBar"
+import { personalizeTutorialSteps } from "@/constants/tutorialSteps"
 
 interface UserStats {
   profile: any
@@ -143,22 +144,36 @@ export default function HomeScreen() {
   // Trigger tutorial after initial load for new users or when coming from onboarding
   useEffect(() => {
     if (!loading && !tutorialTriggered) {
+      // Tailor the tour with what we already loaded for the dashboard, so no
+      // extra queries are needed just to personalize a couple of steps.
+      const steps = personalizeTutorialSteps({
+        pantryCount: availableIngredients,
+        readyToCookCount,
+      })
+
       // Check if we should start tutorial from onboarding
       if (params.startTutorial === "true") {
         console.log("Starting tutorial from onboarding completion")
         setTimeout(() => {
-          startTutorial(APP_TUTORIAL_STEPS)
+          startTutorial(steps)
           setTutorialTriggered(true)
         }, 500)
       } else if (shouldShowTutorial) {
         console.log("Starting tutorial for new user")
         setTimeout(() => {
-          startTutorial(APP_TUTORIAL_STEPS)
+          startTutorial(steps)
           setTutorialTriggered(true)
         }, 1000)
       }
     }
-  }, [shouldShowTutorial, tutorialTriggered, loading, params.startTutorial])
+  }, [
+    shouldShowTutorial,
+    tutorialTriggered,
+    loading,
+    params.startTutorial,
+    availableIngredients,
+    readyToCookCount,
+  ])
 
   const loadUserData = async () => {
     if (!user) return
@@ -325,8 +340,34 @@ export default function HomeScreen() {
     router.push("/(tabs)/profile")
   }
 
-  const handleStartCooking = (recipeId: string) => {
+  const proceedToCooking = (recipeId: string) => {
     router.push(`/(tabs)/cooking/${recipeId}`)
+  }
+
+  const handleStartCooking = (recipe: Recipe) => {
+    // The dashboard cards only carry a hasAllIngredients boolean (not the full
+    // ingredient list), so we warn generically here. The recipe detail screen,
+    // which loads the full list, names the specific missing items.
+    if (recipe.hasAllIngredients === false) {
+      const title = "Missing ingredients"
+      const message =
+        "You may not have all the ingredients for this recipe. Start cooking anyway?"
+
+      if (Platform.OS === "web") {
+        if (window.confirm(`${title}\n\n${message}`)) {
+          proceedToCooking(recipe.id)
+        }
+        return
+      }
+
+      Alert.alert(title, message, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Cook Anyway", onPress: () => proceedToCooking(recipe.id) },
+      ])
+      return
+    }
+
+    proceedToCooking(recipe.id)
   }
 
   const handleCompleteRecipe = async (recipeId: string) => {
@@ -681,7 +722,7 @@ export default function HomeScreen() {
                           text="Start Cooking"
                           color="white"
                           backgroundColor="#22c55e"
-                          onPress={() => handleStartCooking(recipe.id)}
+                          onPress={() => handleStartCooking(recipe)}
                           style={styles.cookButton}
                         />
                       </View>

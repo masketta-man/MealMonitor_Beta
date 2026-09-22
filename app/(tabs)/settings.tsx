@@ -3,56 +3,67 @@ import Card from "@/components/Card"
 import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 import { useTutorial } from "@/contexts/TutorialContext"
 import { useAuth } from "@/hooks/useAuth"
-import { settingsService, type UserSettings, type UserSettingsUpdate } from "@/services/settingsService"
+import {
+    settingsService,
+    type UserSettings,
+    type UserSettingsUpdate,
+} from "@/services/settingsService"
 import { userService } from "@/services/userService"
+import {
+    ACTIVITY_LEVELS,
+    calculateCalorieGoal,
+    type ActivityLevel,
+} from "@/utils/calorieGoal"
 import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import { useEffect, useState } from "react"
-import { Alert, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from "react-native"
+import {
+    Alert,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
 
 // Migration map for old restriction IDs to new consistent format
 const RESTRICTION_ID_MAP: Record<string, string> = {
-  'gluten': 'gluten-free',
-  'dairy': 'dairy-free',
-  'nuts': 'nut-free',
-  'soy': 'soy-free',
-  'eggs': 'egg-free',
-  'shellfish': 'shellfish-free',
+  gluten: "gluten-free",
+  dairy: "dairy-free",
+  nuts: "nut-free",
+  soy: "soy-free",
+  eggs: "egg-free",
+  shellfish: "shellfish-free",
 }
 
 const DIETARY_RESTRICTIONS = [
-  { id: 'vegetarian', label: 'Vegetarian' },
-  { id: 'vegan', label: 'Vegan' },
-  { id: 'pescatarian', label: 'Pescatarian' },
-  { id: 'omnivore', label: 'Omnivore' },
-  { id: 'keto', label: 'Keto' },
-  { id: 'paleo', label: 'Paleo' },
-  { id: 'mediterranean', label: 'Mediterranean' },
-  { id: 'low-carb', label: 'Low-Carb' },
-  { id: 'gluten-free', label: 'Gluten-Free' },
-  { id: 'dairy-free', label: 'Dairy-Free' },
-  { id: 'nut-free', label: 'Nut-Free' },
-  { id: 'soy-free', label: 'Soy-Free' },
-  { id: 'egg-free', label: 'Egg-Free' },
-  { id: 'shellfish-free', label: 'Shellfish-Free' },
-  { id: 'halal', label: 'Halal' },
-  { id: 'kosher', label: 'Kosher' },
+  { id: "vegetarian", label: "Vegetarian" },
+  { id: "vegan", label: "Vegan" },
+  { id: "pescatarian", label: "Pescatarian" },
+  { id: "omnivore", label: "Omnivore" },
+  { id: "keto", label: "Keto" },
+  { id: "paleo", label: "Paleo" },
+  { id: "mediterranean", label: "Mediterranean" },
+  { id: "low-carb", label: "Low-Carb" },
+  { id: "gluten-free", label: "Gluten-Free" },
+  { id: "dairy-free", label: "Dairy-Free" },
+  { id: "nut-free", label: "Nut-Free" },
+  { id: "soy-free", label: "Soy-Free" },
+  { id: "egg-free", label: "Egg-Free" },
+  { id: "shellfish-free", label: "Shellfish-Free" },
+  { id: "halal", label: "Halal" },
+  { id: "kosher", label: "Kosher" },
 ]
 
 const WEIGHT_GOALS = [
-  { id: 'lose_weight', label: 'Lose Weight', icon: 'trending-down' },
-  { id: 'maintain_weight', label: 'Maintain Weight', icon: 'remove' },
-  { id: 'gain_weight', label: 'Gain Weight', icon: 'trending-up' },
-]
-
-const ACTIVITY_LEVELS = [
-  { id: 'sedentary', label: 'Sedentary', description: 'Little to no exercise' },
-  { id: 'lightly_active', label: 'Lightly Active', description: 'Exercise 1-3 times/week' },
-  { id: 'moderately_active', label: 'Moderately Active', description: 'Exercise 3-5 times/week' },
-  { id: 'very_active', label: 'Very Active', description: 'Exercise 6-7 times/week' },
-  { id: 'extremely_active', label: 'Extremely Active', description: 'Physical job or training twice/day' },
+  { id: "lose_weight", label: "Lose Weight", icon: "trending-down" },
+  { id: "maintain_weight", label: "Maintain Weight", icon: "remove" },
+  { id: "gain_weight", label: "Gain Weight", icon: "trending-up" },
 ]
 
 export default function SettingsScreen() {
@@ -66,7 +77,8 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<UserSettings | null>(null)
   const [calorieTarget, setCalorieTarget] = useState("2000")
   const [weightGoal, setWeightGoal] = useState<string>("maintain_weight")
-  const [activityLevel, setActivityLevel] = useState<string>("moderately_active")
+  const [activityLevel, setActivityLevel] =
+    useState<ActivityLevel>("moderately_active")
   const [selectedRestrictions, setSelectedRestrictions] = useState<string[]>([])
   const [fullName, setFullName] = useState("")
   const [username, setUsername] = useState("")
@@ -86,7 +98,7 @@ export default function SettingsScreen() {
 
       const [userSettings, userProfile] = await Promise.all([
         settingsService.getOrCreateSettings(user.id),
-        userService.getProfile(user.id)
+        userService.getProfile(user.id),
       ])
 
       if (userSettings) {
@@ -96,24 +108,36 @@ export default function SettingsScreen() {
         setActivityLevel(userSettings.activity_level)
 
         // Migrate old restriction IDs to new consistent format
-        let restrictions = (userSettings.dietary_restrictions || []).map(r => RESTRICTION_ID_MAP[r] || r)
+        let restrictions = (userSettings.dietary_restrictions || []).map(
+          (r) => RESTRICTION_ID_MAP[r] || r,
+        )
 
-        if (userProfile?.dietary_preferences && Array.isArray(userProfile.dietary_preferences)) {
-          const normalizedPreferences = userProfile.dietary_preferences.map((pref: string) =>
-            pref.toLowerCase().replace(/\s+/g, '-')
+        if (
+          userProfile?.dietary_preferences &&
+          Array.isArray(userProfile.dietary_preferences)
+        ) {
+          const normalizedPreferences = userProfile.dietary_preferences.map(
+            (pref: string) => pref.toLowerCase().replace(/\s+/g, "-"),
           )
-          restrictions = [...new Set([...restrictions, ...normalizedPreferences])]
+          restrictions = [
+            ...new Set([...restrictions, ...normalizedPreferences]),
+          ]
         }
 
-        if (userProfile?.food_restrictions && Array.isArray(userProfile.food_restrictions)) {
+        if (
+          userProfile?.food_restrictions &&
+          Array.isArray(userProfile.food_restrictions)
+        ) {
           const normalizedRestrictions = userProfile.food_restrictions
-            .filter((r: string) => r.toLowerCase() !== 'none')
+            .filter((r: string) => r.toLowerCase() !== "none")
             .map((r: string) => {
-              const normalized = r.toLowerCase().replace(/\s+/g, '-')
+              const normalized = r.toLowerCase().replace(/\s+/g, "-")
               // Migrate old IDs to new consistent format
               return RESTRICTION_ID_MAP[normalized] || normalized
             })
-          restrictions = [...new Set([...restrictions, ...normalizedRestrictions])]
+          restrictions = [
+            ...new Set([...restrictions, ...normalizedRestrictions]),
+          ]
         }
 
         // Final deduplication to ensure no duplicates
@@ -122,23 +146,43 @@ export default function SettingsScreen() {
 
       // Load personal details
       if (userProfile) {
-        setFullName(userProfile.full_name || '')
-        setUsername(userProfile.username || '')
-        setEmail(userProfile.email || '')
+        setFullName(userProfile.full_name || "")
+        setUsername(userProfile.username || "")
+        setEmail(userProfile.email || "")
       }
     } catch (error) {
-      console.error('Error loading settings:', error)
+      console.error("Error loading settings:", error)
     } finally {
       setLoading(false)
     }
   }
 
   const toggleRestriction = (restrictionId: string) => {
-    setSelectedRestrictions(prev =>
+    setSelectedRestrictions((prev) =>
       prev.includes(restrictionId)
-        ? prev.filter(id => id !== restrictionId)
-        : [...prev, restrictionId]
+        ? prev.filter((id) => id !== restrictionId)
+        : [...prev, restrictionId],
     )
+  }
+
+  // The shared calorie helper keys off onboarding health-goal labels, so map the
+  // settings weight-goal id onto the matching label before recalculating.
+  const WEIGHT_GOAL_TO_HEALTH_GOAL: Record<string, string> = {
+    lose_weight: "Lose weight",
+    maintain_weight: "Maintain weight",
+    gain_weight: "Gain muscle",
+  }
+
+  // Recompute the target from the current weight goal + activity level. Kept as
+  // an explicit action (not automatic) so a manually typed target is never
+  // silently overwritten while the user is editing.
+  const recalculateCalorieTarget = () => {
+    const healthGoalLabel = WEIGHT_GOAL_TO_HEALTH_GOAL[weightGoal]
+    const recommended = calculateCalorieGoal(
+      healthGoalLabel ? [healthGoalLabel] : [],
+      activityLevel,
+    )
+    setCalorieTarget(recommended.toString())
   }
 
   const handleSave = async () => {
@@ -146,28 +190,28 @@ export default function SettingsScreen() {
 
     // Validate personal details
     if (!fullName.trim()) {
-      if (Platform.OS === 'web') {
-        alert('Please enter your full name')
+      if (Platform.OS === "web") {
+        alert("Please enter your full name")
       } else {
-        Alert.alert('Validation Error', 'Please enter your full name')
+        Alert.alert("Validation Error", "Please enter your full name")
       }
       return
     }
 
     if (!username.trim()) {
-      if (Platform.OS === 'web') {
-        alert('Please enter a username')
+      if (Platform.OS === "web") {
+        alert("Please enter a username")
       } else {
-        Alert.alert('Validation Error', 'Please enter a username')
+        Alert.alert("Validation Error", "Please enter a username")
       }
       return
     }
 
-    if (!email.trim() || !email.includes('@')) {
-      if (Platform.OS === 'web') {
-        alert('Please enter a valid email address')
+    if (!email.trim() || !email.includes("@")) {
+      if (Platform.OS === "web") {
+        alert("Please enter a valid email address")
       } else {
-        Alert.alert('Validation Error', 'Please enter a valid email address')
+        Alert.alert("Validation Error", "Please enter a valid email address")
       }
       return
     }
@@ -177,17 +221,35 @@ export default function SettingsScreen() {
 
       const updates: UserSettingsUpdate = {
         daily_calorie_target: parseInt(calorieTarget) || 2000,
-        weight_goal: weightGoal as UserSettings['weight_goal'],
-        activity_level: activityLevel as UserSettings['activity_level'],
+        weight_goal: weightGoal as UserSettings["weight_goal"],
+        activity_level: activityLevel as UserSettings["activity_level"],
         dietary_restrictions: selectedRestrictions,
       }
 
-      const dietaryPrefs = selectedRestrictions.filter(r =>
-        ['vegetarian', 'vegan', 'pescatarian', 'omnivore', 'keto', 'paleo', 'mediterranean', 'low-carb'].includes(r)
+      const dietaryPrefs = selectedRestrictions.filter((r) =>
+        [
+          "vegetarian",
+          "vegan",
+          "pescatarian",
+          "omnivore",
+          "keto",
+          "paleo",
+          "mediterranean",
+          "low-carb",
+        ].includes(r),
       )
 
-      const foodRestrictions = selectedRestrictions.filter(r =>
-        ['gluten-free', 'dairy-free', 'nut-free', 'soy-free', 'egg-free', 'shellfish-free', 'halal', 'kosher'].includes(r)
+      const foodRestrictions = selectedRestrictions.filter((r) =>
+        [
+          "gluten-free",
+          "dairy-free",
+          "nut-free",
+          "soy-free",
+          "egg-free",
+          "shellfish-free",
+          "halal",
+          "kosher",
+        ].includes(r),
       )
 
       const [updatedSettings] = await Promise.all([
@@ -196,34 +258,36 @@ export default function SettingsScreen() {
           full_name: fullName.trim(),
           username: username.trim(),
           email: email.trim(),
-          dietary_preferences: dietaryPrefs.length > 0 ? dietaryPrefs : selectedRestrictions,
-          food_restrictions: foodRestrictions.length > 0 ? foodRestrictions : [],
-        })
+          dietary_preferences:
+            dietaryPrefs.length > 0 ? dietaryPrefs : selectedRestrictions,
+          food_restrictions:
+            foodRestrictions.length > 0 ? foodRestrictions : [],
+        }),
       ])
 
       if (updatedSettings) {
         setSettings(updatedSettings)
 
-        if (Platform.OS === 'web') {
-          alert('Settings saved successfully!')
+        if (Platform.OS === "web") {
+          alert("Settings saved successfully!")
         } else {
-          Alert.alert('Success', 'Settings saved successfully!')
+          Alert.alert("Success", "Settings saved successfully!")
         }
         // Navigate back to dashboard with refresh flag to reload recommendations
-        router.push('/(tabs)?refresh=true')
+        router.push("/(tabs)?refresh=true")
       } else {
-        if (Platform.OS === 'web') {
-          alert('Failed to save settings. Please try again.')
+        if (Platform.OS === "web") {
+          alert("Failed to save settings. Please try again.")
         } else {
-          Alert.alert('Error', 'Failed to save settings. Please try again.')
+          Alert.alert("Error", "Failed to save settings. Please try again.")
         }
       }
     } catch (error) {
-      console.error('Error saving settings:', error)
-      if (Platform.OS === 'web') {
-        alert('An error occurred while saving settings.')
+      console.error("Error saving settings:", error)
+      if (Platform.OS === "web") {
+        alert("An error occurred while saving settings.")
       } else {
-        Alert.alert('Error', 'An error occurred while saving settings.')
+        Alert.alert("Error", "An error occurred while saving settings.")
       }
     } finally {
       setSaving(false)
@@ -246,15 +310,23 @@ export default function SettingsScreen() {
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <View style={[styles.header, isWeb && styles.headerWeb]}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={styles.backButton}
+          >
             <Ionicons name="arrow-back" size={24} color="#166534" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Settings</Text>
           <View style={styles.headerRight} />
         </View>
 
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View
+            style={[styles.contentWrapper, isWeb && styles.contentWrapperWeb]}
+          >
             {/* Personal Details Section */}
             <Card style={styles.card}>
               <Text style={styles.sectionTitle}>Personal Details</Text>
@@ -297,7 +369,9 @@ export default function SettingsScreen() {
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
-                <Text style={styles.inputHint}>Your email is used for account recovery</Text>
+                <Text style={styles.inputHint}>
+                  Your email is used for account recovery
+                </Text>
               </View>
             </Card>
 
@@ -314,7 +388,21 @@ export default function SettingsScreen() {
                   placeholder="2000"
                   placeholderTextColor="#94a3b8"
                 />
-                <Text style={styles.inputHint}>Recommended: 1500-2500 calories/day</Text>
+                <View style={styles.calorieHintRow}>
+                  <Text style={styles.inputHint}>
+                    Recommended: 1500-2500 calories/day
+                  </Text>
+                  <TouchableOpacity
+                    onPress={recalculateCalorieTarget}
+                    style={styles.recalcButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="refresh" size={14} color="#166534" />
+                    <Text style={styles.recalcButtonText}>
+                      Recalculate from goal & activity
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               </View>
 
               <View style={styles.inputGroup}>
@@ -348,111 +436,118 @@ export default function SettingsScreen() {
               </View>
             </Card>
 
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Activity Level</Text>
-            {ACTIVITY_LEVELS.map((level) => (
-              <TouchableOpacity
-                key={level.id}
-                style={[
-                  styles.activityOption,
-                  activityLevel === level.id && styles.activityOptionActive,
-                ]}
-                onPress={() => setActivityLevel(level.id)}
-              >
-                <View style={styles.activityOptionContent}>
-                  <View
-                    style={[
-                      styles.radioButton,
-                      activityLevel === level.id && styles.radioButtonActive,
-                    ]}
-                  >
-                    {activityLevel === level.id && (
-                      <View style={styles.radioButtonInner} />
-                    )}
-                  </View>
-                  <View style={styles.activityOptionText}>
-                    <Text
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>Activity Level</Text>
+              {ACTIVITY_LEVELS.map((level) => (
+                <TouchableOpacity
+                  key={level.id}
+                  style={[
+                    styles.activityOption,
+                    activityLevel === level.id && styles.activityOptionActive,
+                  ]}
+                  onPress={() => setActivityLevel(level.id)}
+                >
+                  <View style={styles.activityOptionContent}>
+                    <View
                       style={[
-                        styles.activityOptionLabel,
-                        activityLevel === level.id && styles.activityOptionLabelActive,
+                        styles.radioButton,
+                        activityLevel === level.id && styles.radioButtonActive,
                       ]}
                     >
-                      {level.label}
-                    </Text>
-                    <Text style={styles.activityOptionDescription}>
-                      {level.description}
-                    </Text>
+                      {activityLevel === level.id && (
+                        <View style={styles.radioButtonInner} />
+                      )}
+                    </View>
+                    <View style={styles.activityOptionText}>
+                      <Text
+                        style={[
+                          styles.activityOptionLabel,
+                          activityLevel === level.id &&
+                            styles.activityOptionLabelActive,
+                        ]}
+                      >
+                        {level.label}
+                      </Text>
+                      <Text style={styles.activityOptionDescription}>
+                        {level.description}
+                      </Text>
+                    </View>
                   </View>
-                </View>
-              </TouchableOpacity>
-            ))}
-          </Card>
-
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
-            <Text style={styles.sectionSubtitle}>
-              Select any dietary restrictions or preferences
-            </Text>
-            <View style={styles.restrictionsContainer}>
-              {DIETARY_RESTRICTIONS.map((restriction) => (
-                <TouchableOpacity
-                  key={restriction.id}
-                  style={[
-                    styles.restrictionChip,
-                    selectedRestrictions.includes(restriction.id) &&
-                      styles.restrictionChipActive,
-                  ]}
-                  onPress={() => toggleRestriction(restriction.id)}
-                >
-                  <Text
-                    style={[
-                      styles.restrictionChipText,
-                      selectedRestrictions.includes(restriction.id) &&
-                        styles.restrictionChipTextActive,
-                    ]}
-                  >
-                    {restriction.label}
-                  </Text>
-                  {selectedRestrictions.includes(restriction.id) && (
-                    <Ionicons name="checkmark-circle" size={16} color="#22c55e" />
-                  )}
                 </TouchableOpacity>
               ))}
-            </View>
-          </Card>
+            </Card>
 
-          <Card style={styles.card}>
-            <Text style={styles.sectionTitle}>App Tutorial</Text>
-            <Text style={styles.sectionSubtitle}>
-              Replay the guided tour to learn about the app features
-            </Text>
-            <TouchableOpacity
-              style={styles.tutorialButton}
-              onPress={() => {
-                router.back()
-                setTimeout(() => {
-                  startTutorial(APP_TUTORIAL_STEPS)
-                }, 500)
-              }}
-            >
-              <View style={styles.tutorialButtonContent}>
-                <Ionicons name="play-circle" size={24} color="#22c55e" />
-                <Text style={styles.tutorialButtonText}>Restart Tutorial</Text>
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>Dietary Restrictions</Text>
+              <Text style={styles.sectionSubtitle}>
+                Select any dietary restrictions or preferences
+              </Text>
+              <View style={styles.restrictionsContainer}>
+                {DIETARY_RESTRICTIONS.map((restriction) => (
+                  <TouchableOpacity
+                    key={restriction.id}
+                    style={[
+                      styles.restrictionChip,
+                      selectedRestrictions.includes(restriction.id) &&
+                        styles.restrictionChipActive,
+                    ]}
+                    onPress={() => toggleRestriction(restriction.id)}
+                  >
+                    <Text
+                      style={[
+                        styles.restrictionChipText,
+                        selectedRestrictions.includes(restriction.id) &&
+                          styles.restrictionChipTextActive,
+                      ]}
+                    >
+                      {restriction.label}
+                    </Text>
+                    {selectedRestrictions.includes(restriction.id) && (
+                      <Ionicons
+                        name="checkmark-circle"
+                        size={16}
+                        color="#22c55e"
+                      />
+                    )}
+                  </TouchableOpacity>
+                ))}
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#64748b" />
-            </TouchableOpacity>
-          </Card>
+            </Card>
 
-          <View style={styles.buttonContainer}>
-            <Button
-              text={saving ? 'Saving...' : 'Save Settings'}
-              color="white"
-              backgroundColor="#22c55e"
-              onPress={handleSave}
-              disabled={saving}
-              style={styles.saveButton}
-            />
-          </View>
+            <Card style={styles.card}>
+              <Text style={styles.sectionTitle}>App Tutorial</Text>
+              <Text style={styles.sectionSubtitle}>
+                Replay the guided tour to learn about the app features
+              </Text>
+              <TouchableOpacity
+                style={styles.tutorialButton}
+                onPress={() => {
+                  router.back()
+                  setTimeout(() => {
+                    startTutorial(APP_TUTORIAL_STEPS)
+                  }, 500)
+                }}
+              >
+                <View style={styles.tutorialButtonContent}>
+                  <Ionicons name="play-circle" size={24} color="#22c55e" />
+                  <Text style={styles.tutorialButtonText}>
+                    Restart Tutorial
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#64748b" />
+              </TouchableOpacity>
+            </Card>
+
+            <View style={styles.buttonContainer}>
+              <Button
+                text={saving ? "Saving..." : "Save Settings"}
+                color="white"
+                backgroundColor="#22c55e"
+                onPress={handleSave}
+                disabled={saving}
+                style={styles.saveButton}
+              />
+            </View>
 
             <View style={styles.bottomPadding} />
           </View>
@@ -552,6 +647,21 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#94a3b8",
     marginTop: 4,
+  },
+  calorieHintRow: {
+    marginTop: 4,
+    gap: 8,
+  },
+  recalcButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 4,
+  },
+  recalcButtonText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#166534",
   },
   optionsContainer: {
     flexDirection: "row",

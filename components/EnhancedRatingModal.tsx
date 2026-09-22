@@ -1,13 +1,13 @@
 import { Ionicons } from "@expo/vector-icons"
 import React, { useState } from "react"
 import {
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    Modal,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native"
 import Button from "./Button"
 
@@ -24,6 +24,9 @@ interface EnhancedRatingModalProps {
   onSubmit: (rating: RatingData) => void
   recipeTitle: string
   suggestedPrepTime: number
+  // Actual cook time measured by the app (in seconds). When provided it's shown
+  // read-only as the real elapsed time — the user doesn't (and can't) adjust it.
+  measuredSeconds?: number
 }
 
 export interface RatingData {
@@ -43,6 +46,7 @@ export default function EnhancedRatingModal({
   onSubmit,
   recipeTitle,
   suggestedPrepTime,
+  measuredSeconds,
 }: EnhancedRatingModalProps) {
   const [overallRating, setOverallRating] = useState(0)
   const [dimensions, setDimensions] = useState<RatingDimension[]>([
@@ -72,9 +76,15 @@ export default function EnhancedRatingModal({
     },
   ])
 
-  const [actualTime, setActualTime] = useState(suggestedPrepTime)
   const [modifications, setModifications] = useState("")
   const [wouldCookAgain, setWouldCookAgain] = useState(true)
+
+  // The cook time is measured by the app, not entered by the user. We report it
+  // to the rating data in whole minutes (min 1), and display it as mm:ss below.
+  const actualTime =
+    measuredSeconds != null
+      ? Math.max(1, Math.round(measuredSeconds / 60))
+      : suggestedPrepTime
 
   const updateDimensionRating = (index: number, rating: number) => {
     const newDimensions = [...dimensions]
@@ -106,7 +116,6 @@ export default function EnhancedRatingModal({
         rating: 0,
       })),
     )
-    setActualTime(suggestedPrepTime)
     setModifications("")
     setWouldCookAgain(true)
   }
@@ -213,49 +222,29 @@ export default function EnhancedRatingModal({
               ))}
             </View>
 
-            {/* Actual Time Taken */}
+            {/* Actual Time Taken — measured by the app, not editable */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>How long did it take?</Text>
               <Text style={styles.sectionSubtitle}>
-                Suggested: {suggestedPrepTime} minutes
+                {measuredSeconds != null
+                  ? `Timed by the app · Suggested: ${suggestedPrepTime} min`
+                  : `Suggested: ${suggestedPrepTime} minutes`}
               </Text>
-              <View style={styles.timeAdjuster}>
-                <TouchableOpacity
-                  style={styles.timeButton}
-                  onPress={() => setActualTime(Math.max(5, actualTime - 5))}
-                >
-                  <Ionicons name="remove" size={24} color="#22c55e" />
-                </TouchableOpacity>
-                <View style={styles.timeDisplay}>
-                  <Text style={styles.timeValue}>{actualTime}</Text>
-                  <Text style={styles.timeLabel}>minutes</Text>
-                </View>
-                <TouchableOpacity
-                  style={styles.timeButton}
-                  onPress={() => setActualTime(actualTime + 5)}
-                >
-                  <Ionicons name="add" size={24} color="#22c55e" />
-                </TouchableOpacity>
-              </View>
-              {actualTime !== suggestedPrepTime && (
-                <Text
-                  style={[
-                    styles.timeDifference,
-                    actualTime > suggestedPrepTime
-                      ? styles.timeDifferenceOver
-                      : styles.timeDifferenceUnder,
-                  ]}
-                >
-                  {actualTime > suggestedPrepTime ? "+" : ""}
-                  {actualTime - suggestedPrepTime} minutes{" "}
-                  {actualTime > suggestedPrepTime ? "over" : "under"} estimate
+              <View style={styles.timeMeasured}>
+                <Ionicons name="time-outline" size={22} color="#22c55e" />
+                <Text style={styles.timeMeasuredValue}>
+                  {measuredSeconds != null
+                    ? formatDuration(measuredSeconds)
+                    : `${suggestedPrepTime}:00`}
                 </Text>
-              )}
+              </View>
             </View>
 
             {/* Would Cook Again */}
             <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Would you cook this again?</Text>
+              <Text style={styles.sectionTitle}>
+                Would you cook this again?
+              </Text>
               <View style={styles.toggleContainer}>
                 <TouchableOpacity
                   style={[
@@ -356,6 +345,13 @@ export default function EnhancedRatingModal({
       </View>
     </Modal>
   )
+}
+
+// Format a duration in seconds as "m:ss" (e.g. 125 -> "2:05").
+function formatDuration(totalSeconds: number): string {
+  const mins = Math.floor(totalSeconds / 60)
+  const secs = totalSeconds % 60
+  return `${mins}:${secs.toString().padStart(2, "0")}`
 }
 
 function getRatingLabel(rating: number): string {
@@ -487,48 +483,19 @@ const styles = StyleSheet.create({
   smallStarButton: {
     padding: 4,
   },
-  timeAdjuster: {
+  timeMeasured: {
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#f9fafb",
     borderRadius: 12,
     padding: 16,
-    gap: 24,
+    gap: 10,
   },
-  timeButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#dcfce7",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  timeDisplay: {
-    alignItems: "center",
-    minWidth: 80,
-  },
-  timeValue: {
+  timeMeasuredValue: {
     fontSize: 32,
     fontWeight: "800",
     color: "#166534",
-  },
-  timeLabel: {
-    fontSize: 12,
-    color: "#6b7280",
-    marginTop: 4,
-  },
-  timeDifference: {
-    fontSize: 13,
-    textAlign: "center",
-    marginTop: 12,
-    fontWeight: "600",
-  },
-  timeDifferenceOver: {
-    color: "#dc2626",
-  },
-  timeDifferenceUnder: {
-    color: "#16a34a",
   },
   toggleContainer: {
     flexDirection: "row",
