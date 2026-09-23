@@ -539,10 +539,16 @@ export const recipeService = {
       console.log("🔥 Streak updated:", streakInfo)
     }
 
-    // Advance any active cooking quests (streak / generic-meal tasks). Best-effort:
-    // this must never block or fail the recipe completion.
+    // Advance any active cooking quests (streak / generic-meal / meal-type tasks).
+    // Passing the recipe's meal_type unlocks breakfast/lunch/dinner task matching.
+    // The completedToday flag prevents gaming streak quests by cooking repeatedly.
+    // Best-effort: must never block or fail the recipe completion.
     try {
-      const advanced = await challengeService.advanceCookingQuests(userId)
+      const advanced = await challengeService.advanceCookingQuests(
+        userId,
+        { mealType: recipeMealType },
+        completedToday ?? false,
+      )
       if (advanced > 0) {
         console.log(`🎯 Advanced ${advanced} active quest(s) from this cook`)
       }

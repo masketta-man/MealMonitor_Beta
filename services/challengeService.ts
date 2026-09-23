@@ -88,32 +88,73 @@ const calculateDaysLeft = (endDate: string): number => {
  *
  * Auto-advance covers tasks whose only requirement is "cook a meal" with no
  * constraint the app can verify from a completion: the streak quests ("Cook on
- * Day 3") and generic single-meal tasks ("Prepare at least one meal"). Tasks that
- * name a cuisine, a calorie ceiling, a specific dish, or a non-cooking action
- * (tracking water) can't be confirmed from a bare completion yet, so they remain
- * manual. Kept deliberately conservative: it is better to leave a task manual
- * than to auto-complete one the user didn't actually satisfy.
+ * Day 3") and generic single-meal tasks ("Prepare at least one meal"). Tasks
+ * that name a meal-type (breakfast/lunch/dinner) can now also be auto-advanced
+ * when the recipe's meal_type matches. Tasks that name a cuisine, a calorie
+ * ceiling, a specific dish, or a non-cooking action (tracking water) can't be
+ * confirmed from a bare completion, so they remain manual. Kept deliberately
+ * conservative: it is better to leave a task manual than to auto-complete one
+ * the user didn't actually satisfy.
  *
  * Exported so the quest detail screen can render auto tasks as read-only.
+ *
+ * @param taskTitle   The challenge_task title to evaluate.
+ * @param recipeMealType  Optional meal_type from the recipe just cooked
+ *   (e.g. "Breakfast", "Lunch", "Dinner"). Enables matching tasks that
+ *   include a meal-type keyword that the recipe actually satisfies.
  */
-export const isAutoAdvanceTask = (taskTitle: string): boolean => {
+export const isAutoAdvanceTask = (
+  taskTitle: string,
+  recipeMealType?: string | null,
+): boolean => {
   const title = taskTitle.trim().toLowerCase()
+  const mealType = recipeMealType?.trim().toLowerCase() ?? null
 
-  // Streak quests: "Cook on Day 1" ... "Cook on Day 7".
+  // Streak quests: "Cook on Day 1" ... "Cook on Day N".
   if (/^cook on day \d+$/.test(title)) return true
 
-  // Generic "cook/prepare/make a meal" with nothing further to verify.
-  const genericMealTask =
-    /^(cook|prepare|make)\b/.test(title) &&
-    /\b(meal|dish|recipe|something)\b/.test(title)
+  // Generic "cook/prepare/make a meal/dish/recipe/something".
+  const hasVerb = /^(cook|prepare|make)\b/.test(title)
+  const hasGenericNoun = /\b(meal|dish|recipe|something)\b/.test(title)
 
-  // Exclude anything that names a constraint we can't check from a completion.
+  // Exclude unverifiable constraints — cuisine names, nutrition specifics,
+  // non-cooking actions.
   const hasUnverifiableConstraint =
-    /\b(chinese|japanese|thai|filipino|korean|italian|mexican|indian|cuisine|adobo|sinigang|pancit|kare-kare|lumpia|bistek|lechon|halo-halo|breakfast|lunch|dinner|dessert|appetizer|salad|calorie|cal\b|protein|fiber|whole grain|fruit|veggie|vegetable|track|water)\b/.test(
+    /\b(chinese|japanese|thai|filipino|korean|italian|mexican|indian|cuisine|adobo|sinigang|pancit|kare-kare|lumpia|bistek|lechon|halo-halo|calorie|cal\b|fiber|whole grain|fruit|track|water)\b/.test(
       title,
     )
 
-  return genericMealTask && !hasUnverifiableConstraint
+  if (hasUnverifiableConstraint) return false
+
+  // Pure generic: verb + generic noun with no further constraint.
+  if (hasVerb && hasGenericNoun) return true
+
+  // Meal-type tasks (breakfast/lunch/dinner): auto-advance only when we know
+  // the recipe's meal_type and it matches the task's keyword.
+  if (mealType) {
+    const mealTypeKeywords: Record<string, RegExp> = {
+      breakfast: /\bbreakfast\b/,
+      lunch: /\blunch\b/,
+      dinner: /\bdinner\b/,
+      snack: /\bsnack\b/,
+    }
+    const pattern = mealTypeKeywords[mealType]
+    if (pattern && pattern.test(title) && hasVerb) return true
+
+    // Also allow tasks that contain "salad", "veggie", "vegetable", "plant",
+    // "lean", "green" when paired with a cooking verb — these describe the
+    // dish style, not an unverifiable nutritional constraint, and the user
+    // already cooked a full recipe to trigger this path.
+    if (
+      hasVerb &&
+      /\b(salad|veggie|vegetable|plant|lean|green|protein|smoothie)\b/.test(
+        title,
+      )
+    )
+      return true
+  }
+
+  return false
 }
 
 // Helper function to enrich challenges with user progress
@@ -805,8 +846,20 @@ export const challengeService = {
    *
    * Best-effort and self-contained: it swallows its own errors and returns the
    * number of tasks advanced, so a failure here never disrupts recipe completion.
+   *
+   * @param userId        The user completing the recipe.
+   * @param recipeContext Optional metadata from the recipe just cooked. Passing
+   *   this unlocks meal-type matching so "Veggie-Heavy Breakfast" tasks advance
+   *   when the user cooks a Breakfast recipe.
+   * @param isRepeatToday True when the user has already completed a recipe today.
+   *   Generic meal and streak tasks are skipped in this case to prevent gaming
+   *   (streak quests should require one distinct cook per day, not N cooks).
    */
-  async advanceCookingQuests(userId: string): Promise<number> {
+  async advanceCookingQuests(
+    userId: string,
+    recipeContext?: { mealType?: string | null },
+    isRepeatToday?: boolean,
+  ): Promise<number> {
     try {
       const activeQuests = await this.getUserActiveChallenges(userId)
       let advanced = 0
@@ -820,7 +873,21 @@ export const challengeService = {
         // Earliest incomplete task (tasks are pre-sorted by order_number) that is
         // eligible for auto-advance.
         const nextTask = quest.tasks.find((task) => {
-          if (!isAutoAdvanceTask(task.title)) return false
+          if (!isAutoAdvanceTask(task.title, recipeContext?.mealType))
+            return false
+
+          // If the user already cooked today, only advance tasks that are
+          // explicitly meal-type specific (not generic streak/meal tasks), so
+          // a single very productive day can't clear an entire streak quest.
+          if (isRepeatToday) {
+            const titleLc = task.title.trim().toLowerCase()
+            const isStreakTask = /^cook on day \d+$/.test(titleLc)
+            const isGenericMealTask =
+              /^(cook|prepare|make)\b/.test(titleLc) &&
+              /\b(meal|dish|recipe|something)\b/.test(titleLc)
+            if (isStreakTask || isGenericMealTask) return false
+          }
+
           const progress = quest.userTaskProgress?.find(
             (tp) => tp.task_id === task.id,
           )
