@@ -2,12 +2,12 @@ import { supabase } from "@/lib/supabase"
 import { Session, User } from "@supabase/supabase-js"
 import * as Linking from "expo-linking"
 import {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
+    createContext,
+    useContext,
+    useEffect,
+    useRef,
+    useState,
+    type ReactNode,
 } from "react"
 
 interface AuthContextValue {
@@ -26,9 +26,7 @@ interface AuthContextValue {
   ) => Promise<{ data: any; error: any }>
   signOut: () => Promise<{ error: any }>
   resetPassword: (email: string) => Promise<{ data: any; error: any }>
-  resendConfirmationEmail: (
-    email: string,
-  ) => Promise<{ data: any; error: any }>
+  resendConfirmationEmail: (email: string) => Promise<{ data: any; error: any }>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -160,11 +158,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         data: userData,
-        // Where the confirmation email link should return the user. Works for
-        // web (origin) and native (mealmonitor:// deep link) via expo-linking.
-        // The account-creation email is sent by Supabase when email
-        // confirmations are enabled for the project (Auth > Providers > Email).
-        emailRedirectTo: Linking.createURL("/"),
+        // On web use the production domain; on native use the mealmonitor://
+        // deep link so Supabase can redirect back into the app after confirmation.
+        emailRedirectTo:
+          typeof window !== "undefined" &&
+          window.location?.hostname !== "localhost"
+            ? "https://mealmonitor.space"
+            : Linking.createURL("/"),
       },
     })
 
