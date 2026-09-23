@@ -523,7 +523,7 @@ export default function SignUpScreen() {
                 By creating an account you agree to our{" "}
                 <Text
                   style={styles.privacyLink}
-                  onPress={() => router.push("/(auth)/privacy")}
+                  onPress={() => router.push("/privacy")}
                 >
                   Data Privacy policy
                 </Text>

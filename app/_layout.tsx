@@ -2,7 +2,7 @@
 import TutorialOverlay from "@/components/TutorialOverlay"
 import { APP_TUTORIAL_STEPS } from "@/constants/tutorialSteps"
 import { TutorialProvider, useTutorial } from "@/contexts/TutorialContext"
-import { useAuth } from "@/hooks/useAuth"
+import { AuthProvider, useAuth } from "@/hooks/useAuth"
 import { hideSplashScreen, useFrameworkReady } from "@/hooks/useFrameworkReady"
 import { notificationService } from "@/services/notificationService"
 import { userService } from "@/services/userService"
@@ -41,6 +41,10 @@ function AppContent() {
   // empty. It's a valid place for a logged-out user to sit, so the gate must not
   // redirect away from it.
   const inLanding = routeSegments.length === 0
+  // Privacy is a public screen accessible without authentication, both from the
+  // signup flow and from settings. The gate must not redirect logged-out users
+  // away from it.
+  const inPrivacy = routeSegments[0] === "privacy"
 
   // Register for push notifications when user is authenticated (native only)
   useEffect(() => {
@@ -185,7 +189,13 @@ function AppContent() {
           console.log("🔐 Layout: Redirecting to tabs")
           router.replace("/(tabs)")
         }
-      } else if (!user && !session && !inAuthGroup && !inLanding) {
+      } else if (
+        !user &&
+        !session &&
+        !inAuthGroup &&
+        !inLanding &&
+        !inPrivacy
+      ) {
         // Not authenticated: send to the landing screen (the index route, which
         // offers Get Started / Log In), not straight to the login form.
         console.log("🔐 Layout: Redirecting to landing")
@@ -206,6 +216,7 @@ function AppContent() {
     inAuthGroup,
     inOnboarding,
     inLanding,
+    inPrivacy,
     router,
   ])
 
@@ -246,6 +257,7 @@ function AppContent() {
             on every render and had no effect on their presentation. */}
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy" options={{ headerShown: false }} />
       </Stack>
 
       {/* Tab navigation and FAB are for the authenticated app shell only. They must
@@ -276,9 +288,11 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <TutorialProvider>
-        <AppContent />
-      </TutorialProvider>
+      <AuthProvider>
+        <TutorialProvider>
+          <AppContent />
+        </TutorialProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   )
 }

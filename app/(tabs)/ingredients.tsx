@@ -356,6 +356,40 @@ export default function IngredientsScreen() {
   })
 
   // Render ingredient item
+  const getExpiryStatus = (expiryDate: string | null) => {
+    if (!expiryDate) return null
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+    const exp = new Date(expiryDate)
+    exp.setHours(0, 0, 0, 0)
+    const daysLeft = Math.ceil(
+      (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+    )
+    if (daysLeft < 0)
+      return {
+        label: "Expired",
+        color: "#dc2626",
+        bg: "#fef2f2",
+        icon: "close-circle" as const,
+        daysLeft,
+      }
+    if (daysLeft <= 3)
+      return {
+        label: daysLeft === 0 ? "Expires today" : `${daysLeft}d left`,
+        color: "#d97706",
+        bg: "#fffbeb",
+        icon: "warning" as const,
+        daysLeft,
+      }
+    return {
+      label: "Fresh",
+      color: "#16a34a",
+      bg: "#dcfce7",
+      icon: "checkmark-circle" as const,
+      daysLeft,
+    }
+  }
+
   const renderIngredientItem = ({
     item,
   }: {
@@ -363,8 +397,16 @@ export default function IngredientsScreen() {
   }) => {
     const categoryStyle =
       CATEGORY_STYLES[item.ingredient.category as IngredientCategory]
+    const expiry = getExpiryStatus(item.expiry_date)
+    const isExpired = expiry !== null && expiry.daysLeft < 0
+
     return (
-      <Card style={styles.ingredientCard}>
+      <Card
+        style={[
+          styles.ingredientCard,
+          isExpired && styles.ingredientCardExpired,
+        ]}
+      >
         <View style={styles.ingredientHeader}>
           <View style={styles.ingredientTitleContainer}>
             <Badge
@@ -376,6 +418,14 @@ export default function IngredientsScreen() {
             <Text style={styles.ingredientName}>{item.ingredient.name}</Text>
           </View>
           <View style={styles.ingredientActions}>
+            {expiry && (
+              <View style={[styles.expiryChip, { backgroundColor: expiry.bg }]}>
+                <Ionicons name={expiry.icon} size={12} color={expiry.color} />
+                <Text style={[styles.expiryChipText, { color: expiry.color }]}>
+                  {expiry.label}
+                </Text>
+              </View>
+            )}
             <TouchableOpacity
               style={styles.deleteButton}
               onPress={() =>
@@ -394,17 +444,41 @@ export default function IngredientsScreen() {
             {item.quantity && (
               <View style={styles.detailItem}>
                 <Ionicons name="cube-outline" size={16} color="#4b5563" />
-                <Text style={styles.detailText}>Quantity: {item.quantity}</Text>
+                <Text style={styles.detailText}>Notes: {item.quantity}</Text>
               </View>
             )}
-            {item.expiry_date && (
+            {item.expiry_date && expiry && (
               <View style={styles.detailItem}>
-                <Ionicons name="calendar-outline" size={16} color="#4b5563" />
-                <Text style={styles.detailText}>
-                  Expires: {new Date(item.expiry_date).toLocaleDateString()}
+                <Ionicons
+                  name="calendar-outline"
+                  size={16}
+                  color={expiry.color}
+                />
+                <Text
+                  style={[
+                    styles.detailText,
+                    {
+                      color: expiry.color,
+                      fontWeight:
+                        isExpired || expiry.daysLeft <= 3 ? "600" : "400",
+                    },
+                  ]}
+                >
+                  {isExpired
+                    ? `Expired ${new Date(item.expiry_date).toLocaleDateString()}`
+                    : `Expires ${new Date(item.expiry_date).toLocaleDateString()}`}
                 </Text>
               </View>
             )}
+          </View>
+        )}
+
+        {isExpired && (
+          <View style={styles.expiredBanner}>
+            <Ionicons name="information-circle" size={14} color="#dc2626" />
+            <Text style={styles.expiredBannerText}>
+              Not counted towards recipe matching
+            </Text>
           </View>
         )}
       </Card>
@@ -752,14 +826,18 @@ export default function IngredientsScreen() {
                     </View>
 
                     <View style={styles.formGroup}>
-                      <Text style={styles.formLabel}>Quantity (Optional)</Text>
+                      <Text style={styles.formLabel}>Notes (Optional)</Text>
                       <TextInput
                         style={styles.formInput}
-                        placeholder="e.g., 500g, 2 pieces, 1 bottle"
+                        placeholder="e.g., 500g, 2 cans, half a bag"
                         placeholderTextColor="#9ca3af"
                         value={quantity}
                         onChangeText={setQuantity}
                       />
+                      <Text style={styles.formHint}>
+                        For your reference only — doesn&rsquo;t affect recipe
+                        matching.
+                      </Text>
                     </View>
 
                     <View style={styles.formGroup}>
@@ -950,6 +1028,37 @@ const styles = StyleSheet.create({
   ingredientCard: {
     marginBottom: 12,
     padding: 16,
+  },
+  ingredientCardExpired: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#dc2626",
+  },
+  expiryChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+    gap: 3,
+    marginRight: 8,
+  },
+  expiryChipText: {
+    fontSize: 11,
+    fontWeight: "700",
+  },
+  expiredBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 10,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#fee2e2",
+  },
+  expiredBannerText: {
+    fontSize: 12,
+    color: "#dc2626",
+    fontWeight: "600",
   },
   ingredientHeader: {
     flexDirection: "row",

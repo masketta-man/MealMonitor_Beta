@@ -1,6 +1,11 @@
 import { supabase } from "@/lib/supabase"
 import { Database } from "@/types/database"
 
+const todayIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
 export type Ingredient = Database["public"]["Tables"]["ingredients"]["Row"]
 type UserIngredient = Database["public"]["Tables"]["user_ingredients"]["Row"]
 type UserIngredientInsert =
@@ -333,6 +338,7 @@ export const ingredientService = {
       `,
       )
       .eq("user_id", userId)
+      .or(`expiry_date.is.null,expiry_date.gte.${todayIso()}`)
       .order("ingredients(name)")
 
     if (error) {

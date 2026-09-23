@@ -10,6 +10,16 @@ import { streakService } from "./streakService"
 import { tagService } from "./tagService"
 import { userService } from "./userService"
 
+// Returns today's date as YYYY-MM-DD in local time, used to filter out
+// ingredients whose expiry date has passed from recipe-matching queries.
+const todayIso = () => {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm = String(d.getMonth() + 1).padStart(2, "0")
+  const dd = String(d.getDate()).padStart(2, "0")
+  return `${yyyy}-${mm}-${dd}`
+}
+
 type Recipe = Database["public"]["Tables"]["recipes"]["Row"]
 type RecipeIngredient =
   Database["public"]["Tables"]["recipe_ingredients"]["Row"]
@@ -215,7 +225,8 @@ export const recipeService = {
         supabase
           .from("user_ingredients")
           .select("ingredient_id, ingredients(name)")
-          .eq("user_id", userId),
+          .eq("user_id", userId)
+          .or(`expiry_date.is.null,expiry_date.gte.${todayIso()}`),
         userService.getProfile(userId),
         settingsService.getOrCreateSettings(userId),
         calorieService.getTodaysLog(userId),
@@ -728,7 +739,8 @@ export const recipeService = {
         supabase
           .from("user_ingredients")
           .select("ingredient_id, ingredients(name)")
-          .eq("user_id", userId),
+          .eq("user_id", userId)
+          .or(`expiry_date.is.null,expiry_date.gte.${todayIso()}`),
         settingsService.getUserSettings(userId),
       ])
 
@@ -835,6 +847,7 @@ export const recipeService = {
       .from("user_ingredients")
       .select("ingredient_id, ingredients(name)")
       .eq("user_id", userId)
+      .or(`expiry_date.is.null,expiry_date.gte.${todayIso()}`)
 
     const availableIngredients =
       userIngredients?.map((ui: any) => ui.ingredients.name) || []
@@ -888,6 +901,7 @@ export const recipeService = {
       .from("user_ingredients")
       .select("ingredient_id, ingredients(name)")
       .eq("user_id", userId)
+      .or(`expiry_date.is.null,expiry_date.gte.${todayIso()}`)
 
     // Normalize ingredient names for matching
     const normalizeIngredientName = (name: string) =>

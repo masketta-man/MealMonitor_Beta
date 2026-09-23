@@ -595,7 +595,7 @@ export default function SettingsScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.tutorialButton}
-                onPress={() => router.push("/(auth)/privacy")}
+                onPress={() => router.push("/privacy")}
               >
                 <View style={styles.tutorialButtonContent}>
                   <Ionicons name="shield-checkmark" size={24} color="#22c55e" />

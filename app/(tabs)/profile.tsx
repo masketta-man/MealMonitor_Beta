@@ -168,7 +168,9 @@ export default function ProfileScreen() {
   const performSignOut = async () => {
     try {
       await signOut()
-      router.replace("/(auth)/login")
+      // Navigate to the landing screen, matching the root layout's logged-out
+      // gate so the two don't fight over the destination.
+      router.replace("/")
     } catch (error) {
       console.error("Error signing out:", error)
       if (Platform.OS === "web") {

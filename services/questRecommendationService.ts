@@ -3,6 +3,11 @@ import { Database } from "@/types/database"
 
 type Challenge = Database["public"]["Tables"]["challenges"]["Row"]
 
+const todayIso = () => {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
+}
+
 export interface RecommendedQuest extends Challenge {
   recommendation_score: number
   recommendation_reason: string
@@ -121,6 +126,7 @@ export const questRecommendationService = {
         .from("user_ingredients")
         .select("*", { count: "exact", head: true })
         .eq("user_id", userId)
+        .or(`expiry_date.is.null,expiry_date.gte.${todayIso()}`)
 
       // Get base recommendations
       const recommendations = await this.getRecommendedQuests(userId, limit * 2)

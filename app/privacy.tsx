@@ -3,6 +3,7 @@ import { Ionicons } from "@expo/vector-icons"
 import { LinearGradient } from "expo-linear-gradient"
 import { useRouter } from "expo-router"
 import {
+    Image,
     ScrollView,
     StyleSheet,
     Text,
@@ -11,6 +12,8 @@ import {
     View,
 } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+
+const LOGO = require("@/assets/images/MM.png")
 
 // NOTE: This is placeholder policy content describing how the app is intended to
 // handle data. Replace the copy below with your reviewed, final privacy policy
@@ -51,13 +54,14 @@ export default function PrivacyScreen() {
     if (typeof router.canGoBack === "function" && router.canGoBack()) {
       router.back()
     } else {
-      router.replace("/(auth)/signup")
+      router.replace("/")
     }
   }
 
   return (
     <LinearGradient colors={["#dcfce7", "#f0fdf4"]} style={styles.container}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
+        {/* Navigation bar */}
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={goBack}>
             <Ionicons name="arrow-back" size={24} color="#166534" />
@@ -74,10 +78,22 @@ export default function PrivacyScreen() {
           ]}
           showsVerticalScrollIndicator={false}
         >
+          {/* Brand identity block */}
+          <View style={styles.brandBlock}>
+            <Image
+              source={LOGO}
+              style={styles.logo}
+              resizeMode="contain"
+              accessibilityLabel="MealMonitor logo"
+            />
+            <Text style={styles.appName}>MealMonitor</Text>
+            <Text style={styles.tagline}>Your privacy, plainly explained</Text>
+          </View>
+
           <Card style={styles.card}>
             <Text style={styles.intro}>
-              Your privacy matters. Here&rsquo;s a plain-language summary of what
-              MealMonitor collects and how it&rsquo;s used.
+              Your privacy matters. Here&rsquo;s a plain-language summary of
+              what MealMonitor collects and how it&rsquo;s used.
             </Text>
 
             {SECTIONS.map((section) => (
@@ -140,6 +156,26 @@ const styles = StyleSheet.create({
     maxWidth: 800,
     alignSelf: "center",
     width: "100%",
+  },
+  brandBlock: {
+    alignItems: "center",
+    paddingVertical: 20,
+    marginBottom: 8,
+  },
+  logo: {
+    width: 80,
+    height: 80,
+    marginBottom: 10,
+  },
+  appName: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#166534",
+    marginBottom: 4,
+  },
+  tagline: {
+    fontSize: 13,
+    color: "#4b5563",
   },
   card: {
     padding: 20,
