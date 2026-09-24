@@ -115,8 +115,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // When email confirmation is enabled, Supabase fires SIGNED_IN with a
       // session immediately after signUp even though the email isn't confirmed
       // yet. If we accept that session, the root layout gate redirects the user
-      // out of the "Check your inbox" screen before they see it. Ignore any
-      // session whose email_confirmed_at is null — the user must confirm first.
+      // out of the "Check your inbox" screen before they see it. Clear the
+      // session so the app stays unauthenticated and the signup screen keeps
+      // control until the user confirms their email.
       if (
         session &&
         session.user &&
@@ -124,8 +125,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         _event === "SIGNED_IN"
       ) {
         console.log(
-          "🔐 AuthProvider: Ignoring unconfirmed user SIGNED_IN event",
+          "🔐 AuthProvider: Clearing unconfirmed user session to keep Check Your Inbox screen",
         )
+        setSession(null)
+        setUser(null)
         if (initializedRef.current) setLoading(false)
         return
       }

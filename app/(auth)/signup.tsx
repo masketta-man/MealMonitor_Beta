@@ -146,17 +146,14 @@ export default function SignUpScreen() {
       console.log("🔑 Signup: No user returned")
       setErrors({ general: "Failed to create account. Please try again." })
       setIsLoading(false)
-    } else if (!data.session) {
-      // Supabase returns a user but no session when email confirmation is required.
-      // Continuing to onboarding here would dead-end: onboarding needs an
-      // authenticated user and fails with "User not found" on the final step,
-      // leaving logout as the only way out.
-      console.log("🔑 Signup: Email confirmation required before sign in")
-      setAwaitingConfirmation(true)
-      setIsLoading(false)
     } else {
-      console.log("🔑 Signup: Signup successful")
-      router.replace("/(auth)/onboarding")
+      // Navigate to a dedicated screen so the confirmation state survives any
+      // re-renders triggered by AuthProvider session events.
+      console.log("🔑 Signup: Account created, navigating to confirm-email")
+      router.replace({
+        pathname: "/(auth)/confirm-email",
+        params: { email: formData.email },
+      })
       setIsLoading(false)
     }
   }
