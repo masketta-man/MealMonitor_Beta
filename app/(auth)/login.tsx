@@ -24,13 +24,17 @@ const LOGO = require("@/assets/images/MM.png")
 
 export default function LoginScreen() {
   const router = useRouter()
-  const { signIn } = useAuth()
+  const { signIn, resendConfirmationEmail } = useAuth()
   const { width } = useWindowDimensions()
   const isWeb = width > 768
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [emailUnconfirmed, setEmailUnconfirmed] = useState(false)
+  const [resendState, setResendState] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  )
   const [errors, setErrors] = useState<{
     email?: string
     password?: string
@@ -75,7 +79,9 @@ export default function LoginScreen() {
         errorMessage =
           "Invalid email or password. Please check your credentials and try again."
       } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Please verify your email address before logging in."
+        setEmailUnconfirmed(true)
+        setIsLoading(false)
+        return
       } else if (
         error.message.includes("network") ||
         error.message.includes("fetch")
@@ -90,6 +96,17 @@ export default function LoginScreen() {
       setIsLoading(false)
     } else {
       console.log("🔑 Login: Login successful")
+    }
+  }
+
+  const handleResendConfirmation = async () => {
+    setResendState("sending")
+    const { error } = await resendConfirmationEmail(email)
+    if (error) {
+      setResendState("idle")
+      setErrors({ general: "Could not resend. Please try again in a moment." })
+    } else {
+      setResendState("sent")
     }
   }
 
@@ -127,11 +144,38 @@ export default function LoginScreen() {
                 Log in to continue, or create an account to get started.
               </Text>
 
-              {errors.general && (
-                <View style={styles.errorBanner}>
-                  <Ionicons name="alert-circle" size={20} color="#dc2626" />
-                  <Text style={styles.errorBannerText}>{errors.general}</Text>
+              {emailUnconfirmed ? (
+                <View style={styles.confirmationBanner}>
+                  <Ionicons name="mail-outline" size={20} color="#166534" />
+                  <View style={styles.confirmationBannerText}>
+                    <Text style={styles.confirmationBannerTitle}>
+                      Please verify your email first
+                    </Text>
+                    <Text style={styles.confirmationBannerBody}>
+                      Check your inbox for a confirmation link. Once you tap it
+                      you can log in here.
+                    </Text>
+                    <TouchableOpacity
+                      onPress={handleResendConfirmation}
+                      disabled={resendState !== "idle"}
+                    >
+                      <Text style={styles.confirmationResendText}>
+                        {resendState === "sending"
+                          ? "Sending..."
+                          : resendState === "sent"
+                            ? "✓ Email sent"
+                            : "Resend confirmation email"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
+              ) : (
+                errors.general && (
+                  <View style={styles.errorBanner}>
+                    <Ionicons name="alert-circle" size={20} color="#dc2626" />
+                    <Text style={styles.errorBannerText}>{errors.general}</Text>
+                  </View>
+                )
               )}
 
               <View style={styles.inputContainer}>
@@ -375,6 +419,37 @@ const styles = StyleSheet.create({
     color: "#dc2626",
     marginLeft: 8,
     flex: 1,
+  },
+  confirmationBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#f0fdf4",
+    borderWidth: 1,
+    borderColor: "#22c55e",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    gap: 10,
+  },
+  confirmationBannerText: {
+    flex: 1,
+  },
+  confirmationBannerTitle: {
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#166534",
+    marginBottom: 4,
+  },
+  confirmationBannerBody: {
+    fontSize: 13,
+    color: "#374151",
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  confirmationResendText: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#22c55e",
   },
   inputIcon: {
     marginRight: 12,
