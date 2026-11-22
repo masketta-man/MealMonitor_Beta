@@ -259,17 +259,43 @@ export const recommendationService = {
       completedRecipesData.map((r) => [r.recipe_id, new Date(r.completed_at)]),
     )
 
+    // Normalize ingredient names once for the whole batch
+    const normalizeIngredientName = (name: string) =>
+      name.toLowerCase().trim().replace(/\s+/g, " ")
+
+    const availableIngredientSet = new Set(
+      availableIngredients.map(normalizeIngredientName),
+    )
+    const hasIngredientsTracked = availableIngredientSet.size > 0
+
     // 7. Score each recipe
     const scoredRecipes: ScoredRecipe[] = recipes.map((recipe: any) => {
       // Transform recipe data
+      const ingredients = recipe.recipe_ingredients.map((ri: any) => ({
+        id: ri.ingredients.id,
+        name: ri.ingredients.name,
+        amount: ri.amount,
+        category: ri.ingredients.category,
+      }))
+
+      // Compute ingredient availability for the filter checkbox
+      const totalIngredients = ingredients.length
+      const matchingCount = hasIngredientsTracked
+        ? ingredients.filter((ing: { name: string }) =>
+            availableIngredientSet.has(normalizeIngredientName(ing.name)),
+          ).length
+        : totalIngredients
+      const matchPercentage =
+        totalIngredients > 0 ? (matchingCount / totalIngredients) * 100 : 100
+      const hasAllIngredients = !hasIngredientsTracked
+        ? true
+        : matchPercentage === 100
+
       const recipeWithDetails: RecipeWithDetails = {
         ...recipe,
-        ingredients: recipe.recipe_ingredients.map((ri: any) => ({
-          id: ri.ingredients.id,
-          name: ri.ingredients.name,
-          amount: ri.amount,
-          category: ri.ingredients.category,
-        })),
+        ingredients,
+        hasAllIngredients,
+        matchPercentage,
         instructions: recipe.recipe_instructions
           .sort((a: any, b: any) => a.step_number - b.step_number)
           .map((inst: any) => ({

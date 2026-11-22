@@ -453,10 +453,10 @@ export const recipeService = {
       completedToday,
     })
 
-    // Get recipe details
+    // Get recipe details (include tags so quest gating can check vegetarian/vegan)
     const { data: recipe, error: recipeError } = await supabase
       .from("recipes")
-      .select("points, title, calories, meal_type")
+      .select("points, title, calories, meal_type, recipe_tags(tag, tag_type)")
       .eq("id", recipeId)
       .single()
 
@@ -472,6 +472,9 @@ export const recipeService = {
     const recipeTitle = (recipe as any).title
     const recipeCalories = (recipe as any).calories || 0
     const recipeMealType = (recipe as any).meal_type || "Snack"
+    const recipeTags: string[] = ((recipe as any).recipe_tags || []).map(
+      (t: { tag: string }) => t.tag.toLowerCase(),
+    )
     console.log("📊 recipeService.completeRecipe: Recipe details:", {
       title: recipeTitle,
       points: recipePoints,
@@ -540,13 +543,18 @@ export const recipeService = {
     }
 
     // Advance any active cooking quests (streak / generic-meal / meal-type tasks).
-    // Passing the recipe's meal_type unlocks breakfast/lunch/dinner task matching.
+    // Passing the recipe's meal_type, calories, and tags unlocks finer-grained
+    // quest matching (breakfast/lunch/dinner, low-calorie, vegetarian, etc.).
     // The completedToday flag prevents gaming streak quests by cooking repeatedly.
     // Best-effort: must never block or fail the recipe completion.
     try {
       const advanced = await challengeService.advanceCookingQuests(
         userId,
-        { mealType: recipeMealType },
+        {
+          mealType: recipeMealType,
+          calories: recipeCalories,
+          tags: recipeTags,
+        },
         completedToday ?? false,
       )
       if (advanced > 0) {
