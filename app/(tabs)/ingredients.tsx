@@ -766,6 +766,7 @@ export default function IngredientsScreen() {
 
                   {/* Available Ingredients List */}
                   <FlatList
+                    style={{ flex: 1 }}
                     data={filteredAvailableIngredients}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => {
@@ -1180,6 +1181,8 @@ const styles = StyleSheet.create({
   },
   modalCategoryFilters: {
     flexGrow: 0,
+    flexShrink: 0,
+    minHeight: 44,
     marginBottom: 12,
   },
   modalCategoryFiltersContent: {
