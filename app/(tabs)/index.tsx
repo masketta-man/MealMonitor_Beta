@@ -627,6 +627,12 @@ export default function HomeScreen() {
 
                   const isTimeAppropriate =
                     recipe.meal_type === preferredMealType
+                  // Use the recipe's own meal_type as the badge label — it's
+                  // already confirmed to equal preferredMealType at this point,
+                  // but using recipe.meal_type avoids showing a stale computed
+                  // value if the time window shifts mid-render.
+                  const mealTypeBadgeLabel =
+                    recipe.meal_type || preferredMealType
                   const isPerfectMatch =
                     recipe.matchPercentage && recipe.matchPercentage >= 80
 
@@ -647,7 +653,7 @@ export default function HomeScreen() {
                       {isTimeAppropriate && (
                         <View style={styles.timeBadgeOverlay}>
                           <Text style={styles.timeBadgeText}>
-                            ⏰ {preferredMealType}
+                            ⏰ {mealTypeBadgeLabel}
                           </Text>
                         </View>
                       )}
