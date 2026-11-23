@@ -956,7 +956,6 @@ export const challengeService = {
     }
   },
 
-  // Get user's active challenges
   // Get user's active challenges (quests that have been activated)
   async getUserActiveChallenges(
     userId: string,
@@ -986,6 +985,27 @@ export const challengeService = {
         !!progress.challenges,
     )
 
+    // Load task-level progress for all active quests in one query so
+    // advanceCookingQuests can see which tasks are already done.
+    const challengeIds = progressEntries.map((p) => p.challenge_id)
+    const { data: taskProgressRows } = challengeIds.length
+      ? await supabase
+          .from("user_challenge_task_progress")
+          .select<string, UserChallengeTaskProgress>("*")
+          .eq("user_id", userId)
+          .in("challenge_id", challengeIds)
+      : { data: [] as UserChallengeTaskProgress[] }
+
+    const taskProgressByChallengeId = new Map<
+      string,
+      UserChallengeTaskProgress[]
+    >()
+    ;(taskProgressRows ?? []).forEach((tp) => {
+      const existing = taskProgressByChallengeId.get(tp.challenge_id) ?? []
+      existing.push(tp)
+      taskProgressByChallengeId.set(tp.challenge_id, existing)
+    })
+
     return progressEntries.map((progress) => {
       const challenge = progress.challenges
       const sortedTasks = [...(challenge.challenge_tasks ?? [])].sort(
@@ -1013,6 +1033,8 @@ export const challengeService = {
           quest_end_date: progress.quest_end_date,
           is_active: progress.is_active,
         },
+        userTaskProgress:
+          taskProgressByChallengeId.get(progress.challenge_id) ?? [],
         isActivated: true,
         questDaysLeft,
         daysLeft: questDaysLeft,

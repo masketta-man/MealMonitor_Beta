@@ -545,10 +545,10 @@ export const recipeService = {
     // Advance any active cooking quests (streak / generic-meal / meal-type tasks).
     // Passing the recipe's meal_type, calories, and tags unlocks finer-grained
     // quest matching (breakfast/lunch/dinner, low-calorie, vegetarian, etc.).
-    // The completedToday flag prevents gaming streak quests by cooking repeatedly.
-    // Best-effort: must never block or fail the recipe completion.
-    try {
-      const advanced = await challengeService.advanceCookingQuests(
+    // Fire-and-forget: quest advancing is best-effort and must never delay
+    // the completion response or block navigation back to the home screen.
+    challengeService
+      .advanceCookingQuests(
         userId,
         {
           mealType: recipeMealType,
@@ -557,15 +557,17 @@ export const recipeService = {
         },
         completedToday ?? false,
       )
-      if (advanced > 0) {
-        console.log(`🎯 Advanced ${advanced} active quest(s) from this cook`)
-      }
-    } catch (questError) {
-      console.error(
-        "Error advancing quests after recipe completion:",
-        questError,
-      )
-    }
+      .then((advanced) => {
+        if (advanced > 0) {
+          console.log(`🎯 Advanced ${advanced} active quest(s) from this cook`)
+        }
+      })
+      .catch((questError) => {
+        console.error(
+          "Error advancing quests after recipe completion:",
+          questError,
+        )
+      })
 
     // Get current level before update
     const profileBefore = await userService.getProfile(userId)

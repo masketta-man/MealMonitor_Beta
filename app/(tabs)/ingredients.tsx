@@ -213,8 +213,10 @@ export default function IngredientsScreen() {
 
       console.log("Delete confirmed for:", ingredientName)
       try {
-        const success =
-          await ingredientService.removeUserIngredient(userIngredientId)
+        const success = await ingredientService.removeUserIngredient(
+          user.id,
+          userIngredientId,
+        )
         console.log("Delete result:", success)
 
         if (success) {
@@ -255,8 +257,10 @@ export default function IngredientsScreen() {
             onPress: async () => {
               console.log("Delete confirmed for:", ingredientName)
               try {
-                const success =
-                  await ingredientService.removeUserIngredient(userIngredientId)
+                const success = await ingredientService.removeUserIngredient(
+                  user.id,
+                  userIngredientId,
+                )
                 console.log("Delete result:", success)
 
                 if (success) {

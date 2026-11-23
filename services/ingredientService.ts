@@ -151,6 +151,7 @@ export const ingredientService = {
       return null
     }
 
+    recommendationService.clearUserCache(userId)
     return data
   },
 
@@ -240,11 +241,15 @@ export const ingredientService = {
       return 0
     }
 
+    if (data && data.length > 0) {
+      recommendationService.clearUserCache(userId)
+    }
     return data?.length ?? 0
   },
 
   // Update user ingredient
   async updateUserIngredient(
+    userId: string,
     userIngredientId: string,
     updates: {
       quantity?: string
@@ -269,11 +274,15 @@ export const ingredientService = {
       return null
     }
 
+    recommendationService.clearUserCache(userId)
     return data
   },
 
   // Remove ingredient from user's pantry
-  async removeUserIngredient(userIngredientId: string): Promise<boolean> {
+  async removeUserIngredient(
+    userId: string,
+    userIngredientId: string,
+  ): Promise<boolean> {
     const { error } = await supabase
       .from("user_ingredients")
       .delete()
@@ -284,6 +293,7 @@ export const ingredientService = {
       return false
     }
 
+    recommendationService.clearUserCache(userId)
     return true
   },
 
